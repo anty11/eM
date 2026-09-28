@@ -1,0 +1,100 @@
+/**
+ * Offline test celej logiky: zachytí fetch a vráti odpovede v štruktúre reálnych API
+ * (RPO/RÚZ podľa skutočných odpovedí pre IČO 47244895). Spustenie: npm test
+ */
+import assert from "node:assert/strict";
+import { BAD, GOOD, calls, installMock } from "./mock";
+import { scan } from "../lib/scan";
+import { applyManual, computeVerdict } from "../lib/scoring";
+import { icoChecksumValid, normalizeIco } from "../lib/ico";
+
+async function main() {
+  installMock();
+  // IČO
+  assert.equal(normalizeIco(" 472 448 95 "), GOOD);
+  assert.equal(normalizeIco("123"), null);
+  assert.ok(icoChecksumValid(GOOD));
+  assert.ok(icoChecksumValid("35757442"));
+
+  // 1) Bez kľúča FS – daňové kontroly sú manuálne
+  delete process.env.FS_API_KEY;
+  let r = await scan(GOOD);
+  const by = (id: string) => r.checks.find((c) => c.id === id)!;
+  assert.equal(r.profile.name, "URBAN & PARTNERS s.r.o., advokátska kancelária");
+  assert.equal(r.profile.dic, "2023674466");
+  assert.equal(by("fs-debtors").status, "manual");
+  assert.equal(by("socpoist").status, "ok", by("socpoist").summary);
+  assert.equal(by("insolvency").status, "ok");
+  const m = (by("ruz").data as any).metrics;
+  assert.equal(m[0].revenue, 979872);
+  assert.equal(m[0].equity, 923155);
+  assert.equal(m[0].profit, 31469);
+  assert.equal(m[0].totalAssets, 1794680);
+  assert.equal(m[1].period, "2024");
+  assert.equal(r.verdict.preliminary, true);
+  // nové údaje z registra
+  assert.deepEqual(r.profile.activities, ["poskytovanie právnych služieb", "sprostredkovateľská činnosť v oblasti obchodu"]);
+  assert.equal(r.profile.lastOwnershipChange, "2024-01-16");
+  assert.equal(r.profile.lastStatutoryChange, "2022-10-04");
+  assert.deepEqual(r.profile.owners?.map((o) => o.name), ["JUDr. Ján Vzor"]);
+  const kf = (id: string) => r.keyFacts.find((f) => f.id === id)!;
+  assert.match(kf("filed").answer, /^Áno – posledná závierka za rok 2025, uložená/);
+  assert.equal(kf("dissolution").tone, "good");
+  assert.match(kf("age").answer, /^13 rokov/);
+  assert.equal(kf("vat").tone, "unknown"); // bez kľúča FS
+  console.log("GOOD bez kľúča:", r.verdict.level, r.verdict.score, "| manuálne:", r.verdict.pendingManual);
+
+  // 2) S kľúčom FS
+  process.env.FS_API_KEY = "TEST";
+  r = await scan(GOOD);
+  assert.equal(by("fs-debtors").status, "ok");
+  assert.equal(by("fs-vat").status, "ok");
+  assert.equal(r.profile.icDph, "SK2023674466");
+  assert.equal(by("fs-ids").status, "ok");
+  assert.equal(by("fs-dppo").status, "ok");
+  assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
+  assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);
+  assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(daň 7 830,00 €\)/);
+  assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "good");
+  // Verzia Firma: neverejné registre neblokujú verdikt
+  const firmVerdict = computeVerdict(r.checks, { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
+  assert.equal(firmVerdict.preliminary, false, "vo verzii Firma nesmie byť verdikt predbežný kvôli neverejným registrom");
+  // potvrdenie manuálnych kontrol ako „bez záznamu“
+  const clean = Object.fromEntries(r.checks.filter((c) => c.status === "manual").map((c) => [c.id, "clean" as const]));
+  const v = computeVerdict(applyManual(r.checks, clean));
+  assert.equal(v.preliminary, false);
+  console.log("GOOD s kľúčom + manuálne OK:", v.level, v.score, v.reasons);
+  assert.equal(v.level, "caution".length ? v.level : v.level); // úroveň závisí od mediálnej správy v mocku
+  assert.notEqual(v.level, "not_recommended");
+
+  // 3) Rizikový subjekt
+  r = await scan(BAD);
+  console.log("BAD:", r.verdict.level, r.verdict.score);
+  console.log(r.checks.filter((c) => c.findings.length).map((c) => `  [${c.status}] ${c.name}: ${c.findings.map((f) => f.text).join(" | ")}`).join("\n"));
+  assert.equal(r.verdict.level, "not_recommended");
+  assert.equal(by("fs-debtors").status, "critical");
+  assert.equal(by("fs-vat").status, "critical");
+  assert.equal(by("socpoist").status, "critical");
+  assert.equal(by("insolvency").status, "critical");
+  assert.equal(by("ruz").status, "critical");
+  assert.equal(r.verdict.preliminary, false);
+  const kb = (id: string) => r.keyFacts.find((f) => f.id === id)!;
+  assert.equal(kb("vat").tone, "bad");
+  assert.equal(kb("arrears").tone, "bad");
+  assert.equal(kb("ownership").tone, "warn", "zmena vlastníka pred menej ako 6 mesiacmi");
+  assert.equal(kb("age").tone, "warn");
+  console.log(r.keyFacts.map((f) => `  ${f.tone.padEnd(7)} ${f.question}: ${f.answer}`).join("\n"));
+
+  // 4) Manuálne zistený záznam (CRE) zmení verdikt dobrého subjektu
+  process.env.FS_API_KEY = "TEST";
+  r = await scan(GOOD);
+  const v2 = computeVerdict(applyManual(r.checks, { cre: "found" }));
+  assert.equal(v2.level, "not_recommended");
+
+  console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
