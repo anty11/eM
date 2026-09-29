@@ -211,16 +211,61 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
   });
 }
 
+/** EÚ VIES – verejné REST API (bez kľúča): platnosť IČ DPH. */
+async function vies(dic: string): Promise<{ valid: boolean; name?: string; address?: string } | null> {
+  try {
+    const j = await getJson<any>(`https://ec.europa.eu/taxation_customs/vies/rest-api/ms/SK/vat/${dic}`, { timeoutMs: 8000 });
+    if (typeof j?.isValid !== "boolean") return null;
+    return { valid: j.isValid, name: j.name && j.name !== "---" ? j.name : undefined, address: j.address && j.address !== "---" ? j.address : undefined };
+  } catch {
+    return null;
+  }
+}
+
 export async function checkVat(ctx: Ctx): Promise<CheckResult> {
   const m = meta("fs-vat", "Registrácia DPH a dôvody na zrušenie");
-  if (!key()) return noKey(m, "DPH");
+  if (!key()) {
+    // bez kľúča FS: aspoň registrácia DPH cez VIES
+    return runCheck({ ...m, source: "EÚ VIES (registrácia DPH); zoznamy Finančnej správy manuálne" }, async () => {
+      const v = ctx.profile.dic ? await vies(ctx.profile.dic) : null;
+      if (!v) return { status: "manual", summary: "DPH: automatické overenie nie je aktívne (chýba kľúč FS_API_KEY) a VIES neodpovedal. Overte manuálne.", findings: [], verifyUrl: ZOZNAMY, automated: false } as any;
+      if (v.valid) ctx.profile.icDph = `SK${ctx.profile.dic}`;
+      return {
+        status: "info",
+        summary: v.valid
+          ? `Registrovaný platiteľ DPH SK${ctx.profile.dic} (podľa EÚ VIES${v.name ? `, ${v.name}` : ""}). Zoznam dôvodov na zrušenie registrácie vyžaduje kľúč FS – overte manuálne.`
+          : `Nie je platiteľom DPH (podľa EÚ VIES). Zoznamy Finančnej správy vyžadujú kľúč FS.`,
+        findings: v.valid ? [{ severity: "positive", text: `Registrovaný platiteľ DPH SK${ctx.profile.dic} (VIES)`, penalty: -2 }] : [],
+        verifyUrl: ZOZNAMY,
+        data: { icDph: v.valid ? `SK${ctx.profile.dic}` : undefined, vies: v },
+      };
+    });
+  }
   return runCheck(m, async () => {
     const [sVat, sRisk, sDel] = await Promise.all([resolve("vat"), resolve("vatRisk"), resolve("vatDeleted")]);
-    const [vat, risk, del] = await Promise.all([
-      sVat ? search(sVat, ctx) : Promise.resolve([]),
-      sRisk ? search(sRisk, ctx) : Promise.resolve([]),
-      sDel ? search(sDel, ctx).catch(() => []) : Promise.resolve([]),
-    ]);
+    let vat: any[] = [];
+    let risk: any[] = [];
+    let del: any[] = [];
+    let viesNote = "";
+    try {
+      [vat, risk, del] = await Promise.all([
+        sVat ? search(sVat, ctx) : Promise.resolve([]),
+        sRisk ? search(sRisk, ctx) : Promise.resolve([]),
+        sDel ? search(sDel, ctx).catch(() => []) : Promise.resolve([]),
+      ]);
+    } catch (e) {
+      // FS API zlyhalo – registráciu overíme cez EÚ VIES, zoznam rizikových platiteľov ostáva na manuálne overenie
+      const v = ctx.profile.dic ? await vies(ctx.profile.dic) : null;
+      if (!v) throw e;
+      if (v.valid) ctx.profile.icDph = `SK${ctx.profile.dic}`;
+      return {
+        status: "manual",
+        summary: `${v.valid ? `Registrovaný platiteľ DPH SK${ctx.profile.dic} (podľa EÚ VIES).` : "Nie je platiteľom DPH (podľa EÚ VIES)."} Zoznam platiteľov s dôvodmi na zrušenie registrácie Finančná správa nevrátila (${(e as Error).message.slice(0, 120)}) – overte manuálne alebo skúste znova.`,
+        findings: v.valid ? [{ severity: "positive", text: `Registrovaný platiteľ DPH SK${ctx.profile.dic} (VIES)`, penalty: -2 }] : [],
+        verifyUrl: ZOZNAMY,
+        data: { icDph: v.valid ? `SK${ctx.profile.dic}` : undefined, vies: v },
+      };
+    }
     const f: Finding[] = [];
     const icDph = vat[0] ? pick(vat[0], /ic_?dph/) : undefined;
     if (icDph) ctx.profile.icDph = String(icDph);

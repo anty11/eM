@@ -1,6 +1,7 @@
 import { runCheck } from "../check";
 import { fold, getText } from "../http";
 import type { CheckResult, CompanyProfile, Ctx, Finding } from "../types";
+import { NEWS_DOMAINS, OUTLETS, searchDuckDuckGo, searchOutlets, type Found } from "./slovakMedia";
 
 /**
  * Médiá: Google News RSS + Bing News RSS (slovenská lokalizácia), zlúčené, bez duplicít,
@@ -38,7 +39,7 @@ export interface Article {
   snippet?: string;
   negative: string[];
   relevance: number;
-  provider: "google" | "bing" | "web";
+  provider: "google" | "bing" | "web" | "outlet" | "ddg";
 }
 
 /** Skráti obchodné meno na hľadaný výraz (bez právnej formy). */
@@ -109,10 +110,16 @@ const GENERIC = new Set(
 );
 
 /** Ohodnotí, nakoľko je článok o tomto subjekte (0 = nesúvisí). */
-export function relevance(a: { title: string; snippet?: string; domain?: string }, p: CompanyProfile): number {
-  const hay = fold(`${a.title} ${a.snippet || ""}`);
-  const hayC = compact(`${a.title} ${a.snippet || ""}`);
-  const titleC = compact(a.title);
+export function relevance(a: { title: string; snippet?: string; domain?: string; link?: string }, p: CompanyProfile): number {
+  let path = "";
+  try {
+    if (a.link) path = decodeURIComponent(new URL(a.link).pathname);
+  } catch {
+    /* bez adresy */
+  }
+  const hay = fold(`${a.title} ${a.snippet || ""} ${path.replace(/[-_/]+/g, " ")}`);
+  const hayC = compact(`${a.title} ${a.snippet || ""} ${path}`);
+  const titleC = compact(`${a.title} ${path}`);
   const names = [p.name || "", ...(p.formerNames || [])].filter(Boolean);
   // predchádzajúce mená len ak sú dostatočne výrazné (napr. „URBAN“ samo by chytilo čokoľvek)
   const mainShort = compact(searchName(p.name || ""));
@@ -161,8 +168,10 @@ export function processArticles(raw: Omit<Article, "negative" | "relevance">[], 
     rejected.push({ title: a.title, link: a.link, source: a.source || a.domain, date: a.date, reason });
   for (const a of raw) {
     const key = fold(a.title).replace(/[^a-z0-9]+/g, " ").trim().slice(0, 90);
-    if (!key || seen.has(key)) continue;
+    const ukey = (a.link || "").replace(/^https?:\/\/(www\.)?/, "").replace(/[?#].*$/, "");
+    if (!key || seen.has(key) || (ukey && seen.has(ukey))) continue;
     seen.add(key);
+    if (ukey) seen.add(ukey);
     const t = a.date ? +new Date(a.date) : NaN;
     if (Number.isFinite(t) && now - t > YEARS * 365.25 * 864e5) {
       reject(a, `starší ako ${YEARS} rokov`);
@@ -190,8 +199,8 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       id: "news",
       category: "media",
       name: "Médiá a internet (PR, správy)",
-      source: "Google News, Bing News a Bing web (SK) – filtrované podľa relevancie",
-      sourceUrl: "https://news.google.com",
+      source: "Slovenské médiá priamo (SME, Denník N, HN, Pravda, TREND, Aktuality, TASR, Forbes, epravo…) + index vyhľadávačov",
+      sourceUrl: "https://www.sme.sk",
     },
     async () => {
       const p = ctx.profile;
@@ -221,9 +230,18 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       for (const v of quoted.slice(1, 3)) queries.push([g(v), "google"], [b(v), "bing"]);
       if (surname && quoted[0]) queries.push([g(`${quoted[0]} "${surname}"`), "google"]);
 
-      const results = await Promise.allSettled(queries.map(([u]) => getText(u, { timeoutMs: 12000 })));
-      const raw = results.flatMap((r, i) => (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).slice(0, 50) : []));
-      if (results.every((r) => r.status === "rejected")) throw new Error("vyhľadávače správ neodpovedajú");
+      const [results, outlets, ddg] = await Promise.all([
+        Promise.allSettled(queries.map(([u]) => getText(u, { timeoutMs: 12000 }))),
+        variants.length ? searchOutlets(variants).catch(() => ({ found: [] as Found[], ok: [] as string[], failed: [] as string[] })) : Promise.resolve({ found: [] as Found[], ok: [] as string[], failed: [] as string[] }),
+        variants.length ? searchDuckDuckGo(variants).catch(() => [] as Found[]) : Promise.resolve([] as Found[]),
+      ]);
+      const toRaw = (f: Found, provider: Article["provider"]) => ({ title: f.title, link: f.link, source: f.source, domain: f.domain, date: f.date, snippet: f.snippet, provider });
+      const raw = [
+        ...outlets.found.map((f) => toRaw(f, "outlet")),
+        ...ddg.map((f) => toRaw(f, "ddg")),
+        ...results.flatMap((r, i) => (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).slice(0, 50) : [])),
+      ];
+      if (!raw.length && results.every((r) => r.status === "rejected") && !outlets.ok.length) throw new Error("médiá ani vyhľadávače neodpovedajú");
 
       const rejected: Rejected[] = [];
       const articles = processArticles(raw, p, Date.now(), rejected);
@@ -244,7 +262,12 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
             : "Vyhľadávače správ nevrátili žiadne výsledky – mohli zablokovať požiadavku zo servera. Použite odkazy nižšie.",
         findings: f,
         verifyUrl: links.google,
-        data: { query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), rejected: rejected.slice(0, 30), scanned: raw.length, sources: results.map((r, i) => ({ provider: queries[i][1], ok: r.status === "fulfilled", items: r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : 0 })), links },
+        data: { query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), rejected: rejected.slice(0, 30), scanned: raw.length, sources: [
+            ...outlets.ok.map((n) => ({ provider: "outlet", name: n, ok: true, items: outlets.found.filter((f) => f.source === n).length })),
+            ...outlets.failed.map((n) => ({ provider: "outlet", name: n, ok: false, items: 0 })),
+            { provider: "ddg", ok: ddg.length > 0, items: ddg.length },
+            ...results.map((r, i) => ({ provider: queries[i][1], ok: r.status === "fulfilled", items: r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : 0 })),
+          ], outletsOk: outlets.ok, outletsFailed: outlets.failed, links },
       };
     },
   );

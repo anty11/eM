@@ -129,23 +129,30 @@ async function persistIndex(idx: { map: Map<string, Debtor>; count: number; file
   if (old?.key && old.key !== key) await kv().del(old.key);
 }
 
-/** Obnova indexu na pozadí (po odoslaní odpovede), najviac jedna naraz. */
-async function refreshInBackground() {
-  const job = async () => {
-    if ((await kv().incr("sp:lock", 600)) !== 1) return;
-    try {
-      await persistIndex(await downloadIndex());
-    } finally {
-      await kv().del("sp:lock");
-    }
-  };
+/** Stiahne a uloží zoznam; najviac jedna príprava naraz (zámok 10 min). */
+export async function buildIndexNow(): Promise<{ built: boolean; count?: number; error?: string }> {
+  if ((await kv().incr("sp:lock", 600)) !== 1) return { built: false, error: "príprava už beží" };
   try {
-    const { after } = await import("next/server");
-    after(() => job().catch(() => undefined));
-  } catch {
-    job().catch(() => undefined);
+    const idx = await downloadIndex();
+    await persistIndex(idx);
+    return { built: true, count: idx.count };
+  } catch (e) {
+    return { built: false, error: (e as Error).message };
+  } finally {
+    await kv().del("sp:lock");
   }
 }
+
+/** Príprava na pozadí (po odoslaní odpovede). */
+async function startBackgroundBuild() {
+  try {
+    const { after } = await import("next/server");
+    after(() => buildIndexNow().catch(() => undefined));
+  } catch {
+    buildIndexNow().catch(() => undefined);
+  }
+}
+const refreshInBackground = startBackgroundBuild;
 
 async function lookupStored(ico: string): Promise<{ meta: SpMeta; d: Debtor | null } | null> {
   try {
@@ -182,16 +189,27 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
           asOf = stored.meta.updatedAt;
           if (Date.now() - stored.meta.updatedAt > MAX_AGE) await refreshInBackground();
         } else {
-          const idx = await loadIndex();
-          d = idx.map.get(ctx.ico) || null;
-          count = idx.count;
-          // uložiť do databázy na pozadí – ďalšie preverenia budú okamžité
-          try {
-            const { after } = await import("next/server");
-            after(() => persistIndex(idx).catch(() => undefined));
-          } catch {
-            persistIndex(idx).catch(() => undefined);
+          // Prvé spustenie: zoznam (~130 000 riadkov) sa pripraví na pozadí, aby nezdržal preverenie.
+          // Ak už beží príprava, počkáme najviac 6 s, či medzitým skončila.
+          await startBackgroundBuild();
+          for (let i = 0; i < 3; i++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const again = await lookupStored(ctx.ico);
+            if (again) {
+              d = again.d;
+              count = again.meta.count;
+              asOf = again.meta.updatedAt;
+              break;
+            }
           }
+          if (d === undefined)
+            return {
+              status: "error",
+              summary: "Zoznam dlžníkov Sociálnej poisťovne sa práve pripravuje (prvé spustenie, asi 1 minúta). Kliknite na „Skúsiť znova“.",
+              findings: [],
+              verifyUrl,
+              data: { preparing: true },
+            };
         }
         if (!d)
           return {

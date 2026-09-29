@@ -69,6 +69,14 @@ export default function Page() {
   const [profilePatch, setProfilePatch] = useState<Partial<CompanyProfile>>({});
   const [aiBusy, setAiBusy] = useState<Record<string, boolean>>({});
   const [aiErr, setAiErr] = useState<Record<string, string>>({});
+  const [retrying, setRetrying] = useState<Record<string, boolean>>({});
+  const [aiSince, setAiSince] = useState<Record<string, number>>({});
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!Object.values(aiBusy).some(Boolean)) return;
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, [aiBusy]);
   const lawyer = me?.mode === "advokat";
 
   useEffect(() => {
@@ -182,9 +190,37 @@ export default function Page() {
     return (Object.keys(CATEGORIES) as CategoryId[]).filter((k) => g.has(k)).map((k) => [k, g.get(k)!] as const);
   }, [checks, lawyer, nonPublic]);
 
+  /** Znovu spustí jeden zdroj (po výpadku / časovom limite). */
+  async function retryOne(id: string) {
+    if (!report || !profile) return;
+    setRetrying((s) => ({ ...s, [id]: true }));
+    try {
+      const r = await fetch("/api/check/one", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ico: report.ico, id, profile }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `Chyba ${r.status}`);
+      setAiResults((s) => ({ ...s, [id]: j.check })); // prepíše pôvodný výsledok (rovnaký mechanizmus ako AI)
+      if (j.profile) setProfilePatch((s) => ({ ...s, ...j.profile }));
+    } catch (e) {
+      setAiErr((s) => ({ ...s, [id]: (e as Error).message }));
+    } finally {
+      setRetrying((s) => ({ ...s, [id]: false }));
+    }
+  }
+
+  const retryButton = (c: CheckResult) => {
+    const cur = baseChecks.find((o) => o.id === c.id) || c;
+    if (!AUTO_ORDER.includes(c.id) || (cur.status !== "error" && !(cur.status === "manual" && cur.automated !== false))) return null;
+    return (
+      <button className="mbtn no-print" disabled={retrying[c.id]} onClick={() => retryOne(c.id)}>
+        {retrying[c.id] ? "Skúšam znova…" : "Skúsiť znova"}
+      </button>
+    );
+  };
+
   /** AI záložné overenie jedného zdroja. */
   async function runAi(check: CheckResult, rep: ScanReport, prof: CompanyProfile) {
     setAiBusy((s) => ({ ...s, [check.id]: true }));
+    setAiSince((s) => ({ ...s, [check.id]: Date.now() }));
     setAiErr((s) => ({ ...s, [check.id]: "" }));
     try {
       const r = await fetch("/api/ai/fallback", {
@@ -225,7 +261,7 @@ export default function Page() {
     if (!offer) return null;
     return (
       <button className="mbtn ai no-print" disabled={aiBusy[c.id]} onClick={() => profile && runAi(orig, report, profile)}>
-        {aiBusy[c.id] ? "AI overuje…" : aiResults[c.id] ? "Overiť cez AI znova" : "Overiť cez AI"}
+        {aiBusy[c.id] ? `AI prehľadáva register… ${Math.round((Date.now() - (aiSince[c.id] || Date.now())) / 1000)} s (zvyčajne 30–90 s)` : aiResults[c.id] ? "Overiť cez AI znova" : "Overiť cez AI"}
       </button>
     );
   };
@@ -457,6 +493,7 @@ export default function Page() {
                     <div className="actions">
                       {c.verifyUrl && <a className="verify" href={c.verifyUrl} target="_blank" rel="noreferrer">Overiť v zdroji ↗</a>}
                       {lawyer && (baseChecks.find((o) => o.id === c.id)?.status === "manual" || baseChecks.find((o) => o.id === c.id)?.status === "error") && manualButtons(c)}
+                      {retryButton(c)}
                       {aiButton(c)}
                       {aiErr[c.id] && <span className="f-critical">{aiErr[c.id]}</span>}
                     </div>

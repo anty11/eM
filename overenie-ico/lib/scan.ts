@@ -9,7 +9,7 @@ import { checkRpo } from "./sources/rpo";
 import { checkRpvs } from "./sources/rpvs";
 import { checkRuz } from "./sources/ruz";
 import { checkSocpoist } from "./sources/socpoist";
-import type { CheckResult, Ctx, ScanReport } from "./types";
+import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
 export const APP_VERSION = "1.1.0";
@@ -91,4 +91,26 @@ export async function scan(ico: string, onProgress?: Progress): Promise<ScanRepo
     keyFacts: keyFacts(ctx.profile, checks),
     appVersion: APP_VERSION,
   };
+}
+
+const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {
+  rpo: checkRpo,
+  ruz: checkRuz,
+  "fs-debtors": checkTaxDebtors,
+  "fs-vat": checkVat,
+  "fs-ids": checkIds,
+  "fs-dppo": checkIncomeTax,
+  socpoist: checkSocpoist,
+  insolvency: checkInsolvency,
+  rpvs: checkRpvs,
+  news: checkNews,
+};
+
+/** Znovu spustí jeden zdroj (napr. po výpadku) s už známym profilom subjektu. */
+export async function runOne(ico: string, id: string, profile: Partial<CompanyProfile>): Promise<{ check: CheckResult; profile: CompanyProfile } | null> {
+  const fn = RUNNERS[id];
+  if (!fn) return null;
+  const ctx: Ctx = { ico, profile: { ...profile, ico } as CompanyProfile, rpoDone: Promise.resolve(), dicReady: Promise.resolve(), resolveDic: () => undefined };
+  const check = await fn(ctx);
+  return { check, profile: ctx.profile };
 }
