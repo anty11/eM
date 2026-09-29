@@ -38,7 +38,7 @@ export interface Article {
   snippet?: string;
   negative: string[];
   relevance: number;
-  provider: "google" | "bing";
+  provider: "google" | "bing" | "web";
 }
 
 /** Skráti obchodné meno na hľadaný výraz (bez právnej formy). */
@@ -47,6 +47,27 @@ export function searchName(name: string): string {
     .replace(/,?\s*(spol\.\s*s\s*r\.\s*o\.|s\.\s*r\.\s*o\.|a\.\s*s\.|k\.\s*s\.|v\.\s*o\.\s*s\.|s\.\s*e\.|družstvo|advokátska kancelária|v likvidácii|v konkurze).*$/i, "")
     .replace(/[,\s]+$/, "")
     .trim();
+}
+
+/** Porovnanie bez medzier a interpunkcie: „Urban&Partners“ = „URBAN & PARTNERS“. */
+export const compact = (s: string) => fold(s).replace(/[^a-z0-9&]/g, "");
+
+/**
+ * Varianty mena, pod ktorými o firme píšu médiá: skrátené meno, zápis bez medzier okolo „&“,
+ * a predchádzajúce obchodné mená (firmy sa premenúvajú – staršie články sú pod starým menom).
+ */
+export function nameVariants(p: CompanyProfile): string[] {
+  const out: string[] = [];
+  const add = (x?: string) => {
+    const v = (x || "").trim();
+    if (v.length > 2 && !out.some((o) => compact(o) === compact(v) && o === v)) out.push(v);
+  };
+  const short = p.name ? searchName(p.name) : "";
+  add(short);
+  if (/\s&\s/.test(short)) add(short.replace(/\s*&\s*/g, "&"));
+  if (/&/.test(short)) add(short.replace(/\s*&\s*/g, " and "));
+  for (const f of (p.formerNames || []).slice(-2).reverse()) if (compact(searchName(f)).length >= 10) add(searchName(f));
+  return out.slice(0, 5);
 }
 
 const decode = (s: string) =>
@@ -89,28 +110,37 @@ const GENERIC = new Set(
 
 /** Ohodnotí, nakoľko je článok o tomto subjekte (0 = nesúvisí). */
 export function relevance(a: { title: string; snippet?: string; domain?: string }, p: CompanyProfile): number {
-  const name = p.name || "";
-  const short = fold(searchName(name));
-  const full = fold(name);
   const hay = fold(`${a.title} ${a.snippet || ""}`);
-  const title = fold(a.title);
-  const words = short.split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
+  const hayC = compact(`${a.title} ${a.snippet || ""}`);
+  const titleC = compact(a.title);
+  const names = [p.name || "", ...(p.formerNames || [])].filter(Boolean);
+  // predchádzajúce mená len ak sú dostatočne výrazné (napr. „URBAN“ samo by chytilo čokoľvek)
+  const mainShort = compact(searchName(p.name || ""));
+  const shorts = [...new Set([mainShort, ...(p.formerNames || []).map((n) => compact(searchName(n))).filter((x) => x.length >= 10)])].filter((x) => x.length > 2);
   let s = 0;
-  if (full.length > 5 && hay.includes(full)) s += 3;
-  if (short.length > 2 && title.includes(short)) s += 3;
-  else if (short.length > 2 && hay.includes(short)) s += 2;
-  else if (words.length && words.every((w) => hay.includes(w))) s += 1;
+  if (names.some((n) => compact(n).length > 8 && hayC.includes(compact(n)))) s += 3; // úplné meno s právnou formou
+  if (shorts.some((sh) => titleC.includes(sh))) s += 3;
+  else if (shorts.some((sh) => hayC.includes(sh))) s += 2;
+  else {
+    const words = fold(searchName(p.name || "")).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
+    if (words.length && words.every((w) => hay.includes(w))) s += 1;
+  }
   if (hay.includes(p.ico)) s += 3;
-  // kontext: štatutár, mesto sídla, predmet činnosti
+  // kontext: štatutár, mesto sídla, zdroj
   const surnames = (p.statutory || []).map((x) => fold(x.name).split(" ").filter((w) => w.length > 3).pop() || "").filter(Boolean);
   if (surnames.some((sn) => hay.includes(sn))) s += 2;
   const city = fold((p.address || "").split(",").pop() || "").replace(/\d+/g, "").split(" - ")[0].trim();
   if (city.length > 3 && hay.includes(city)) s += 1;
   if (a.domain && /\.(sk|cz)$/.test(a.domain)) s += 1;
-  // krátke / všeobecné mená: bez kontextu nestačí
-  if (words.length <= 1 && short.length < 8 && s < 4) s = Math.min(s, 1);
+  // krátke / všeobecné meno: bez kontextu nestačí
+  const main = compact(searchName(p.name || ""));
+  const mainWords = fold(searchName(p.name || "")).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
+  if (mainWords.length <= 1 && main.length < 8 && s < 4) s = Math.min(s, 1);
   return s;
 }
+
+/** Stránky registrov a katalógov firiem – nie sú to médiá (zobrazujú sa ako odkazy). */
+const NOT_MEDIA = /(^|\.)(finstat|orsr|uvostat|finreg|foaf|indexpodnikatela|profesia|emis|zoznam|firmy|kompass|registeruz|rpvs|crz|statistics|justice|slov-lex|linkedin|facebook|instagram|youtube|twitter|x)\.(sk|com|gov\.sk|eu|cz)$/;
 
 const MIN_RELEVANCE = 3;
 const YEARS = 3;
@@ -124,6 +154,7 @@ export function processArticles(raw: Omit<Article, "negative" | "relevance">[], 
     seen.add(key);
     const t = a.date ? +new Date(a.date) : NaN;
     if (Number.isFinite(t) && now - t > YEARS * 365.25 * 864e5) continue;
+    if (a.domain && NOT_MEDIA.test(a.domain)) continue;
     const rel = relevance(a, p);
     if (rel < MIN_RELEVANCE) continue;
     const hay = ` ${fold(`${a.title} ${a.snippet || ""}`)} `;
@@ -139,7 +170,7 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       id: "news",
       category: "media",
       name: "Médiá a internet (PR, správy)",
-      source: "Google News + Bing News (SK), filtrované podľa relevancie",
+      source: "Google News, Bing News a Bing web (SK) – filtrované podľa relevancie",
       sourceUrl: "https://news.google.com",
     },
     async () => {
@@ -157,13 +188,18 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       };
       const g = (query: string) => `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=sk&gl=SK&ceid=SK:sk`;
       const b = (query: string) => `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss&setlang=sk&cc=SK&qft=${encodeURIComponent('sortbydate="1"')}`;
+      const w = (query: string) => `https://www.bing.com/search?q=${encodeURIComponent(query)}&format=rss&setlang=sk&cc=SK&count=50`;
+      const variants = nameVariants(p);
+      const quoted = variants.map((v) => `"${v}"`);
+      const any = quoted.length ? quoted.join(" OR ") : q;
       const queries: [string, Article["provider"]][] = [
-        [g(`${q} when:1y`), "google"], // najnovšie
-        [g(q), "google"], // všetky
-        [b(q), "bing"],
+        [g(`${any} when:1y`), "google"], // najnovšie – všetky varianty mena
+        [g(any), "google"],
+        [b(quoted[0] || q), "bing"],
+        [w(`${any} -site:finstat.sk -site:orsr.sk -site:uvostat.sk`), "web"], // PR, odborné weby, tlačové správy
       ];
-      if (p.name && p.name !== short) queries.push([g(`"${p.name}"`), "google"]);
-      if (surname && short) queries.push([g(`${q} "${surname}"`), "google"]);
+      for (const v of quoted.slice(1, 3)) queries.push([g(v), "google"], [b(v), "bing"]);
+      if (surname && quoted[0]) queries.push([g(`${quoted[0]} "${surname}"`), "google"]);
 
       const results = await Promise.allSettled(queries.map(([u]) => getText(u, { timeoutMs: 12000 })));
       const raw = results.flatMap((r, i) => (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).slice(0, 50) : []));
@@ -182,10 +218,12 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
         status: recentNeg.length ? "warning" : "ok",
         summary: articles.length
           ? `${articles.length} relevantných článkov za posledné ${YEARS} roky (najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, nesúvisiace (iné firmy s podobným menom) vyradené.`
-          : `Za posledné ${YEARS} roky sa nenašli relevantné články o subjekte (prehľadaných ${raw.length} výsledkov).`,
+          : raw.length
+            ? `Za posledné ${YEARS} roky sa nenašli články, ktoré by sa preukázateľne týkali subjektu (prehľadaných ${raw.length} výsledkov, všetky o iných subjektoch alebo staršie).`
+            : "Vyhľadávače správ nevrátili žiadne výsledky – mohli zablokovať požiadavku zo servera. Použite odkazy nižšie.",
         findings: f,
         verifyUrl: links.google,
-        data: { query: q, articles: articles.slice(0, 20), scanned: raw.length, links },
+        data: { query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), scanned: raw.length, sources: results.map((r, i) => ({ provider: queries[i][1], ok: r.status === "fulfilled", items: r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : 0 })), links },
       };
     },
   );

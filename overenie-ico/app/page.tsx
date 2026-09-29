@@ -286,6 +286,25 @@ export default function Page() {
             {Object.values(aiBusy).some(Boolean) && (
               <div className="ai-running no-print">AI dohľadáva údaje v zdrojoch, ktoré nie sú dostupné cez API ({Object.values(aiBusy).filter(Boolean).length})… Výsledok sa priebežne dopĺňa.</div>
             )}
+            {(() => {
+              const done = checks.filter((c) => c.status !== "manual" && c.status !== "error");
+              const failed = baseChecks.filter((c) => c.status === "error" || (c.status === "manual" && c.automated !== false));
+              const noKey = baseChecks.filter((c) => c.status === "manual" && c.automated === false && c.id.startsWith("fs-"));
+              const nonPub = baseChecks.filter((c) => NON_PUBLIC.includes(c.id) && c.status === "manual");
+              return (
+                <section className="card coverage">
+                  <h2>Pokrytie overenia</h2>
+                  <p style={{ margin: 0 }}>
+                    <b>{done.length} z {checks.length}</b> zdrojov overených automaticky{Object.values(aiResults).some((c) => c.status !== "manual") ? " (vrátane AI)" : ""}.
+                  </p>
+                  <ul className="src" style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                    {noKey.length > 0 && <li>{noKey.length}× Finančná správa – chýba bezplatný kľúč <code>FS_API_KEY</code> (admin ho doplní vo Verceli).</li>}
+                    {failed.length > 0 && <li>{failed.length}× zdroj neodpovedal alebo vrátil nejednoznačný výsledok: {failed.map((c) => c.name).join(", ")}.</li>}
+                    {nonPub.length > 0 && <li>{nonPub.length}× register bez verejného prístupu ({nonPub.map((c) => c.name.replace(/^Dlžníci /, "")).join(", ")}){report.ai?.available ? " – AI overí tie, ktoré sa dajú." : " – s AI kľúčom by sa 5 z nich overilo automaticky."}</li>}
+                  </ul>
+                </section>
+              );
+            })()}
             <KeyFacts facts={facts} />
 
             <ContactCard ico={report.ico} profile={p} meEmail={me?.email} />

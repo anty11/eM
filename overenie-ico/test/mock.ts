@@ -11,6 +11,7 @@ const rpoEntity = (ico: string, bad: boolean) => ({
     ? [{ value: "C.C.C. s.r.o.", validFrom: "2025-11-01" }]
     : [
         { value: "URBAN s.r.o., advokátska kancelária", validFrom: "2013-01-09", validTo: "2017-12-31" },
+        { value: "URBAN GAŠPEREC BOŠANSKÝ, s.r.o., advokátska kancelária", validFrom: "2022-10-04", validTo: "2024-01-15" },
         { value: "URBAN & PARTNERS s.r.o., advokátska kancelária", validFrom: "2024-01-16" },
       ],
   addresses: [
@@ -151,12 +152,21 @@ globalThis.fetch = (async (input: any, init?: any) => {
     // Realistický mix: relevantné, staré, nesúvisiace (iná firma s podobným menom), duplicity
     const q = u.searchParams.get("q") || "";
     const days = (n: number) => new Date(Date.now() - n * 864e5).toUTCString();
+    const web = u.host === "www.bing.com" && u.pathname === "/search";
     const item = (title: string, src: string, dom: string, d: string, desc = "") =>
-      u.host === "www.bing.com"
+      web
+        ? `<item><title>${title}</title><link>https://${dom}/clanok</link><description>${desc}</description><pubDate>${d}</pubDate></item>`
+        : u.host === "www.bing.com"
         ? `<item><title>${title}</title><link>http://www.bing.com/news/apiclick.aspx?url=https%3a%2f%2f${dom}%2fa</link><description>${desc}</description><pubDate>${d}</pubDate><News:Source>${src}</News:Source></item>`
         : `<item><title>${title} - ${src}</title><link>https://news.google.com/rss/articles/x${Math.random()}</link><pubDate>${d}</pubDate><source url="https://${dom}">${src}</source><description>${desc}</description></item>`;
     let items = "";
-    if (q.includes("URBAN & PARTNERS")) {
+    if (web && q.includes("URBAN")) {
+      items =
+        item("Urban&Partners získala ocenenie Právnická firma roka", "epravo", "epravo.sk", days(30), "Advokátska kancelária Urban&Partners z Bratislavy") +
+        item("URBAN & PARTNERS s.r.o. – finančné výsledky", "FinStat", "finstat.sk", days(3));
+    } else if (q.includes("URBAN GAŠPEREC BOŠANSKÝ")) {
+      items = item("Kancelária URBAN GAŠPEREC BOŠANSKÝ radila pri predaji", "Trend", "trend.sk", days(400));
+    } else if (q.includes("URBAN & PARTNERS")) {
       items =
         item("URBAN & PARTNERS posilňuje tím v Bratislave", "Trend", "trend.sk", days(12), "Advokátska kancelária URBAN & PARTNERS s.r.o. prijala nového partnera.") +
         item("URBAN & PARTNERS posilňuje tím v Bratislave", "Trend", "trend.sk", days(12)) +

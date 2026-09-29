@@ -35,7 +35,12 @@ async function main() {
   assert.equal(r.verdict.preliminary, true);
   // médiá: len relevantné, najnovšie prvé, bez duplicít, bez starých a nesúvisiacich
   const arts = (by("news").data as any).articles as any[];
-  assert.deepEqual(arts.map((a) => a.title), ["URBAN & PARTNERS posilňuje tím v Bratislave", "Právnici z URBAN & PARTNERS radili pri akvizícii"]);
+  assert.deepEqual(arts.map((a) => a.title), [
+    "URBAN & PARTNERS posilňuje tím v Bratislave",
+    "Urban&Partners získala ocenenie Právnická firma roka",
+    "Právnici z URBAN & PARTNERS radili pri akvizícii",
+    "Kancelária URBAN GAŠPEREC BOŠANSKÝ radila pri predaji",
+  ], JSON.stringify(arts.map((a) => a.title)) + " zápis bez medzier, predchádzajúce meno, zoradené od najnovšieho; bez FinStatu, Reuters a starých");
   assert.equal(by("news").status, "ok");
   // nové údaje z registra
   assert.deepEqual(r.profile.activities, ["poskytovanie právnych služieb", "sprostredkovateľská činnosť v oblasti obchodu"]);
