@@ -52,6 +52,8 @@ export const GET = handler(async (req) => {
   try {
     const r = await scan(ico);
     out.scan = r.checks.map((c) => ({ id: c.id, status: c.status, ms: c.durationMs, summary: c.summary.slice(0, 300) }));
+    const news = r.checks.find((c) => c.id === "news")?.data as any;
+    if (news) out.news = { query: news.query, variants: news.variants, sources: news.sources, articles: news.articles, rejected: news.rejected };
   } catch (e) {
     out.scan = `chyba: ${(e as Error).message}`;
   }

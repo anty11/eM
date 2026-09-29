@@ -40,6 +40,10 @@ export interface Article {
   negative: string[];
   relevance: number;
   provider: "google" | "bing" | "web" | "outlet" | "ddg";
+  /** „firma“ alebo meno osoby (štatutár / vlastník), ktorej sa článok týka. */
+  about?: string;
+  /** Z akého dopytu výsledok pochádza (firm = presný názov firmy v úvodzovkách). */
+  via?: "firm" | "person" | "other";
 }
 
 /** Skráti obchodné meno na hľadaný výraz (bez právnej formy). */
@@ -69,6 +73,47 @@ export function nameVariants(p: CompanyProfile): string[] {
   if (/&/.test(short)) add(short.replace(/\s*&\s*/g, " and "));
   for (const f of (p.formerNames || []).slice(-2).reverse()) if (compact(searchName(f)).length >= 10) add(searchName(f));
   return out.slice(0, 5);
+}
+
+/** Meno osoby bez titulov: „JUDr. Ondrej Urban, MBA“ → „Ondrej Urban“. */
+export function plainPersonName(name: string): string {
+  return name
+    .replace(/\b(JUDr|Mgr|Ing|Bc|MUDr|PhDr|RNDr|Doc|Prof|PaedDr|ThDr|MVDr|Dr|Dipl|arch|CSc|DrSc|PhD|MBA|LL\.?M|LLM|MSc|BSc|MA|BA|M\.A|B\.A|et)\.?\b/gi, "")
+    .replace(/[.,]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Osoby, ktoré sa hľadajú v médiách: štatutári a vlastníci (bez titulov, bez duplicít). */
+export function people(p: CompanyProfile): string[] {
+  const out: string[] = [];
+  for (const x of [...(p.statutory || []), ...(p.owners || [])]) {
+    const n = plainPersonName(x.name || "");
+    if (n.split(" ").length >= 2 && !out.some((o) => fold(o) === fold(n))) out.push(n);
+  }
+  return out.slice(0, 4);
+}
+
+/** Skratky z iniciál (advokátske kancelárie: URBAN STEINECKER GAŠPEREC BOŠANSKÝ → USGB, URBAN GAŠPEREC BOŠANSKÝ → UGB). */
+export function acronyms(p: CompanyProfile): string[] {
+  const out = new Set<string>();
+  for (const n of [p.name || "", ...(p.formerNames || [])]) {
+    const words = searchName(n).split(/[^\p{L}]+/u).filter((w) => w.length >= 2);
+    if (words.length >= 3) out.add(words.map((w) => w[0]).join("").toUpperCase());
+  }
+  return [...out].filter((a) => a.length >= 3);
+}
+
+/** Priezviská partnerov z názvov kancelárie (súčasných aj bývalých) – „Bošanský“, „Steinecker“, „Falath“. */
+export function partnerSurnames(p: CompanyProfile): string[] {
+  const out: string[] = [];
+  for (const n of [p.name || "", ...(p.formerNames || [])]) {
+    for (const w of searchName(n).split(/[^\p{L}]+/u)) {
+      // aspoň 6 znakov – krátke priezviská (Urban, Novák) sú aj bežné slová / príliš časté
+      if (w.length >= 6 && w === w.toUpperCase() && !GENERIC.has(fold(w)) && !out.some((o) => fold(o) === fold(w))) out.push(w[0] + w.slice(1).toLowerCase());
+    }
+  }
+  return out.slice(0, 6);
 }
 
 const decode = (s: string) =>
@@ -101,7 +146,7 @@ function parseRss(xml: string, provider: Article["provider"]): Omit<Article, "ne
     } catch {
       /* bez domény */
     }
-    return { title, link, source, domain, date: g("pubDate") || undefined, snippet: g("description").slice(0, 400), provider };
+    return { title, link, source, domain, date: g("pubDate") || undefined, snippet: g("description").slice(0, 400), provider, via: "other" as const };
   });
 }
 
@@ -110,7 +155,7 @@ const GENERIC = new Set(
 );
 
 /** Ohodnotí, nakoľko je článok o tomto subjekte (0 = nesúvisí). */
-export function relevance(a: { title: string; snippet?: string; domain?: string; link?: string }, p: CompanyProfile): number {
+export function relevance(a: { title: string; snippet?: string; domain?: string; link?: string; via?: string; provider?: string; source?: string }, p: CompanyProfile): { score: number; about: string } {
   let path = "";
   try {
     if (a.link) path = decodeURIComponent(new URL(a.link).pathname);
@@ -121,29 +166,64 @@ export function relevance(a: { title: string; snippet?: string; domain?: string;
   const hayC = compact(`${a.title} ${a.snippet || ""} ${path}`);
   const titleC = compact(`${a.title} ${path}`);
   const names = [p.name || "", ...(p.formerNames || [])].filter(Boolean);
-  // predchádzajúce mená len ak sú dostatočne výrazné (napr. „URBAN“ samo by chytilo čokoľvek)
   const mainShort = compact(searchName(p.name || ""));
   const shorts = [...new Set([mainShort, ...(p.formerNames || []).map((n) => compact(searchName(n))).filter((x) => x.length >= 10)])].filter((x) => x.length > 2);
+  const city = fold((p.address || "").split(",").pop() || "").replace(/\d+/g, "").split(" - ")[0].trim();
+  const skcz = Boolean((a.domain && /\.(sk|cz)$/.test(a.domain)) || (a.source && /\.sk$|\.cz$|^(SME|Pravda|Denník N|Hospodárske noviny|HN|TREND|Aktuality|TASR|Teraz|Forbes|Plus 7 Dní|Nový Čas|TA3|Postoj|epravo|Právne noviny|Webnoviny|Startitup|Refresher|Topky|Markíza|RTVS|STVR|Info\.sk)/i.test(a.source)));
+
+  // --- firma ---
   let s = 0;
-  if (names.some((n) => compact(n).length > 8 && hayC.includes(compact(n)))) s += 3; // úplné meno s právnou formou
-  if (shorts.some((sh) => titleC.includes(sh))) s += 3;
+  // v adrese článku sa „&“ nepíše (urban-partners-…), preto sa tam porovnáva bez neho
+  const pathC = compact(path).replace(/&/g, "");
+  const inPath = shorts.some((sh) => sh.length >= 8 && pathC.includes(sh.replace(/&/g, "")));
+  // skratka kancelárie (USGB, UGB) ako samostatné slovo v titulku/popise
+  const rawText = `${a.title} ${a.snippet || ""}`;
+  const acr = acronyms(p).find((ac) => new RegExp(`(^|[^A-Za-z])${ac}([^A-Za-z]|$)`, "i").test(rawText));
+  // vyhľadávač našiel presný názov firmy v texte článku (dopyt v úvodzovkách) – v titulku/popise nemusí byť
+  const engineMatch = a.via === "firm";
+  if (names.some((n) => compact(n).length > 8 && hayC.includes(compact(n)))) s += 3;
+  if (shorts.some((sh) => titleC.includes(sh)) || inPath || acr) s += 3;
   else if (shorts.some((sh) => hayC.includes(sh))) s += 2;
   else {
     const words = fold(searchName(p.name || "")).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
     if (words.length && words.every((w) => hay.includes(w))) s += 1;
   }
   if (hay.includes(p.ico)) s += 3;
-  // kontext: štatutár, mesto sídla, zdroj
-  const surnames = (p.statutory || []).map((x) => fold(x.name).split(" ").filter((w) => w.length > 3).pop() || "").filter(Boolean);
-  if (surnames.some((sn) => hay.includes(sn))) s += 2;
-  const city = fold((p.address || "").split(",").pop() || "").replace(/\d+/g, "").split(" - ")[0].trim();
+  const persons = people(p);
+  const personHit = persons.find((n) => hayC.includes(compact(n)));
+  if (personHit) s += 2;
+  const lawCtx = /advokat|pravnik|pravnic|kancelari|konatel|spolocnik|majitel|s\.r\.o|sro\b|firm|\bsud|zmluv|klient|obhaj|zastup|naka|polici|korupc|obvin/;
+  // priezvisko partnera z názvu kancelárie (Bošanský, Steinecker…) + právnický kontext
+  const surnameHit = partnerSurnames(p).find((sn) => new RegExp(`(^|[^a-z])${fold(sn)}(?=[^a-z]|$)`).test(hay.replace(/[^a-z0-9 ]/g, " ")) || hay.includes(fold(sn)));
+  if (engineMatch) s += 2;
+  if (surnameHit && lawCtx.test(hay)) s += 2;
   if (city.length > 3 && hay.includes(city)) s += 1;
-  if (a.domain && /\.(sk|cz)$/.test(a.domain)) s += 1;
-  // krátke / všeobecné meno: bez kontextu nestačí
-  const main = compact(searchName(p.name || ""));
+  if (skcz) s += 1;
   const mainWords = fold(searchName(p.name || "")).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
-  if (mainWords.length <= 1 && main.length < 8 && s < 4) s = Math.min(s, 1);
-  return s;
+  if (mainWords.length <= 1 && mainShort.length < 8 && s < 4) s = Math.min(s, 1);
+  const firmMention = shorts.some((sh) => hayC.includes(sh)) || inPath || Boolean(acr) || hay.includes(p.ico);
+  if (s >= MIN_RELEVANCE && firmMention) return { score: s, about: "firma" };
+  // Google News s presným názvom firmy v úvodzovkách vracia len články, kde sa názov v texte nachádza:
+  // slovenský zdroj stačí; pri voľnejších vyhľadávačoch (Bing, DDG) treba aj právnický kontext alebo meno partnera
+  if (engineMatch && skcz && (a.provider === "google" || lawCtx.test(hay) || personHit || surnameHit)) return { score: Math.max(s, 3), about: "firma" };
+  if (surnameHit && lawCtx.test(hay) && s >= 3) return { score: s, about: `${surnameHit} (partner podľa názvu kancelárie)` };
+
+  // --- osoba (štatutár / vlastník): meno + kontext (advokát, firma, mesto, funkcia) ---
+  if (personHit) {
+    let ps = 2;
+    const ctxWords = /advokat|pravnik|pravnic|kancelari|konatel|spolocnik|majitel|partner|s\.r\.o|sro\b|firm|sud|zmluv|klient|obhaj|zastup/;
+    const hasCtx = ctxWords.test(hay) || shorts.some((sh) => hayC.includes(sh)) || inPath || (city.length > 3 && hay.includes(city));
+    if (ctxWords.test(hay)) ps += 1;
+    if (shorts.some((sh) => hayC.includes(sh)) || inPath) ps += 2;
+    if (city.length > 3 && hay.includes(city)) ps += 1;
+    if (skcz) ps += 1;
+    if (compact(a.title).includes(compact(personHit))) ps += 1;
+    // bez kontextu (advokát / firma / mesto) ide pravdepodobne o menovca
+    if (!hasCtx) ps = Math.min(ps, 3);
+    if (ps >= 4) return { score: ps, about: personHit };
+  }
+  // ani firma, ani osoba s kontextom → nerelevantné
+  return { score: Math.min(s, 1), about: "firma" };
 }
 
 /** Stránky registrov a katalógov firiem – nie sú to médiá (zobrazujú sa ako odkazy). */
@@ -181,14 +261,14 @@ export function processArticles(raw: Omit<Article, "negative" | "relevance">[], 
       reject(a, "katalóg firiem / register (nie médium)");
       continue;
     }
-    const rel = relevance(a, p);
+    const { score: rel, about } = relevance(a, p);
     if (rel < MIN_RELEVANCE) {
-      reject(a, "meno firmy sa v titulku ani popise nenachádza");
+      reject(a, "meno firmy ani štatutára sa v titulku, popise ani adrese nenachádza");
       continue;
     }
     const hay = ` ${fold(`${a.title} ${a.snippet || ""}`)} `;
     const negative = NEGATIVE.filter(([, re]) => re.test(hay)).map(([label]) => label);
-    out.push({ ...a, negative, relevance: rel });
+    out.push({ ...a, negative, relevance: rel, about });
   }
   return out.sort((x, y) => (y.date ? +new Date(y.date) : 0) - (x.date ? +new Date(x.date) : 0));
 }
@@ -221,25 +301,34 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       const variants = nameVariants(p);
       const quoted = variants.map((v) => `"${v}"`);
       const any = quoted.length ? quoted.join(" OR ") : q;
-      const queries: [string, Article["provider"]][] = [
-        [g(`${any} when:1y`), "google"], // najnovšie – všetky varianty mena
-        [g(any), "google"],
-        [b(quoted[0] || q), "bing"],
-        [w(`${any} -site:finstat.sk -site:orsr.sk -site:uvostat.sk`), "web"], // PR, odborné weby, tlačové správy
+      const queries: [string, Article["provider"], "firm" | "person" | "other"][] = [
+        [g(`${any} when:1y`), "google", "firm"], // najnovšie – všetky varianty mena
+        [g(any), "google", "firm"],
+        [b(quoted[0] || q), "bing", "firm"],
+        [w(`${any} -site:finstat.sk -site:orsr.sk -site:uvostat.sk`), "web", "other"], // PR, odborné weby, tlačové správy
       ];
-      for (const v of quoted.slice(1, 3)) queries.push([g(v), "google"], [b(v), "bing"]);
-      if (surname && quoted[0]) queries.push([g(`${quoted[0]} "${surname}"`), "google"]);
+      for (const v of quoted.slice(1, 4)) queries.push([g(v), "google", "firm"], [b(v), "bing", "firm"]);
+      for (const ac of acronyms(p)) queries.push([g(`"${ac}" advokátska kancelária`), "google", "other"]);
+      if (surname && quoted[0]) queries.push([g(`${quoted[0]} "${surname}"`), "google", "firm"]);
+      // štatutári, vlastníci a partneri z názvu kancelárie: meno + kontext, aby sa nezachytili menovci
+      const persons = people(p);
+      for (const person of persons.slice(0, 3)) {
+        queries.push([g(`"${person}" (advokát OR ${quoted[0] || "firma"})`), "google", "person"], [b(`"${person}"`), "bing", "person"], [w(`"${person}" advokát OR ${quoted[0] || ""}`), "web", "person"]);
+      }
+      for (const sn of partnerSurnames(p).slice(0, 4)) queries.push([g(`"${sn}" advokát`), "google", "person"]);
 
-      const [results, outlets, ddg] = await Promise.all([
+      const [results, outlets, ddg, ddgPeople] = await Promise.all([
         Promise.allSettled(queries.map(([u]) => getText(u, { timeoutMs: 12000 }))),
         variants.length ? searchOutlets(variants).catch(() => ({ found: [] as Found[], ok: [] as string[], failed: [] as string[] })) : Promise.resolve({ found: [] as Found[], ok: [] as string[], failed: [] as string[] }),
         variants.length ? searchDuckDuckGo(variants).catch(() => [] as Found[]) : Promise.resolve([] as Found[]),
+        Promise.all(people(p).slice(0, 2).map((n) => searchDuckDuckGo([n, `${n} advokát`]).catch(() => [] as Found[]))).then((x) => x.flat()),
       ]);
-      const toRaw = (f: Found, provider: Article["provider"]) => ({ title: f.title, link: f.link, source: f.source, domain: f.domain, date: f.date, snippet: f.snippet, provider });
+      const toRaw = (f: Found, provider: Article["provider"], via: "firm" | "person" | "other" = "firm") => ({ title: f.title, link: f.link, source: f.source, domain: f.domain, date: f.date, snippet: f.snippet, provider, via });
       const raw = [
         ...outlets.found.map((f) => toRaw(f, "outlet")),
         ...ddg.map((f) => toRaw(f, "ddg")),
-        ...results.flatMap((r, i) => (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).slice(0, 50) : [])),
+        ...ddgPeople.map((f) => toRaw(f, "ddg", "person")),
+        ...results.flatMap((r, i) => (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).slice(0, 50).map((x) => ({ ...x, via: queries[i][2] })) : [])),
       ];
       if (!raw.length && results.every((r) => r.status === "rejected") && !outlets.ok.length) throw new Error("médiá ani vyhľadávače neodpovedajú");
 
@@ -247,18 +336,28 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       const articles = processArticles(raw, p, Date.now(), rejected);
       const twoYears = Date.now() - 2 * 365.25 * 864e5;
       const recentNeg = articles.filter((a) => a.negative.length && (!a.date || +new Date(a.date) > twoYears));
+      const olderNeg = articles.filter((a) => a.negative.length && a.date && +new Date(a.date) <= twoYears);
       const f: Finding[] = [];
+      const serious = (list: Article[]) => list.filter((a) => a.negative.some((n) => /NAKA|kartel|podvod|obvinenie|trestn|sprenever|zadržanie/i.test(n)));
+      if (olderNeg.length)
+        f.push({
+          severity: "warning",
+          text: `${olderNeg.length} ${olderNeg.length === 1 ? "staršia negatívna správa" : "staršie negatívne správy"} (2–5 rokov)${serious(olderNeg).length ? ` – závažné: ${[...new Set(serious(olderNeg).flatMap((a) => a.negative))].slice(0, 4).join(", ")}` : ""}; preverte vývoj prípadu`,
+          penalty: serious(olderNeg).length ? 8 : 3,
+        });
       if (recentNeg.length >= 3)
         f.push({ severity: "warning", text: `${recentNeg.length} relevantné správy s negatívnym obsahom za 2 roky – preverte`, penalty: 10 });
       else if (recentNeg.length > 0)
         f.push({ severity: "warning", text: `${recentNeg.length === 1 ? "1 relevantná správa" : `${recentNeg.length} relevantné správy`} s negatívnym obsahom – preverte kontext`, penalty: 3 });
       const latest = articles[0]?.date ? new Date(articles[0].date).toLocaleDateString("sk-SK") : undefined;
+      const aboutFirm = articles.filter((a) => a.about === "firma").length;
+      const aboutPeople = articles.length - aboutFirm;
       return {
-        status: recentNeg.length ? "warning" : "ok",
+        status: recentNeg.length || olderNeg.length ? "warning" : "ok",
         summary: articles.length
-          ? `${articles.length} relevantných článkov za posledných ${YEARS} rokov (najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, nesúvisiace (iné firmy s podobným menom) vyradené.`
+          ? `${articles.length} relevantných článkov za posledných ${YEARS} rokov (${aboutFirm} o firme, ${aboutPeople} o štatutároch/vlastníkoch; najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, hľadané: ${[...variants, ...people(p)].join(", ")}.`
           : raw.length
-            ? `Za posledných ${YEARS} rokov sa nenašli články, v ktorých by sa uvádzalo meno subjektu (prehľadaných ${raw.length} výsledkov). Vyradené výsledky sú zobrazené nižšie.`
+            ? `Za posledných ${YEARS} rokov sa nenašli články o firme ani o štatutároch (hľadané: ${[...variants, ...people(p)].join(", ")}; prehľadaných ${raw.length} výsledkov). Vyradené výsledky sú zobrazené nižšie.`
             : "Vyhľadávače správ nevrátili žiadne výsledky – mohli zablokovať požiadavku zo servera. Použite odkazy nižšie.",
         findings: f,
         verifyUrl: links.google,

@@ -525,9 +525,10 @@ export default function Page() {
                 <h2>Mediálne výstupy – relevantné, od najnovšieho</h2>
                 {!((news.data as any)?.articles?.length) && <p className="src">Nenašli sa články, v ktorých by sa uvádzalo meno subjektu.</p>}
                 <ul>
-                  {((news.data as any)?.articles || []).slice(0, 12).map((a: any, i: number) => (
+                  {((news.data as any)?.articles || []).slice(0, 20).map((a: any, i: number) => (
                     <li key={i}>
-                      <a href={a.link} target="_blank" rel="noreferrer">{a.title}</a>
+                      {a.about && a.about !== "firma" && <span className="pill s-info" style={{ marginRight: 6 }}>{a.about}</span>}
+                      <a href={a.link} target="_blank" rel="noreferrer">{a.title || a.link}</a>
                       <span className="src"> · {[a.source || a.domain, a.date ? new Date(a.date).toLocaleDateString("sk-SK") : ""].filter(Boolean).join(" · ")}</span>
                       {a.negative?.length > 0 && <span className="neg">⚠ {a.negative.join(", ")}</span>}
                     </li>
@@ -539,7 +540,7 @@ export default function Page() {
                     <ul>
                       {((news.data as any).rejected as any[]).map((a, i) => (
                         <li key={i}>
-                          <a href={a.link} target="_blank" rel="noreferrer">{a.title}</a>
+                          <a href={a.link} target="_blank" rel="noreferrer">{a.title || a.link}</a>
                           <span className="src"> · {[a.source, a.date ? new Date(a.date).toLocaleDateString("sk-SK") : ""].filter(Boolean).join(" · ")} · vyradené: {a.reason}</span>
                         </li>
                       ))}
