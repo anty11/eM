@@ -23,8 +23,8 @@ export default function AiSettings() {
   const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
   const [model, setModel] = useState("");
   const [key, setKey] = useState("");
-  const [auto, setAuto] = useState(true);
-  const [noApi, setNoApi] = useState(true);
+  const [auto, setAuto] = useState(false);
+  const [noApi, setNoApi] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -83,6 +83,12 @@ export default function AiSettings() {
           <span className="pill s-manual">Nenastavené</span>
         )}
       </p>
+      {st.configured && (
+        <p className="hint">
+          Automatické spúšťanie: <b>{st.auto ? "zapnuté pri zlyhaní zdroja" : "vypnuté – AI len na tlačidlo"}</b>
+          {st.noApiSources ? " · registre bez API: automaticky" : ""}. Každé AI overenie stojí kredit u poskytovateľa.
+        </p>
+      )}
       {st.envLocked && <p className="hint">AI je nastavená v premenných prostredia (ANTHROPIC_API_KEY / OPENAI_API_KEY, AI_PROVIDER, AI_MODEL). Zmeny robte tam.</p>}
       {!st.envLocked && !st.adminKeyAllowed && (
         <p className="hint">V produkcii sa kľúč zadáva len v premenných prostredia na Verceli: <code>ANTHROPIC_API_KEY</code> alebo <code>OPENAI_API_KEY</code>. (Zadávanie tu povolíte premennou <code>AI_ALLOW_ADMIN_KEY=1</code>.)</p>
@@ -106,7 +112,7 @@ export default function AiSettings() {
               <input id="ai-k" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder={provider === "openai" ? "sk-…" : "sk-ant-…"} />
             </div>
           </div>
-          <label className="check-row"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /><span>Spustiť AI automaticky, keď zdroj zlyhá</span></label>
+          <label className="check-row"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /><span>Spustiť AI automaticky, keď zdroj zlyhá (inak len tlačidlom „Overiť cez AI“ – šetrí kredit)</span></label>
           <label className="check-row" style={{ marginTop: 6 }}><input type="checkbox" checked={noApi} onChange={(e) => setNoApi(e.target.checked)} /><span>Automaticky overovať aj registre bez API (VšZP, Union, Obchodný vestník, Register diskvalifikácií, ÚVO)</span></label>
           <div className="toolbar">
             <button className="btn" disabled={busy} onClick={() => save()}>Uložiť</button>

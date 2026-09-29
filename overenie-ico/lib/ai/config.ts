@@ -19,7 +19,7 @@ export interface AiConfig {
   provider: Provider;
   model: string;
   key: string;
-  /** Automaticky spustiť AI pri zlyhaní zdroja (inak len tlačidlom). */
+  /** Automaticky spustiť AI pri zlyhaní zdroja (predvolene nie – len tlačidlom). */
   auto: boolean;
   /** Ponúknuť AI aj pre registre bez API (inak len pri zlyhaní API). */
   noApiSources: boolean;
@@ -51,8 +51,9 @@ function envConfig(): AiConfig | null {
     provider,
     model: process.env.AI_MODEL || DEFAULT_MODEL[provider],
     key,
-    auto: process.env.AI_AUTO_FALLBACK !== "0",
-    noApiSources: process.env.AI_NO_API_SOURCES !== "0",
+    // Predvolene VYPNUTÉ – AI sa spúšťa len tlačidlom „Overiť cez AI“ (šetrí kredit)
+    auto: process.env.AI_AUTO_FALLBACK === "1",
+    noApiSources: process.env.AI_NO_API_SOURCES === "1",
     origin: "env",
   };
 }
@@ -97,8 +98,8 @@ export async function aiStatus() {
     provider: env?.provider || s?.provider || "anthropic",
     model: env?.model || s?.model || "",
     keyHint: env ? `…${env.key.slice(-4)}` : s?.keyHint,
-    auto: env ? env.auto : s?.auto ?? true,
-    noApiSources: env ? env.noApiSources : s?.noApiSources ?? true,
+    auto: env ? env.auto : s?.auto ?? false,
+    noApiSources: env ? env.noApiSources : s?.noApiSources ?? false,
     adminKeyAllowed: adminKeyAllowed(),
     envLocked: Boolean(env),
     updatedAt: s?.updatedAt,
@@ -120,8 +121,8 @@ export async function saveAiSettings(
     model: (input.model || "").trim().slice(0, 80) || undefined,
     keyEnc: prev?.keyEnc,
     keyHint: prev?.keyHint,
-    auto: input.auto ?? prev?.auto ?? true,
-    noApiSources: input.noApiSources ?? prev?.noApiSources ?? true,
+    auto: input.auto ?? prev?.auto ?? false,
+    noApiSources: input.noApiSources ?? prev?.noApiSources ?? false,
     updatedAt: new Date().toISOString(),
     updatedBy: by,
   };

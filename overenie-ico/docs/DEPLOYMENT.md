@@ -91,8 +91,8 @@ Set **only one** of the two keys.
 | `OPENAI_API_KEY` | `sk-…` | OpenAI with web search |
 | `AI_PROVIDER` | `anthropic` / `openai` | Only needed if both keys are set |
 | `AI_MODEL` | empty | Empty = `claude-sonnet-5` / `gpt-5.5` |
-| `AI_AUTO_FALLBACK` | `1` | `0` = AI only on button click, not automatically when a source fails |
-| `AI_NO_API_SOURCES` | `1` | `0` = AI doesn't automatically check registers without an API (VšZP, Union, Obchodný vestník, disqualifications, ÚVO) |
+| `AI_AUTO_FALLBACK` | *(don't set)* | Default OFF: AI runs only when you click **Overiť cez AI**. `1` = run automatically when a source fails (uses credit on every check) |
+| `AI_NO_API_SOURCES` | *(don't set)* | Default OFF. `1` = AI automatically checks registers without an API on every check |
 
 ### Optional
 

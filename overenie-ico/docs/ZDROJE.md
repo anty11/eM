@@ -283,7 +283,7 @@ Slová ako *partners, group, slovakia, holding, invest…* sa pri porovnávaní 
 - Zdroj s API zlyhal (výpadok, časový limit, zmenený formát) a kontrola skončila ako *Zdroj nedostupný* alebo *Overiť manuálne*.
 - Chýba kľúč Finančnej správy.
 - Register nemá API (VšZP, Union, Obchodný vestník, Register diskvalifikácií, ÚVO), ak je v nastaveniach zapnutá voľba *Automaticky overovať aj registre bez API*.
-- Ručne, tlačidlom **Overiť cez AI** pri kontrole alebo **Overiť všetko dostupné cez AI** v okne manuálnych overení.
+- **Predvolene len ručne**, tlačidlom **Overiť cez AI** pri kontrole alebo **Overiť všetko dostupné cez AI** v okne manuálnych overení.
 
 Ak zlyhá identifikácia (RPO), AI ju spustí ako prvú a doplnené údaje (meno, štatutári…) použije pre ostatné AI úlohy.
 
@@ -354,7 +354,7 @@ Model dostane: úlohu, presné odkazy, zoznam povolených domén, dnešný dátu
 | Prostredie | Kde | Premenné |
 |---|---|---|
 | Lokálne / testovanie | Administrácia → Nastavenia AI (kľúč sa uloží šifrovane AES-256-GCM, znova sa nezobrazí) | – |
-| Produkcia (Vercel) | Environment Variables | `ANTHROPIC_API_KEY` alebo `OPENAI_API_KEY`, voliteľne `AI_PROVIDER` (`anthropic` / `openai`), `AI_MODEL`, `AI_AUTO_FALLBACK=0` (vypne automatické spúšťanie), `AI_NO_API_SOURCES=0` (vypne registre bez API) |
+| Produkcia (Vercel) | Environment Variables | `ANTHROPIC_API_KEY` alebo `OPENAI_API_KEY`, voliteľne `AI_PROVIDER` (`anthropic` / `openai`), `AI_MODEL`, `AI_AUTO_FALLBACK=1` (zapne automatické spúšťanie pri zlyhaní zdroja), `AI_NO_API_SOURCES=1` (zapne automatické overovanie registrov bez API). Predvolene je oboje **vypnuté** – AI sa spúšťa len tlačidlom |
 
 Premenné prostredia majú vždy prednosť a zamknú nastavenie v administrácii. V produkcii sa kľúč z administrácie nepoužije, pokiaľ nie je nastavené `AI_ALLOW_ADMIN_KEY=1`.
 
