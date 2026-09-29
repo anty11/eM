@@ -286,7 +286,7 @@ export default function Page() {
             {Object.values(aiBusy).some(Boolean) && (
               <div className="ai-running no-print">AI dohľadáva údaje v zdrojoch, ktoré nie sú dostupné cez API ({Object.values(aiBusy).filter(Boolean).length})… Výsledok sa priebežne dopĺňa.</div>
             )}
-            {(() => {
+            {me?.role === "admin" && typeof location !== "undefined" && new URLSearchParams(location.search).has("diag") && (() => {
               const done = checks.filter((c) => c.status !== "manual" && c.status !== "error");
               const failed = baseChecks.filter((c) => c.status === "error" || (c.status === "manual" && c.automated !== false));
               const noKey = baseChecks.filter((c) => c.status === "manual" && c.automated === false && c.id.startsWith("fs-"));

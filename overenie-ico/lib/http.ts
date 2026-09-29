@@ -1,5 +1,5 @@
-const UA =
-  "Mozilla/5.0 (compatible; OverenieICO/1.0; +preverenie obchodneho partnera)";
+// Bežný prehliadačový identifikátor – niektoré štátne weby odmietajú neznámych klientov
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {

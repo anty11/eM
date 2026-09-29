@@ -12,18 +12,27 @@ const ZOZNAMY = "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sl
 interface Ds {
   slug: string;
   name: string;
+  /** Stĺpce, v ktorých API dovoľuje vyhľadávať (z /lists). */
+  searchable: string[];
 }
 
 const key = () => process.env.FS_API_KEY?.trim();
 const hdr = () => ({ key: key() as string });
 
-/** Zistí dostupné zoznamy – ak API zmení slugy, vyberieme ich podľa názvu. */
+/**
+ * Zistí dostupné zoznamy. Podľa špecifikácie API vracia /lists OBJEKT { slug: { name, slug, url, update_date, searchable[] } }.
+ * Ak API zmení slugy, vyberieme zoznamy podľa názvu.
+ */
 async function lists(): Promise<Ds[]> {
   return cached("fs-lists", 6 * 3600e3, async () => {
     const raw = await getJson<any>(`${API}/lists`, { headers: hdr() });
-    const arr: any[] = Array.isArray(raw) ? raw : raw?.lists || raw?.data || Object.values(raw || {}).find(Array.isArray) || [];
+    const arr: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.lists) ? raw.lists : Array.isArray(raw?.data) ? raw.data : Object.entries(raw || {}).map(([k, v]: [string, any]) => ({ slug: k, ...(v || {}) }));
     return arr
-      .map((x) => ({ slug: String(x.slug || x.id || x.name || ""), name: String(x.name || x.title || x.description || x.slug || "") }))
+      .map((x) => ({
+        slug: String(x.slug || x.id || ""),
+        name: String(x.name || x.title || x.description || x.slug || ""),
+        searchable: Array.isArray(x.searchable) ? x.searchable.map(String) : [],
+      }))
       .filter((x) => x.slug);
   });
 }
@@ -58,35 +67,63 @@ function rowsOf(raw: any): any[] | null {
 }
 
 /** Vyhľadá IČO (resp. DIČ / IČ DPH) v zozname. Skúša viac názvov stĺpcov. */
+/**
+ * Vyhľadá IČO (resp. DIČ / IČ DPH) v zozname.
+ * Podľa špecifikácie API: 200 = nájdené riadky, 404 „Search not found“ = subjekt v zozname NIE JE,
+ * 400 „Column is not searchable“ = skúsime ďalší stĺpec.
+ */
 async function search(slug: string, ctx: Ctx): Promise<any[]> {
-  const tries: [string, string][] = [
-    ["ico", ctx.ico],
-    ["ICO", ctx.ico],
-  ];
-  if (ctx.profile.dic) tries.push(["dic", ctx.profile.dic], ["ic_dph", `SK${ctx.profile.dic}`]);
+  const ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
+  const values: Record<string, string | undefined> = {
+    ico: ctx.ico,
+    dic: ctx.profile.dic,
+    ic_dph: ctx.profile.icDph || (ctx.profile.dic ? `SK${ctx.profile.dic}` : undefined),
+  };
+  const kindOf = (col: string) => (/ic_?dph|icdph/i.test(col) ? "ic_dph" : /^i[cč]o$|_ico$|^ico_/i.test(col) ? "ico" : /^di[cč]$|_dic$/i.test(col) ? "dic" : null);
+  let tries: [string, string][] = [];
+  if (ds?.searchable.length)
+    for (const col of ds.searchable) {
+      const k = kindOf(col);
+      if (k && values[k]) tries.push([col, values[k]!]);
+    }
+  if (!tries.length) tries = (["ico", "dic", "ic_dph"] as const).filter((k) => values[k]).map((k) => [k, values[k]!]);
+
   let lastErr: Error | null = null;
-  let anyOk = false;
+  let answered = false;
   for (const [col, val] of tries) {
     try {
-      const raw = await getJson<any>(`${API}/data/${slug}/search?page=1&column=${col}&search=${encodeURIComponent(val)}`, {
-        headers: hdr(),
-      });
+      const raw = await getJson<any>(`${API}/data/${slug}/search?page=1&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`, { headers: hdr() });
       const all = rowsOf(raw);
       if (!all) continue;
-      anyOk = true;
+      answered = true;
       const rows = all.filter((r) => {
         const s = JSON.stringify(r);
         return s.includes(ctx.ico) || (ctx.profile.dic && s.includes(ctx.profile.dic));
       });
       if (rows.length) return rows;
     } catch (e) {
-      lastErr = e as Error;
       if (e instanceof HttpError && (e.status === 401 || e.status === 403)) throw new Error("neplatný API kľúč Finančnej správy");
+      if (e instanceof HttpError && e.status === 404) {
+        answered = true; // „Search not found“ – v zozname nie je
+        continue;
+      }
+      lastErr = e as Error;
     }
   }
-  if (!anyOk) throw lastErr || new Error("API Finančnej správy vrátilo neočakávaný formát");
+  if (!answered) throw lastErr || new Error("API Finančnej správy vrátilo neočakávaný formát");
   return [];
 }
+
+/** Zoznam, ktorý API nezverejňuje – informácia namiesto chyby. */
+function notPublished(what: string): CheckBodyLike {
+  return {
+    status: "info",
+    summary: `${what}: Finančná správa tento zoznam cez OpenData API nezverejňuje. Údaj je v zozname na stránke Finančnej správy (odkaz).`,
+    findings: [],
+    verifyUrl: ZOZNAMY,
+  };
+}
+type CheckBodyLike = { status: "info"; summary: string; findings: []; verifyUrl: string };
 
 const pick = (row: any, re: RegExp) => {
   for (const [k, v] of Object.entries(row || {})) if (re.test(fold(k)) && v !== null && v !== "") return v as any;
@@ -170,7 +207,7 @@ export async function checkIds(ctx: Ctx): Promise<CheckResult> {
   if (!key()) return noKey(m, "Index daňovej spoľahlivosti");
   return runCheck(m, async () => {
     const slug = await resolve("ids");
-    if (!slug) throw new Error("zoznam indexu daňovej spoľahlivosti sa v API nenašiel");
+    if (!slug) return notPublished("Index daňovej spoľahlivosti");
     const rows = await search(slug, ctx);
     const url = `${ZOZNAMY}/index-danovej-spolahlivosti`;
     if (!rows.length) return { status: "info", summary: "Subjekt nie je hodnotený v indexe daňovej spoľahlivosti.", findings: [], verifyUrl: url };
@@ -200,7 +237,7 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
   if (!key()) return noKey(m, "Daňové priznanie");
   return runCheck(m, async () => {
     const slug = await resolve("incomeTax");
-    if (!slug) throw new Error("zoznam s daňou z príjmov PO sa v API nenašiel");
+    if (!slug) return notPublished("Daň z príjmov PO");
     const rows = await search(slug, ctx);
     if (!rows.length)
       return {

@@ -62,6 +62,8 @@ async function main() {
   assert.equal(r.profile.icDph, "SK2023674466");
   assert.equal(by("fs-ids").status, "ok");
   assert.equal(by("fs-dppo").status, "ok");
+  assert.equal(by("rpvs").status, "ok");
+  assert.deepEqual((by("rpvs").data as any).kuv, ["JUDr. Ján Vzor"], "len aktuálni KUV");
   assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
   assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);
   assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(daň 7 830,00 €\)/);

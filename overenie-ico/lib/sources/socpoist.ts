@@ -15,6 +15,55 @@ interface Debtor {
  * Sociálna poisťovňa zverejňuje celý zoznam dlžníkov ako súbor na stiahnutie (aktualizácia 4× mesačne).
  * Súbor stiahneme, zaindexujeme podľa IČO a držíme v pamäti 6 hodín.
  */
+/** Rozpozná formát (XLSX/XLS/CSV, prípadne ZIP s nimi) a zaindexuje dlžníkov podľa IČO. */
+export async function indexFile(buf: Buffer, map: Map<string, Debtor>): Promise<number> {
+  const XLSX = await import("xlsx");
+  let count = 0;
+  const sheetRows = (wb: any) => wb.SheetNames.map((sn: string) => XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: "" }) as any[][]);
+  const readBook = (b: Buffer): any[][][] => {
+    const magic = b.subarray(0, 4).toString("hex");
+    if (magic === "504b0304" || magic === "d0cf11e0") return sheetRows(XLSX.read(b, { type: "buffer" }));
+    // text (CSV): UTF-8, inak Windows-1250 (bežné pri slovenských exportoch)
+    let text = b.toString("utf8");
+    if (text.includes("\uFFFD")) text = new TextDecoder("windows-1250").decode(b);
+    return sheetRows(XLSX.read(text, { type: "string" }));
+  };
+  let books: any[][][] = [];
+  const magic = buf.subarray(0, 4).toString("hex");
+  if (magic === "504b0304") {
+    // XLSX je tiež ZIP – ak neobsahuje hárky s IČO, skúsime ho rozbaliť ako archív so súbormi
+    books = readBook(buf);
+    if (!books.some((rows) => rows.some((r) => r.some((c: any) => /^i[cč]o$/i.test(String(c).trim()))))) {
+      const { unzipSync } = await import("fflate");
+      const files = unzipSync(new Uint8Array(buf));
+      books = Object.entries(files)
+        .filter(([n]) => /\.(csv|txt|xlsx?|ods)$/i.test(n))
+        .flatMap(([, d]) => readBook(Buffer.from(d)));
+    }
+  } else if (magic.startsWith("25504446")) {
+    throw new Error("zoznam je vo formáte PDF – nedá sa strojovo spracovať");
+  } else books = readBook(buf);
+
+  for (const rows of books) {
+    let hi = rows.findIndex((r) => r.some((c: any) => /^i[cč]o$/i.test(String(c).trim())));
+    if (hi < 0) hi = 0;
+    const h = (rows[hi] || []).map((c: any) => fold(String(c)));
+    const iIco = h.findIndex((c: string) => /^ico$/.test(c.trim()));
+    const iName = h.findIndex((c: string) => /nazov|meno|dlznik|subjekt/.test(c));
+    const iCity = h.findIndex((c: string) => /mesto|obec/.test(c));
+    const iAmt = h.findIndex((c: string) => /suma|dlh|vyska|pohladav|nedoplat/.test(c));
+    for (const r of rows.slice(hi + 1)) {
+      const ico = String(iIco >= 0 ? r[iIco] : r.find((c: any) => /^\d{6,8}$/.test(String(c).trim())) || "")
+        .replace(/\s/g, "")
+        .padStart(8, "0");
+      if (!/^\d{8}$/.test(ico) || ico === "00000000") continue;
+      count++;
+      map.set(ico, { name: String(r[iName] ?? ""), city: iCity >= 0 ? String(r[iCity]) : undefined, amount: iAmt >= 0 ? String(r[iAmt]) : undefined });
+    }
+  }
+  return count;
+}
+
 async function loadIndex(): Promise<{ map: Map<string, Debtor>; count: number; file: string }> {
   return cached("socpoist-index", 6 * 3600e3, async () => {
     let file = FALLBACK_FILE;
@@ -28,29 +77,8 @@ async function loadIndex(): Promise<{ map: Map<string, Debtor>; count: number; f
     const res = await fetchWithTimeout(file, { timeoutMs: 45000 });
     if (!res.ok) throw new Error(`HTTP ${res.status} pri sťahovaní zoznamu dlžníkov`);
     const buf = Buffer.from(await res.arrayBuffer());
-    const XLSX = await import("xlsx");
-    const wb = XLSX.read(buf, { type: "buffer", codepage: 65001 });
     const map = new Map<string, Debtor>();
-    let count = 0;
-    for (const sn of wb.SheetNames) {
-      const rows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: "" });
-      // nájdi riadok s hlavičkou
-      let hi = rows.findIndex((r) => r.some((c) => /^i[cč]o$/i.test(String(c).trim())));
-      if (hi < 0) hi = 0;
-      const h = rows[hi].map((c) => fold(String(c)));
-      const iIco = h.findIndex((c) => /^ico$/.test(c.trim()));
-      const iName = h.findIndex((c) => /nazov|meno|dlznik/.test(c));
-      const iCity = h.findIndex((c) => /mesto|obec/.test(c));
-      const iAmt = h.findIndex((c) => /suma|dlh|vyska|pohladav/.test(c));
-      for (const r of rows.slice(hi + 1)) {
-        const ico = String(iIco >= 0 ? r[iIco] : r.find((c) => /^\d{6,8}$/.test(String(c).trim())) || "")
-          .replace(/\s/g, "")
-          .padStart(8, "0");
-        if (!/^\d{8}$/.test(ico) || ico === "00000000") continue;
-        count++;
-        map.set(ico, { name: String(r[iName] ?? ""), city: iCity >= 0 ? String(r[iCity]) : undefined, amount: iAmt >= 0 ? String(r[iAmt]) : undefined });
-      }
-    }
+    const count = await indexFile(buf, map);
     if (count < 1000) throw new Error("súbor so zoznamom dlžníkov má neočakávaný formát");
     return { map, count, file };
   });

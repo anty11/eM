@@ -99,20 +99,34 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (url.includes("sablona")) return json(sablona);
   }
   if (u.host === "iz.opendata.financnasprava.sk") {
+    // Podľa špecifikácie API (swagger-iz.yaml): /lists = objekt podľa slugu, prázdne vyhľadávanie = HTTP 404 „Search not found“
     if (!init?.headers?.key) return json({ error: "missing key" }, 401);
+    const L = (slug: string, name: string, searchable: string[]) => [slug, { name, slug, url: "", update_date: "2026-09-20", searchable }];
     if (url.endsWith("/api/lists"))
-      return json([{ slug: "ds_dsdd", name: "Zoznam daňových dlžníkov" }, { slug: "ds_dphs", name: "Zoznam registrovaných platiteľov DPH" }, { slug: "ds_dphz", name: "Zoznam platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie" }, { slug: "ds_ids", name: "Index daňovej spoľahlivosti" }, { slug: "ds_dppo", name: "Daňové subjekty PO s výškou dane z príjmov" }]);
+      return json(
+        Object.fromEntries([
+          L("ds_dsdd", "Zoznam daňových dlžníkov", ["ico", "nazov"]),
+          L("ds_dphs", "Zoznam registrovaných platiteľov DPH", ["ic_dph", "ico"]),
+          L("ds_dphz", "Zoznam platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie", ["ic_dph"]),
+          L("ds_ids", "Index daňovej spoľahlivosti", ["ico"]),
+          L("ds_dppo", "Daňové subjekty PO s výškou dane z príjmov", ["ico"]),
+        ]),
+      );
     const slug = u.pathname.split("/")[3];
-    const col = u.searchParams.get("column");
+    const col = u.searchParams.get("column") || "";
     const term = u.searchParams.get("search") || "";
-    if (col !== "ico") return json({ data: [] });
-    const isBad = term === BAD;
-    if (slug === "ds_dsdd") return json({ data: isBad ? [{ ico: BAD, nazov: "C.C.C.", suma: "12 345,67" }] : [] });
-    if (slug === "ds_dphs") return json({ data: [{ ico: term, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }] });
-    if (slug === "ds_dphz") return json({ data: isBad ? [{ ico: BAD }] : [] });
-    if (slug === "ds_dppo") return json({ data: isBad ? [] : [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }] });
-    if (slug === "ds_ids") return json({ data: [{ ico: term, index: isBad ? "menej spoľahlivý" : "vysoko spoľahlivý" }] });
-    return json({ data: [] });
+    const searchable: Record<string, string[]> = { ds_dsdd: ["ico", "nazov"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"] };
+    if (!searchable[slug]) return json({ error: "List not found" }, 404);
+    if (!searchable[slug].includes(col)) return json({ error: "Column is not searchable" }, 400);
+    const isBad = term === BAD || term === "SK2020000001";
+    let rows: any[] = [];
+    if (slug === "ds_dsdd" && isBad) rows = [{ ico: BAD, nazov: "C.C.C.", suma: "12 345,67" }];
+    if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }];
+    if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
+    if (slug === "ds_dppo" && !isBad) rows = [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }];
+    if (slug === "ds_ids") rows = [{ ico: term, index: isBad ? "menej spoľahlivý" : "vysoko spoľahlivý" }];
+    if (!rows.length) return json({ error: "Search not found" }, 404);
+    return json({ page: 1, pages: 1, itemsCount: rows.length, itemsPerPage: 50, data: rows });
   }
   if (u.host === "www.socpoist.sk") {
     if (url.includes("/api/idsp/download/")) return new Response(new Uint8Array(socBuf), { status: 200 });
@@ -127,7 +141,11 @@ globalThis.fetch = (async (input: any, init?: any) => {
         : `${filters}<div>Nenašli sa žiadne konania pre hľadaný reťazec - ${icoParam}</div>`;
     return new Response(`<html><body>${body}</body></html>`, { status: 200 });
   }
-  if (u.host === "rpvs.gov.sk") return json({ value: [] });
+  if (u.host === "rpvs.gov.sk") {
+    if (url.includes(`'${GOOD}'`)) return json({ value: [{ Id: 9, Ico: GOOD, ObchodneMeno: "URBAN & PARTNERS s.r.o.", Partner: { Id: 36280, CisloVlozky: 12345 } }] });
+    if (url.includes("Partneri(36280)")) return json({ Id: 36280, KonecniUzivateliaVyhod: [{ Meno: "Ján", Priezvisko: "Vzor", TitulPred: "JUDr." }, { Meno: "Starý", Priezvisko: "Bývalý", PlatnostDo: "2020-01-01" }] });
+    return json({ value: [] });
+  }
   if (u.host === "api.anthropic.com") {
     const body = JSON.parse(init?.body || "{}");
     const userText: string = body.messages?.[0]?.content || "";
