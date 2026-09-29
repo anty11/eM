@@ -104,15 +104,42 @@ class MemoryKV implements KV {
 
 const g = globalThis as unknown as { __kv?: KV };
 
+/**
+ * Nájde pripojenie na Upstash. Vercel pomenúva premenné podľa zvolenej predpony
+ * (KV_REST_API_URL, UPSTASH_REDIS_REST_URL, STORAGE_REST_API_URL…), preto berieme ľubovoľnú dvojicu
+ * *_REST_API_URL + *_REST_API_TOKEN, prípadne odvodíme REST prístup z REDIS_URL (rediss://default:TOKEN@host:6379).
+ */
+export function redisEnv(): { url: string; token: string; from: string } | null {
+  const env = process.env;
+  const pairs: [string, string][] = [
+    ["KV_REST_API_URL", "KV_REST_API_TOKEN"],
+    ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
+  ];
+  for (const k of Object.keys(env)) {
+    const m = k.match(/^(.*)_REST_API_URL$/) || k.match(/^(.*)_REDIS_REST_URL$/);
+    if (m) pairs.push([k, k.replace(/_URL$/, "_TOKEN")]);
+  }
+  for (const [u, t] of pairs) if (env[u] && env[t]) return { url: env[u]!, token: env[t]!, from: u };
+  for (const k of ["REDIS_URL", "KV_URL", ...Object.keys(env).filter((x) => /(^|_)(REDIS|KV)_URL$/.test(x))]) {
+    const v = env[k];
+    const m = v?.match(/^rediss?:\/\/[^:]*:([^@]+)@([^:/]+)(?::\d+)?/);
+    if (m && /upstash\.io$/.test(m[2])) return { url: `https://${m[2]}`, token: decodeURIComponent(m[1]), from: k };
+  }
+  return null;
+}
+
 export function kv(): KV {
   if (g.__kv) return g.__kv;
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
-    g.__kv = new RedisKV(new Redis({ url, token }));
+  const r = redisEnv();
+  if (r) {
+    g.__kv = new RedisKV(new Redis({ url: r.url, token: r.token }));
   } else {
-    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_MEMORY_STORE)
-      throw new Error("Chýba databáza: pripojte Upstash Redis (KV_REST_API_URL, KV_REST_API_TOKEN).");
+    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_MEMORY_STORE) {
+      const seen = Object.keys(process.env).filter((k) => /KV|REDIS|UPSTASH|STORAGE/i.test(k));
+      throw new Error(
+        `Chýba databáza: pripojte Upstash Redis (KV_REST_API_URL, KV_REST_API_TOKEN).${seen.length ? ` Nájdené premenné: ${seen.join(", ")}.` : " Žiadne premenné databázy nie sú v tomto nasadení – pripojte Storage k projektu pre prostredie Production a urobte Redeploy."}`,
+      );
+    }
     g.__kv = new MemoryKV();
   }
   return g.__kv;

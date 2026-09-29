@@ -243,6 +243,20 @@ export async function setPasswordWithCode(emailIn: string, code: string, passwor
     const valid = u && !u.disabled && u.invite && u.invite.exp > Date.now() && u.invite.hash === sha(normCode(code));
     if (!u || !valid) {
       await audit({ type: "login_failed", by: email, detail: `neplatný kód, ${ip}` });
+      // Kým v aplikácii nie je žiadny používateľ, vysvetlíme presnú príčinu (pomoc pri prvom nastavení).
+      if (!u && (await kv().smembers(USERS)).length === 0) {
+        const admins = adminEmails();
+        const reason = !setupCode
+          ? "premenná ADMIN_SETUP_CODE nie je v tomto nasadení nastavená (nastavte ju pre prostredie Production a urobte Redeploy)"
+          : setupCode.length < 8
+            ? "ADMIN_SETUP_CODE je kratší ako 8 znakov"
+            : !admins.length
+              ? "premenná ADMIN_EMAILS nie je v tomto nasadení nastavená alebo neobsahuje platný e-mail"
+              : !admins.includes(email)
+                ? `e-mail ${email} nie je v ADMIN_EMAILS (nastavených adries: ${admins.length})`
+                : "kód sa nezhoduje s ADMIN_SETUP_CODE";
+        throw new AuthError(`Prvé nastavenie administrátora zlyhalo: ${reason}.`, 401);
+      }
       throw new AuthError("Neplatný alebo expirovaný kód. Požiadajte administrátora o nový.", 401);
     }
   }

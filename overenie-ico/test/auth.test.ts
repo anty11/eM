@@ -22,8 +22,8 @@ async function main() {
   assert.deepEqual(parseEmailList("Jana <jana@a.sk>; PETER@a.sk\nzly-email, jana@a.sk"), ["jana@a.sk", "peter@a.sk"]);
 
   // Bootstrap prvého admina – nesprávny kód / e-mail mimo ADMIN_EMAILS
-  await rejects(setPasswordWithCode("antonin.cajka@publicis.no", "ZLY-KOD", "SilneHeslo2026!", ip), /Neplatný/);
-  await rejects(setPasswordWithCode("cudzi@x.sk", "PRVY-ADMIN-2026", "SilneHeslo2026!", ip), /Neplatný/);
+  await rejects(setPasswordWithCode("antonin.cajka@publicis.no", "ZLY-KOD", "SilneHeslo2026!", ip), /kód sa nezhoduje/);
+  await rejects(setPasswordWithCode("cudzi@x.sk", "PRVY-ADMIN-2026", "SilneHeslo2026!", ip), /nie je v ADMIN_EMAILS/);
   await rejects(setPasswordWithCode("antonin.cajka@publicis.no", "PRVY-ADMIN-2026", "kratke", ip), /aspoň 10/);
   const admin = await setPasswordWithCode(" Antonin.Cajka@publicis.no ", "prvy admin 2026", "SilneHeslo2026!", ip);
   assert.equal(admin.role, "admin");
