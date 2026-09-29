@@ -72,8 +72,19 @@ function rowsOf(raw: any): any[] | null {
  * Podľa špecifikácie API: 200 = nájdené riadky, 404 „Search not found“ = subjekt v zozname NIE JE,
  * 400 „Column is not searchable“ = skúsime ďalší stĺpec.
  */
+/** Detail zoznamu (GET /lists/{slug}) – obsahuje stĺpce, v ktorých sa dá vyhľadávať. */
+async function listDetail(slug: string): Promise<Ds | null> {
+  return cached(`fs-list-${slug}`, 6 * 3600e3, async () => {
+    const x = await getJson<any>(`${API}/lists/${slug}`, { headers: hdr() }).catch(() => null);
+    const d = x?.[slug] && typeof x[slug] === "object" ? x[slug] : x;
+    if (!d) return null;
+    return { slug, name: String(d.name || slug), searchable: Array.isArray(d.searchable) ? d.searchable.map(String) : [] };
+  });
+}
+
 async function search(slug: string, ctx: Ctx): Promise<any[]> {
-  const ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
+  let ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
+  if (!ds?.searchable.length) ds = (await listDetail(slug)) || ds;
   const shortName = (ctx.profile.name || "")
     .replace(/,?\s*(spol\.\s*s\s*r\.\s*o\.|s\.\s*r\.\s*o\.|a\.\s*s\.|k\.\s*s\.|v\.\s*o\.\s*s\.|družstvo|advokátska kancelária).*$/i, "")
     .trim();
@@ -101,7 +112,11 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
     }
     tries.sort((x, y) => order.indexOf(x[2]) - order.indexOf(y[2]));
   }
-  if (!tries.length) tries = (["ico", "dic", "ic_dph"] as const).filter((k) => values[k]).map((k) => [k, values[k]!, k]);
+  if (!tries.length) {
+    // bez informácie o stĺpcoch: bežné názvy stĺpcov v OpenData FS (napr. ico, dic, nazov_subjektu)
+    const guess: [string, string][] = [["ico", "ico"], ["dic", "dic"], ["ic_dph", "ic_dph"], ["nazov_subjektu", "name"], ["nazov", "name"]];
+    tries = guess.filter(([, k]) => values[k]).map(([c, k]) => [c, values[k]!, k]);
+  }
 
   const matches = (r: any, kind: string) => {
     const s = JSON.stringify(r);
@@ -138,7 +153,7 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
   }
   if (!answered)
     throw new Error(
-      `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : ""} – ${errors[0] || "neznámy formát"}`,
+      `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : " (API neuviedlo prehľadávateľné stĺpce)"} – ${errors.join(" | ") || "neznámy formát"}`,
     );
   return [];
 }

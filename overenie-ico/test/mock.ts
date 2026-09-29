@@ -105,22 +105,24 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (url.endsWith("/api/lists"))
       return json(
         Object.fromEntries([
-          L("ds_dsdd", "Zoznam daňových dlžníkov", ["ico", "nazov"]),
+          L("ds_dsdd", "Zoznam daňových dlžníkov", []), // ako na produkcii: IČO nie je prehľadávateľné, stĺpce len v detaile
           L("ds_dphs", "Zoznam registrovaných platiteľov DPH", ["ic_dph", "ico"]),
           L("ds_dphz", "Zoznam platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie", ["ic_dph"]),
           L("ds_ids", "Index daňovej spoľahlivosti", ["ico"]),
           L("ds_dppo", "Daňové subjekty PO s výškou dane z príjmov", ["ico"]),
         ]),
       );
+    if (u.pathname === "/api/lists/ds_dsdd") return json({ name: "Zoznam daňových dlžníkov", slug: "ds_dsdd", searchable: ["nazov_subjektu", "obec"] });
     const slug = u.pathname.split("/")[3];
     const col = u.searchParams.get("column") || "";
     const term = u.searchParams.get("search") || "";
-    const searchable: Record<string, string[]> = { ds_dsdd: ["ico", "nazov"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"] };
+    const searchable: Record<string, string[]> = { ds_dsdd: ["nazov_subjektu", "obec"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"] };
     if (!searchable[slug]) return json({ error: "List not found" }, 404);
     if (!searchable[slug].includes(col)) return json({ error: "Column is not searchable" }, 400);
     const isBad = term === BAD || term === "SK2020000001";
     let rows: any[] = [];
-    if (slug === "ds_dsdd" && isBad) rows = [{ ico: BAD, nazov: "C.C.C.", suma: "12 345,67" }];
+    if (slug === "ds_dsdd" && /C\.C\.C\./.test(term)) rows = [{ nazov_subjektu: "C.C.C. s.r.o.", obec: "Bratislava", suma: "12 345,67" }];
+    if (slug === "ds_dsdd" && /URBAN/.test(term)) rows = [{ nazov_subjektu: "URBAN STAVBY s.r.o.", obec: "Košice", suma: "999,00" }]; // iná firma s podobným menom
     if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }];
     if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
     if (slug === "ds_dppo" && !isBad) rows = [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }];
