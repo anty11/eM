@@ -10,27 +10,70 @@ import { checkRpvs } from "./sources/rpvs";
 import { checkRuz } from "./sources/ruz";
 import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, Ctx, ScanReport } from "./types";
+import { META } from "./sources/meta";
 
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.1.0";
 
-export async function scan(ico: string): Promise<ScanReport> {
+/** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
+const DEADLINE_MS = 25000;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+export type Progress = (c: CheckResult, profile: Ctx["profile"]) => void;
+
+export async function scan(ico: string, onProgress?: Progress): Promise<ScanReport> {
+  const t0 = Date.now();
   const scannedAt = new Date().toISOString();
   const ctx: Ctx = { ico, profile: { ico } };
+  let resolveDic!: () => void;
+  ctx.dicReady = new Promise<void>((r) => (resolveDic = r));
+  ctx.resolveDic = resolveDic;
 
-  // 1. fáza: identifikácia (meno, DIČ) – potrebné pre ďalšie kontroly
-  const rpo = await checkRpo(ctx);
-  const ruz = await checkRuz(ctx); // doplní DIČ pre daňové kontroly
+  // Všetko beží súčasne; závislé kontroly čakajú len na údaj, ktorý potrebujú
+  const cap = (id: string, p: Promise<CheckResult>): Promise<CheckResult> =>
+    capRaw(id, p).then((r) => {
+      try {
+        onProgress?.(r, ctx.profile);
+      } catch {
+        /* klient sa odpojil */
+      }
+      return r;
+    });
+  const capRaw = (id: string, p: Promise<CheckResult>): Promise<CheckResult> =>
+    Promise.race([
+      p,
+      sleep(Math.max(1000, DEADLINE_MS - (Date.now() - t0))).then((): CheckResult => ({
+        id,
+        ...META[id],
+        status: "error",
+        summary: `Zdroj neodpovedal do ${Math.round(DEADLINE_MS / 1000)} s. Skúste „Preveriť znova“ alebo overte v zdroji.`,
+        findings: [],
+        checkedAt: new Date().toISOString(),
+        durationMs: Date.now() - t0,
+        automated: true,
+        verifyUrl: META[id].sourceUrl,
+      })),
+    ]);
 
-  // 2. fáza: ostatné registre paralelne
-  const [debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await Promise.all([
-    checkTaxDebtors(ctx),
-    checkVat(ctx),
-    checkIds(ctx),
-    checkIncomeTax(ctx),
-    checkSocpoist(ctx),
-    checkInsolvency(ctx),
-    checkRpvs(ctx),
-    checkNews(ctx),
+  for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
+  const rpoP = checkRpo(ctx);
+  ctx.rpoDone = rpoP.catch(() => undefined);
+  const ruzP = checkRuz(ctx);
+  // daňové kontroly: potrebujú meno (RPO) a DIČ (RÚZ) – na DIČ čakajú najviac 8 s
+  const idReady = Promise.all([ctx.rpoDone, Promise.race([ctx.dicReady, sleep(8000)])]);
+  const after = (fn: (c: Ctx) => Promise<CheckResult>) => idReady.then(() => fn(ctx));
+
+  const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await Promise.all([
+    cap("rpo", rpoP),
+    cap("ruz", ruzP),
+    cap("fs-debtors", after(checkTaxDebtors)),
+    cap("fs-vat", after(checkVat)),
+    cap("fs-ids", after(checkIds)),
+    cap("fs-dppo", after(checkIncomeTax)),
+    cap("socpoist", checkSocpoist(ctx)),
+    cap("insolvency", checkInsolvency(ctx)),
+    cap("rpvs", checkRpvs(ctx)),
+    cap("news", ctx.rpoDone.then(() => checkNews(ctx))),
   ]);
 
   const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manualChecks(ctx)];

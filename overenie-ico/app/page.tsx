@@ -7,6 +7,7 @@ import Header, { useMe } from "./components/Header";
 import ContactCard from "./components/ContactCard";
 import KeyFacts from "./components/KeyFacts";
 import { MANUAL } from "@/lib/sources/manual";
+import { AUTO_ORDER, pendingCheck } from "@/lib/sources/meta";
 import { AI_SPECS, aiCapable } from "@/lib/ai/specs";
 import { keyFacts as computeKeyFacts } from "@/lib/keyfacts";
 import type { CompanyProfile } from "@/lib/types";
@@ -18,6 +19,7 @@ const STATUS_LABEL: Record<CheckResult["status"], string> = {
   warning: "Upozornenie",
   critical: "Negatívny záznam",
   info: "Informácia",
+  pending: "Overuje sa…",
   manual: "Overiť manuálne",
   error: "Zdroj nedostupný",
 };
@@ -96,17 +98,58 @@ export default function Page() {
     setAiBusy({});
     setAiErr({});
     try {
-      const r = await fetch(`/api/check?ico=${v}`);
+      const r = await fetch(`/api/check?ico=${v}&stream=1`);
       if (r.status === 401) {
         location.href = `/login?next=${encodeURIComponent(`/?ico=${v}`)}`;
         return;
       }
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `Chyba ${r.status}`);
+      if (!r.ok || !r.body) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `Chyba ${r.status}`);
+      }
+      // Priebežné výsledky: karta sa doplní hneď, ako daný zdroj odpovie
+      const ico8 = v.padStart(8, "0");
+      const now = new Date().toISOString();
+      let live: ScanReport = {
+        scanId: "",
+        ico: ico8,
+        scannedAt: now,
+        profile: { ico: ico8 },
+        checks: AUTO_ORDER.map(pendingCheck),
+        verdict: computeVerdict([]),
+        keyFacts: [],
+        appVersion: "",
+      };
+      setReport(live);
+      history.replaceState(null, "", `?ico=${ico8}`);
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let final: ScanReport | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const ev = JSON.parse(line);
+          if (ev.type === "start") live = { ...live, scannedBy: ev.scannedBy, ai: ev.ai };
+          else if (ev.type === "check") {
+            const i = live.checks.findIndex((c) => c.id === ev.check.id);
+            const checksNext = i >= 0 ? live.checks.map((c, k) => (k === i ? ev.check : c)) : [...live.checks, ev.check];
+            live = { ...live, checks: checksNext, profile: { ...live.profile, ...ev.profile } };
+          } else if (ev.type === "done") final = ev.report;
+          else if (ev.type === "error") throw new Error(ev.error);
+          setReport(final || live);
+        }
+      }
+      const j = final || live;
       setReport(j);
       setShowManual(true);
       autoAi(j);
-      history.replaceState(null, "", `?ico=${j.ico}`);
       const next = [{ ico: j.ico, name: j.profile?.name }, ...recent.filter((x) => x.ico !== j.ico)].slice(0, 8);
       setRecent(next);
       safeSet("recent", next);
@@ -121,6 +164,8 @@ export default function Page() {
   const checks = useMemo(() => applyManual(baseChecks, answers), [baseChecks, answers]);
   const profile = useMemo(() => (report ? ({ ...report.profile, ...profilePatch } as CompanyProfile) : null), [report, profilePatch]);
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
+  const pendingCount = checks.filter((c) => c.status === "pending").length;
+  const totalAuto = checks.filter((c) => c.automated !== false && !NON_PUBLIC.includes(c.id)).length || 1;
   // neverejné registre, ktoré už overila AI, sa správajú ako bežné kontroly
   const nonPublic = useMemo(() => NON_PUBLIC.filter((id) => !(aiResults[id] && aiResults[id].status !== "manual")), [aiResults]);
   const verdict = useMemo(() => (report ? computeVerdict(checks, { ignore: lawyer ? [] : nonPublic }) : null), [report, checks, lawyer, nonPublic]);
@@ -248,7 +293,7 @@ export default function Page() {
             </div>
           )}
           {error && <div className="err">{error}</div>}
-          {loading && (
+          {loading && !report && (
             <ul className="loading">
               {SOURCES.map((s) => <li key={s}>⏳ {s}</li>)}
               <li>Preverenie trvá zvyčajne 10–30 sekúnd.</li>
@@ -263,25 +308,35 @@ export default function Page() {
               <div>Číslo preverenia: {report.scanId} · Čas preverenia: {fmtDate(report.scannedAt)}{report.scannedBy ? ` · Preveril: ${report.scannedBy}` : ""}</div>
             </div>
 
-            <section className={`card verdict ${verdict.level}`} style={{ ["--s" as any]: verdict.score }}>
-              <div className="score"><div><div><b>{verdict.score}</b><br /><span>zo 100</span></div></div></div>
-              <div>
-                <p className="vlabel">{verdict.label}</p>
-                <div className="vmeta">
-                  Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}
+            {pendingCount > 0 ? (
+              <section className="card verdict caution progress-card" style={{ ["--s" as any]: Math.round(((totalAuto - pendingCount) / totalAuto) * 100) }}>
+                <div className="score"><div><div><b>{totalAuto - pendingCount}</b><br /><span>z {totalAuto}</span></div></div></div>
+                <div>
+                  <p className="vlabel" style={{ color: "var(--ink)" }}>Preverujem…</p>
+                  <div className="vmeta">Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.</div>
                 </div>
-                <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
-                {verdict.preliminary && (
-                  <span className="prelim">
-                    Predbežné hodnotenie – {verdict.pendingManual} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
-                    {lawyer && <> · <button className="linkbtn no-print" onClick={() => setShowManual(true)}>otvoriť zoznam</button></>}
-                  </span>
-                )}
-                {!lawyer && (
-                  <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div>
-                )}
-              </div>
-            </section>
+              </section>
+            ) : (
+            <section className={`card verdict ${verdict.level}`} style={{ ["--s" as any]: verdict.score }}>
+                <div className="score"><div><div><b>{verdict.score}</b><br /><span>zo 100</span></div></div></div>
+                <div>
+                  <p className="vlabel">{verdict.label}</p>
+                  <div className="vmeta">
+                    Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}
+                  </div>
+                  <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
+                  {verdict.preliminary && (
+                    <span className="prelim">
+                      Predbežné hodnotenie – {verdict.pendingManual} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
+                      {lawyer && <> · <button className="linkbtn no-print" onClick={() => setShowManual(true)}>otvoriť zoznam</button></>}
+                    </span>
+                  )}
+                  {!lawyer && (
+                    <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div>
+                  )}
+                </div>
+              </section>
+            )}
 
             {Object.values(aiBusy).some(Boolean) && (
               <div className="ai-running no-print">AI dohľadáva údaje v zdrojoch, ktoré nie sú dostupné cez API ({Object.values(aiBusy).filter(Boolean).length})… Výsledok sa priebežne dopĺňa.</div>

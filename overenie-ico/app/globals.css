@@ -220,3 +220,7 @@ textarea { width: 100%; min-height: 80px; }
 .ai-note { grid-column: 1 / -1; font-size: 13px; }
 .evidence { margin: 4px 0 0; padding-left: 18px; }
 .ai-running { margin-top: 12px; padding: 10px 14px; border-radius: var(--radius); background: var(--info-bg); color: var(--info); font-size: 14px; }
+
+.s-pending { background: var(--line); color: var(--muted); }
+.progress-card .score b { color: var(--brand); }
+.progress-card { --c: var(--brand) !important; border-left-color: var(--brand) !important; }

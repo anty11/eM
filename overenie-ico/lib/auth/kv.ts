@@ -14,6 +14,8 @@ export interface KV {
   lpush(key: string, value: unknown, maxLen: number): Promise<void>;
   lrange<T>(key: string, start: number, stop: number): Promise<T[]>;
   incr(key: string, ttlSec: number): Promise<number>;
+  hset(key: string, values: Record<string, string>): Promise<void>;
+  hget(key: string, field: string): Promise<string | null>;
 }
 
 class RedisKV implements KV {
@@ -50,6 +52,13 @@ class RedisKV implements KV {
     const n = await this.r.incr(key);
     if (n === 1) await this.r.expire(key, ttlSec);
     return n;
+  }
+  async hset(key: string, values: Record<string, string>) {
+    await this.r.hset(key, values);
+  }
+  async hget(key: string, field: string) {
+    const v = await this.r.hget<string>(key, field);
+    return v === null || v === undefined ? null : String(v);
   }
 }
 
@@ -99,6 +108,15 @@ class MemoryKV implements KV {
     const n = (e?.v || 0) + 1;
     this.m.set(key, { v: n, exp: e?.exp ?? Date.now() + ttlSec * 1000 });
     return n;
+  }
+  async hset(key: string, values: Record<string, string>) {
+    const cur = { ...(this.live(key)?.v || {}) };
+    Object.assign(cur, values);
+    this.m.set(key, { v: cur });
+  }
+  async hget(key: string, field: string) {
+    const v = this.live(key)?.v?.[field];
+    return v === undefined ? null : String(v);
   }
 }
 

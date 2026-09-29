@@ -98,17 +98,28 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       sourceUrl: "https://www.registeruz.sk",
     },
     async () => {
-      const list = await getJson<{ id: number[] }>(`${BASE}/uctovne-jednotky?zmenene-od=2000-01-01&ico=${ctx.ico}`);
+      let list: { id: number[] };
+      try {
+        list = await getJson<{ id: number[] }>(`${BASE}/uctovne-jednotky?zmenene-od=2000-01-01&ico=${ctx.ico}`);
+      } catch (e) {
+        ctx.resolveDic?.();
+        throw e;
+      }
+      if (!list.id?.length) ctx.resolveDic?.();
       const verifyUrl = `https://www.registeruz.sk/cruz-public/domain/accountingentity/simplesearch?ico=${ctx.ico}`;
       if (!list.id?.length) {
         const f: Finding[] = [];
+        await ctx.rpoDone;
         const age = ctx.profile.established ? (Date.now() - +new Date(ctx.profile.established)) / 31557600000 : 0;
         if (age > 2 && /spolo[cč]nos[tť]|dru[zž]stvo/i.test(ctx.profile.legalForm || ""))
           f.push({ severity: "warning", text: "Obchodná spoločnosť nie je evidovaná v Registri účtovných závierok", penalty: 12 });
         return { status: statusFromFindings(f, "info"), summary: "Subjekt nemá v RÚZ žiadne záznamy.", findings: f, verifyUrl };
       }
-      const uj = await getJson<any>(`${BASE}/uctovna-jednotka?id=${list.id[list.id.length - 1]}`);
+      const uj = await getJson<any>(`${BASE}/uctovna-jednotka?id=${list.id[list.id.length - 1]}`).finally(() => ctx.resolveDic?.());
       if (uj.dic && !ctx.profile.dic) ctx.profile.dic = uj.dic;
+      ctx.resolveDic?.();
+      // stačí posledných ~6 závierok (ID rastú s časom) – rýchlejšie ako sťahovať celú históriu
+      uj.idUctovnychZavierok = [...(uj.idUctovnychZavierok || [])].sort((a: number, b: number) => b - a).slice(0, 6);
 
       const zav = (
         await pool(uj.idUctovnychZavierok || [], 6, (id: number) =>
@@ -137,6 +148,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       }
 
       const f: Finding[] = [];
+      await ctx.rpoDone;
       const now = new Date();
       // Závierka za rok N sa podáva do 30.6. (resp. 30.9. pri predĺžení) roku N+1
       const expected = now.getFullYear() - (now.getMonth() >= 9 ? 1 : 2);

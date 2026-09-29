@@ -1,5 +1,6 @@
 import { runCheck } from "../check";
 import { cached, fetchWithTimeout, fold, getText, stripHtml } from "../http";
+import { kv } from "../auth/kv";
 import type { CheckResult, Ctx } from "../types";
 
 const PAGE = "https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov";
@@ -79,7 +80,11 @@ export async function indexFile(buf: Buffer, map: Map<string, Debtor>): Promise<
 }
 
 async function loadIndex(): Promise<{ map: Map<string, Debtor>; count: number; file: string }> {
-  return cached("socpoist-index", 6 * 3600e3, async () => {
+  return cached("socpoist-index", 6 * 3600e3, downloadIndex);
+}
+
+async function downloadIndex(): Promise<{ map: Map<string, Debtor>; count: number; file: string }> {
+  {
     let file = FALLBACK_FILE;
     try {
       const html = await getText(PAGE, { timeoutMs: 15000 });
@@ -95,7 +100,64 @@ async function loadIndex(): Promise<{ map: Map<string, Debtor>; count: number; f
     const count = await indexFile(buf, map);
     if (count < 1000) throw new Error("súbor so zoznamom dlžníkov má neočakávaný formát");
     return { map, count, file };
-  });
+  }
+}
+
+/**
+ * Trvalý index v databáze (Upstash): hash IČO → „suma|názov|mesto“. Kontrola potom potrebuje 1 dotaz
+ * namiesto sťahovania ~136 000 riadkov. Obnovuje sa na pozadí, keď je starší ako 3 dni.
+ */
+const META_KEY = "sp:meta";
+const MAX_AGE = 3 * 864e5;
+interface SpMeta {
+  key: string;
+  count: number;
+  updatedAt: number;
+  file: string;
+}
+
+async function persistIndex(idx: { map: Map<string, Debtor>; count: number; file: string }) {
+  const key = `sp:idx:${Date.now()}`;
+  const entries = [...idx.map.entries()];
+  for (let i = 0; i < entries.length; i += 4000) {
+    const chunk: Record<string, string> = {};
+    for (const [ico, d] of entries.slice(i, i + 4000)) chunk[ico] = [d.amount || "", d.name || "", d.city || ""].join("|");
+    await kv().hset(key, chunk);
+  }
+  const old = await kv().get<SpMeta>(META_KEY);
+  await kv().set(META_KEY, { key, count: idx.count, updatedAt: Date.now(), file: idx.file } satisfies SpMeta);
+  if (old?.key && old.key !== key) await kv().del(old.key);
+}
+
+/** Obnova indexu na pozadí (po odoslaní odpovede), najviac jedna naraz. */
+async function refreshInBackground() {
+  const job = async () => {
+    if ((await kv().incr("sp:lock", 600)) !== 1) return;
+    try {
+      await persistIndex(await downloadIndex());
+    } finally {
+      await kv().del("sp:lock");
+    }
+  };
+  try {
+    const { after } = await import("next/server");
+    after(() => job().catch(() => undefined));
+  } catch {
+    job().catch(() => undefined);
+  }
+}
+
+async function lookupStored(ico: string): Promise<{ meta: SpMeta; d: Debtor | null } | null> {
+  try {
+    const meta = await kv().get<SpMeta>(META_KEY);
+    if (!meta?.key) return null;
+    const v = await kv().hget(meta.key, ico);
+    if (v === null) return { meta, d: null };
+    const [amount, name, city] = v.split("|");
+    return { meta, d: { amount: amount || undefined, name, city: city || undefined } };
+  } catch {
+    return null;
+  }
 }
 
 export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
@@ -110,12 +172,31 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
     async () => {
       const verifyUrl = `${PAGE}?search=${encodeURIComponent(ctx.profile.name || ctx.ico)}`;
       try {
-        const { map, count } = await loadIndex();
-        const d = map.get(ctx.ico);
+        let d: Debtor | null | undefined;
+        let count = 0;
+        let asOf: number | undefined;
+        const stored = await lookupStored(ctx.ico);
+        if (stored) {
+          d = stored.d;
+          count = stored.meta.count;
+          asOf = stored.meta.updatedAt;
+          if (Date.now() - stored.meta.updatedAt > MAX_AGE) await refreshInBackground();
+        } else {
+          const idx = await loadIndex();
+          d = idx.map.get(ctx.ico) || null;
+          count = idx.count;
+          // uložiť do databázy na pozadí – ďalšie preverenia budú okamžité
+          try {
+            const { after } = await import("next/server");
+            after(() => persistIndex(idx).catch(() => undefined));
+          } catch {
+            persistIndex(idx).catch(() => undefined);
+          }
+        }
         if (!d)
           return {
             status: "ok",
-            summary: `Subjekt NIE JE v zozname dlžníkov Sociálnej poisťovne (prehľadaných ${count.toLocaleString("sk-SK")} záznamov).`,
+            summary: `Subjekt NIE JE v zozname dlžníkov Sociálnej poisťovne (prehľadaných ${count.toLocaleString("sk-SK")} záznamov${asOf ? `, zoznam k ${new Date(asOf).toLocaleDateString("sk-SK")}` : ""}).`,
             findings: [],
             verifyUrl,
           };

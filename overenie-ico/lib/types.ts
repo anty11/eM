@@ -5,7 +5,8 @@ export type CheckStatus =
   | "critical" // overené, zistený závažný negatívny záznam
   | "info" // informatívny údaj bez hodnotenia
   | "manual" // nie je možné overiť automaticky – treba manuálne overenie
-  | "error"; // zdroj nedostupný / chyba
+  | "error" // zdroj nedostupný / chyba
+  | "pending"; // práve sa overuje (priebežné zobrazenie)
 
 export type Severity = "critical" | "warning" | "info" | "positive";
 
@@ -123,4 +124,10 @@ export interface ScanReport {
 export interface Ctx {
   ico: string;
   profile: CompanyProfile;
+  /** Splnené po dokončení identifikácie (RPO) – ostatné kontroly naň čakajú len ak potrebujú meno/vek. */
+  rpoDone?: Promise<unknown>;
+  /** Splnené, keď je známe DIČ (z RÚZ) alebo je jasné, že nie je. */
+  dicReady?: Promise<unknown>;
+  /** Interné: vyriešenie dicReady. */
+  resolveDic?: () => void;
 }
