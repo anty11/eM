@@ -54,9 +54,9 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
   // 2. Konanie o zrušení / výmaze / likvidácii
   {
     const hit = (rpo?.data as any)?.dissolution || (ins?.data as any)?.dissolution;
-    const text = (rpo?.data as any)?.dissolutionText;
+    const text = (rpo?.data as any)?.dissolutionText || (ins?.data as any)?.dissolutionText;
     const pending = !ins || ins.status === "manual" || ins.status === "error";
-    const insolvent = !hit && ins?.status === "critical";
+    const insolvent = !hit && ins?.status === "critical" && (ins?.data as any)?.insolvent !== false;
     facts.push({
       id: "dissolution",
       question: "Je vedené konanie o zrušení, výmaze alebo likvidácii?",

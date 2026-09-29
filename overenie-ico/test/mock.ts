@@ -117,8 +117,15 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (url.includes("/api/idsp/download/")) return new Response(new Uint8Array(socBuf), { status: 200 });
     return new Response('<a href="/api/idsp/download/ed57da4c-93aa-4198-ae4b-b2d65d3ca099">Stiahnuť</a>', { status: 200 });
   }
-  if (u.host === "replik.justice.sk")
-    return new Response(icoParam === BAD ? `<td>${BAD}</td><td>Konkurz</td>` : "<div>Nenašli sa žiadne záznamy</div>", { status: 200 });
+  if (u.host === "replik.justice.sk") {
+    // Štruktúra reálnej stránky REPLIK: filter s druhmi konaní je na stránke vždy, hľadané IČO sa opakuje v hlavičke
+    const filters = `<select><option>Konkurz</option><option>Malý konkurz</option><option>Reštrukturalizácia</option><option>Oddlženie</option><option>Likvidácia</option></select>`;
+    const body =
+      icoParam === BAD
+        ? `${filters}<div>Počet výsledkov: 2</div><div>C.C.C. s.r.o. (IČO: ${BAD}) - Konkurz č. 2K/8/2026</div><div>Začaté konkurzné konanie</div><div>14.8.2026, Okresný súd Bratislava</div><div>C.C.C. s.r.o. (IČO: ${BAD}) - Malý Konkurz č. 2K/6/2023</div><div>Skončené konkurzné konanie</div><div>19.8.2023, Okresný súd Bratislava</div>`
+        : `${filters}<div>Nenašli sa žiadne konania pre hľadaný reťazec - ${icoParam}</div>`;
+    return new Response(`<html><body>${body}</body></html>`, { status: 200 });
+  }
   if (u.host === "rpvs.gov.sk") return json({ value: [] });
   if (u.host === "api.anthropic.com") {
     const body = JSON.parse(init?.body || "{}");
@@ -140,11 +147,29 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (paused) return json({ content: [{ type: "server_tool_use", id: "t1", name: "web_fetch", input: { url: firstUrl } }, fetchBlock], stop_reason: "pause_turn", usage: { input_tokens: 10, output_tokens: 5, server_tool_use: { web_search_requests: 1 } } });
     return json({ content: [{ type: "text", text: `Hotovo.\n<json>${JSON.stringify(out)}</json>` }], stop_reason: "end_turn", usage: { input_tokens: 20, output_tokens: 30 } });
   }
-  if (u.host === "news.google.com")
-    return new Response(
-      `<rss><channel><item><title>${u.searchParams.get("q")} – polícia obvinila konateľa z podvodu</title><link>https://x.sk/1</link><pubDate>${new Date().toUTCString()}</pubDate></item><item><title>Nová pobočka</title><link>https://x.sk/2</link></item></channel></rss>`,
-      { status: 200 },
-    );
+  if (u.host === "news.google.com" || u.host === "www.bing.com") {
+    // Realistický mix: relevantné, staré, nesúvisiace (iná firma s podobným menom), duplicity
+    const q = u.searchParams.get("q") || "";
+    const days = (n: number) => new Date(Date.now() - n * 864e5).toUTCString();
+    const item = (title: string, src: string, dom: string, d: string, desc = "") =>
+      u.host === "www.bing.com"
+        ? `<item><title>${title}</title><link>http://www.bing.com/news/apiclick.aspx?url=https%3a%2f%2f${dom}%2fa</link><description>${desc}</description><pubDate>${d}</pubDate><News:Source>${src}</News:Source></item>`
+        : `<item><title>${title} - ${src}</title><link>https://news.google.com/rss/articles/x${Math.random()}</link><pubDate>${d}</pubDate><source url="https://${dom}">${src}</source><description>${desc}</description></item>`;
+    let items = "";
+    if (q.includes("URBAN & PARTNERS")) {
+      items =
+        item("URBAN & PARTNERS posilňuje tím v Bratislave", "Trend", "trend.sk", days(12), "Advokátska kancelária URBAN & PARTNERS s.r.o. prijala nového partnera.") +
+        item("URBAN & PARTNERS posilňuje tím v Bratislave", "Trend", "trend.sk", days(12)) +
+        item("Právnici z URBAN & PARTNERS radili pri akvizícii", "Hospodárske noviny", "hnonline.sk", days(90)) +
+        item("Urban Partners opens new office in London", "Reuters", "reuters.com", days(5), "Urban Partners, a UK property investor") +
+        item("URBAN & PARTNERS: rozhovor o práve", "SME", "sme.sk", days(6 * 365));
+    } else if (q.includes("C.C.C.")) {
+      items =
+        item("Polícia obvinila konateľa C.C.C. s.r.o. z podvodu", "Aktuality", "aktuality.sk", days(20), "Firma C.C.C. s.r.o. z Bratislavy dlhuje štátu.") +
+        item("Dlhodobý projekt C.C.C. dokončený", "Denník N", "dennikn.sk", days(40), "C.C.C. s.r.o. Bratislava");
+    }
+    return new Response(`<rss><channel>${items}</channel></rss>`, { status: 200 });
+  }
   return new Response("not mocked", { status: 404 });
 }) as typeof fetch;
 }

@@ -200,12 +200,22 @@ Aplikácia skúša stĺpce v poradí `ico`, `ICO`, potom `dic` (DIČ z RÚZ) a `
 
 | | |
 |---|---|
-| Prevádzkovateľ | Ministerstvo spravodlivosti SR, Register predinsolvenčných, likvidačných a insolvenčných konaní |
+| Prevádzkovateľ | Ministerstvo spravodlivosti SR – Register predinsolvenčných, likvidačných a insolvenčných konaní |
 | Prístup | webová stránka (JSF), **bez API** |
 | Požiadavka | `GET https://replik.justice.sk/ru-verejnost-web/pages/searchKonanie.xhtml?query={IČO}` |
-| Vyhodnotenie | Ak stránka obsahuje IČO a slová konkurz, reštrukturalizácia, oddlženie, likvidácia alebo zrušenie, ide o nález. Ak obsahuje „nenašli sa žiadne záznamy“, je bez záznamu. Inak manuálne overenie. |
+| Bez konania | stránka obsahuje „Nenašli sa žiadne konania pre hľadaný reťazec – {IČO}“ → bez záznamu |
+| S konaním | „Počet výsledkov: N“ a riadky v tvare `Obchodné meno (IČO: 12345678) - Konkurz č. 2K/8/2026 · Začaté konkurzné konanie · 14.8.2026, Okresný súd …` |
+| Iný výsledok | manuálne overenie (príp. AI) |
 
-**Hodnotenie:** konanie je kritické, −80. Druh konania (konkurz, reštrukturalizácia, likvidácia/zrušenie) sa zobrazí v prehľade.
+**Dôležité:** stránka vždy obsahuje filter s druhmi konaní (Konkurz, Reštrukturalizácia, Likvidácia…) a hľadané IČO v hlavičke. Nález sa preto uzná **len podľa riadku výsledku** `(IČO: …) - druh č. spisová značka` s presne tým istým IČO. (Do verzie z 29. 9. 2026 aplikácia chybne hlásila konanie pri každom subjekte.)
+
+**Hodnotenie:**
+
+| Situácia | Závažnosť | Body |
+|---|---|---|
+| Prebiehajúci konkurz / malý konkurz / reštrukturalizácia / oddlženie | kritická | −80 (za najzávažnejšie, ďalšie sa nesčítavajú) |
+| Prebiehajúca likvidácia | kritická | −60; v prehľade „konanie o zrušení / likvidácii: ÁNO“ |
+| Skončené konanie v minulosti (skončené, zastavené, zamietnuté, zrušené) | upozornenie | −8 |
 
 ---
 
@@ -224,13 +234,31 @@ Aplikácia skúša stĺpce v poradí `ico`, `ICO`, potom `dic` (DIČ z RÚZ) a `
 
 | | |
 |---|---|
-| Požiadavka | `GET https://news.google.com/rss/search?q="{obchodné meno bez právnej formy}"&hl=sk&gl=SK&ceid=SK:sk` |
-| Preberá sa | najviac 40 článkov: titulok, odkaz, dátum, zdroj |
-| Negatívne výrazy | podvod, obvinenie, stíhanie, NAKA, polícia, zatknutie, konkurz, exekúcia, insolvencia, úpadok, dlh, pokuta, sankcia, kartel, korupcia, daňový únik, karusel, súd, žaloba, likvidácia, krach, neplatenie, sprenevera, kauza, škandál, prepúšťanie |
-| Hodnotenie | 3 a viac negatívnych článkov za 2 roky: upozornenie, −10. 1–2 články: upozornenie, −3. |
-| Odkazy navyše | Google (aj s negatívnymi výrazmi), FinStat, Index podnikateľa, FOAF, Centrálny register zmlúv |
+| Zdroje | Google News RSS (sk/SK) a Bing News RSS (sk/SK, zoradené podľa dátumu) |
+| Dopyty | `"meno bez právnej formy" when:1y` (najnovšie), `"meno"` (všetky), `"úplné obchodné meno"`, `"meno" "priezvisko štatutára"`, Bing `"meno"` |
+| Spracovanie | zlúčenie, odstránenie duplicít (rovnaký titulok), vyradenie článkov starších ako **3 roky**, zoradenie **od najnovšieho** |
 
-**Obmedzenia:** hľadá sa podľa mena, takže sa môžu nájsť aj iné subjekty s podobným menom. Články treba prečítať.
+**Relevancia** (či je článok naozaj o tomto subjekte) – body sa sčítavajú, článok sa zobrazí pri **≥ 3**:
+
+| Kritérium | Body |
+|---|---|
+| úplné obchodné meno (s právnou formou) v titulku/popise | +3 |
+| meno bez právnej formy v titulku (+3), len v popise (+2), všetky výrazné slová mena (+1) | |
+| IČO v texte | +3 |
+| priezvisko štatutára v texte | +2 |
+| mesto sídla v texte | +1 |
+| slovenský alebo český zdroj (.sk / .cz) | +1 |
+| krátke/všeobecné meno (1 slovo, < 8 znakov) bez ďalšieho kontextu | najviac 1 → vyradené |
+
+Slová ako *partners, group, slovakia, holding, invest…* sa pri porovnávaní ignorujú. Tak sa vyradia napr. zahraničné firmy s podobným menom.
+
+**Negatívne výrazy** (začiatky slov bez diakritiky): podvod, obvinenie, trestné stíhanie, NAKA/polícia, zadržanie, konkurz, exekúcia, insolvencia/úpadok, dlhy (*dlhy, dlhov, dlžník, nezaplatené* – nie „dlhodobý“), pokuta/sankcia, kartel/korupcia, daňový únik/karusel, žaloba/spor, likvidácia/krach, sprenevera/pranie, kauza/škandál, prepúšťanie.
+
+**Hodnotenie:** 3 a viac relevantných negatívnych článkov za 2 roky → upozornenie −10; 1–2 → upozornenie −3.
+
+**Odkazy navyše:** Google správy za posledný rok, Google s negatívnymi výrazmi, FinStat, Index podnikateľa, FOAF, Centrálny register zmlúv.
+
+**Obmedzenia:** RSS vracia len titulok a krátky popis, nie celý článok. Rozhodujúce je, čo je v titulku a popise; články treba prečítať.
 
 ---
 

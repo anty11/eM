@@ -24,7 +24,8 @@ async function main() {
   assert.equal(r.profile.dic, "2023674466");
   assert.equal(by("fs-debtors").status, "manual");
   assert.equal(by("socpoist").status, "ok", by("socpoist").summary);
-  assert.equal(by("insolvency").status, "ok");
+  assert.equal(by("insolvency").status, "ok", "stránka bez konaní (s filtrom „Konkurz…“ a IČO v hlavičke) nesmie byť nález");
+  assert.notEqual(r.keyFacts.find((f) => f.id === "dissolution")!.tone, "bad");
   const m = (by("ruz").data as any).metrics;
   assert.equal(m[0].revenue, 979872);
   assert.equal(m[0].equity, 923155);
@@ -32,6 +33,10 @@ async function main() {
   assert.equal(m[0].totalAssets, 1794680);
   assert.equal(m[1].period, "2024");
   assert.equal(r.verdict.preliminary, true);
+  // médiá: len relevantné, najnovšie prvé, bez duplicít, bez starých a nesúvisiacich
+  const arts = (by("news").data as any).articles as any[];
+  assert.deepEqual(arts.map((a) => a.title), ["URBAN & PARTNERS posilňuje tím v Bratislave", "Právnici z URBAN & PARTNERS radili pri akvizícii"]);
+  assert.equal(by("news").status, "ok");
   // nové údaje z registra
   assert.deepEqual(r.profile.activities, ["poskytovanie právnych služieb", "sprostredkovateľská činnosť v oblasti obchodu"]);
   assert.equal(r.profile.lastOwnershipChange, "2024-01-16");
@@ -76,9 +81,16 @@ async function main() {
   assert.equal(by("fs-vat").status, "critical");
   assert.equal(by("socpoist").status, "critical");
   assert.equal(by("insolvency").status, "critical");
+  assert.equal((by("insolvency").data as any).proceedings.length, 2);
+  assert.equal(by("insolvency").findings.filter((f) => f.severity === "critical").length, 1, "skončené konanie je len upozornenie");
   assert.equal(by("ruz").status, "critical");
   assert.equal(r.verdict.preliminary, false);
   const kb = (id: string) => r.keyFacts.find((f) => f.id === id)!;
+  const barts = (by("news").data as any).articles as any[];
+  assert.equal(barts.length, 2);
+  assert.deepEqual(barts[0].negative, ["podvod", "obvinenie", "NAKA / polícia", "dlhy"].filter((x) => barts[0].negative.includes(x)));
+  assert.ok(barts[0].negative.includes("podvod"));
+  assert.deepEqual(barts[1].negative, [], "„Dlhodobý“ nesmie byť označené ako dlh");
   assert.equal(kb("vat").tone, "bad");
   assert.equal(kb("arrears").tone, "bad");
   assert.equal(kb("ownership").tone, "warn", "zmena vlastníka pred menej ako 6 mesiacmi");

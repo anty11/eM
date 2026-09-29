@@ -407,12 +407,13 @@ export default function Page() {
 
             {news && ((news.data as any)?.articles?.length > 0 || (news.data as any)?.links) && (
               <section className="card news">
-                <h2>Mediálne výstupy</h2>
+                <h2>Mediálne výstupy – relevantné, od najnovšieho</h2>
+                {!((news.data as any)?.articles?.length) && <p className="src">Za posledné 3 roky sa nenašli články, ktoré by sa preukázateľne týkali tohto subjektu.</p>}
                 <ul>
                   {((news.data as any)?.articles || []).slice(0, 12).map((a: any, i: number) => (
                     <li key={i}>
                       <a href={a.link} target="_blank" rel="noreferrer">{a.title}</a>
-                      <span className="src"> · {a.date ? new Date(a.date).toLocaleDateString("sk-SK") : ""}</span>
+                      <span className="src"> · {[a.source || a.domain, a.date ? new Date(a.date).toLocaleDateString("sk-SK") : ""].filter(Boolean).join(" · ")}</span>
                       {a.negative?.length > 0 && <span className="neg">⚠ {a.negative.join(", ")}</span>}
                     </li>
                   ))}
