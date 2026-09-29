@@ -124,7 +124,8 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }];
     if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
     if (slug === "ds_dppo" && !isBad) rows = [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }];
-    if (slug === "ds_ids") rows = [{ ico: term, index: isBad ? "menej spoľahlivý" : "vysoko spoľahlivý" }];
+    // presne štruktúra reálnej odpovede API (overené na produkcii)
+    if (slug === "ds_ids") rows = [{ id: 1362137, dic: isBad ? "2020000001" : "2023674466", ico: term, ids: isBad ? "menej spoľahlivý" : "vysoko spoľahlivý", nazov_subjektu: isBad ? "C.C.C. s.r.o." : "URBAN & PARTNERS s.r.o., advokátska kancelária", obec: "Bratislava - mestská časť Staré Mesto", psc: "81103", ulica_cislo: "Červeňova 15", stat: "SK" }];
     if (!rows.length) return json({ error: "Search not found" }, 404);
     return json({ page: 1, pages: 1, itemsCount: rows.length, itemsPerPage: 50, data: rows });
   }

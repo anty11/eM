@@ -142,21 +142,41 @@ export function relevance(a: { title: string; snippet?: string; domain?: string 
 /** Stránky registrov a katalógov firiem – nie sú to médiá (zobrazujú sa ako odkazy). */
 const NOT_MEDIA = /(^|\.)(finstat|orsr|uvostat|finreg|foaf|indexpodnikatela|profesia|emis|zoznam|firmy|kompass|registeruz|rpvs|crz|statistics|justice|slov-lex|linkedin|facebook|instagram|youtube|twitter|x)\.(sk|com|gov\.sk|eu|cz)$/;
 
-const MIN_RELEVANCE = 3;
-const YEARS = 3;
+const MIN_RELEVANCE = 2;
+const YEARS = 5;
 
-export function processArticles(raw: Omit<Article, "negative" | "relevance">[], p: CompanyProfile, now = Date.now()): Article[] {
+export interface Rejected {
+  title: string;
+  link: string;
+  source?: string;
+  date?: string;
+  reason: string;
+}
+
+/** Vráti relevantné články a zvlášť vyradené aj s dôvodom (aby sa filter dal skontrolovať). */
+export function processArticles(raw: Omit<Article, "negative" | "relevance">[], p: CompanyProfile, now = Date.now(), rejected: Rejected[] = []): Article[] {
   const seen = new Set<string>();
   const out: Article[] = [];
+  const reject = (a: Omit<Article, "negative" | "relevance">, reason: string) =>
+    rejected.push({ title: a.title, link: a.link, source: a.source || a.domain, date: a.date, reason });
   for (const a of raw) {
     const key = fold(a.title).replace(/[^a-z0-9]+/g, " ").trim().slice(0, 90);
     if (!key || seen.has(key)) continue;
     seen.add(key);
     const t = a.date ? +new Date(a.date) : NaN;
-    if (Number.isFinite(t) && now - t > YEARS * 365.25 * 864e5) continue;
-    if (a.domain && NOT_MEDIA.test(a.domain)) continue;
+    if (Number.isFinite(t) && now - t > YEARS * 365.25 * 864e5) {
+      reject(a, `starší ako ${YEARS} rokov`);
+      continue;
+    }
+    if (a.domain && NOT_MEDIA.test(a.domain)) {
+      reject(a, "katalóg firiem / register (nie médium)");
+      continue;
+    }
     const rel = relevance(a, p);
-    if (rel < MIN_RELEVANCE) continue;
+    if (rel < MIN_RELEVANCE) {
+      reject(a, "meno firmy sa v titulku ani popise nenachádza");
+      continue;
+    }
     const hay = ` ${fold(`${a.title} ${a.snippet || ""}`)} `;
     const negative = NEGATIVE.filter(([, re]) => re.test(hay)).map(([label]) => label);
     out.push({ ...a, negative, relevance: rel });
@@ -205,7 +225,8 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       const raw = results.flatMap((r, i) => (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).slice(0, 50) : []));
       if (results.every((r) => r.status === "rejected")) throw new Error("vyhľadávače správ neodpovedajú");
 
-      const articles = processArticles(raw, p);
+      const rejected: Rejected[] = [];
+      const articles = processArticles(raw, p, Date.now(), rejected);
       const twoYears = Date.now() - 2 * 365.25 * 864e5;
       const recentNeg = articles.filter((a) => a.negative.length && (!a.date || +new Date(a.date) > twoYears));
       const f: Finding[] = [];
@@ -217,13 +238,13 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       return {
         status: recentNeg.length ? "warning" : "ok",
         summary: articles.length
-          ? `${articles.length} relevantných článkov za posledné ${YEARS} roky (najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, nesúvisiace (iné firmy s podobným menom) vyradené.`
+          ? `${articles.length} relevantných článkov za posledných ${YEARS} rokov (najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, nesúvisiace (iné firmy s podobným menom) vyradené.`
           : raw.length
-            ? `Za posledné ${YEARS} roky sa nenašli články, ktoré by sa preukázateľne týkali subjektu (prehľadaných ${raw.length} výsledkov, všetky o iných subjektoch alebo staršie).`
+            ? `Za posledných ${YEARS} rokov sa nenašli články, v ktorých by sa uvádzalo meno subjektu (prehľadaných ${raw.length} výsledkov). Vyradené výsledky sú zobrazené nižšie.`
             : "Vyhľadávače správ nevrátili žiadne výsledky – mohli zablokovať požiadavku zo servera. Použite odkazy nižšie.",
         findings: f,
         verifyUrl: links.google,
-        data: { query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), scanned: raw.length, sources: results.map((r, i) => ({ provider: queries[i][1], ok: r.status === "fulfilled", items: r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : 0 })), links },
+        data: { query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), rejected: rejected.slice(0, 30), scanned: raw.length, sources: results.map((r, i) => ({ provider: queries[i][1], ok: r.status === "fulfilled", items: r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : 0 })), links },
       };
     },
   );

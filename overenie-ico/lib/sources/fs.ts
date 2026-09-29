@@ -74,43 +74,72 @@ function rowsOf(raw: any): any[] | null {
  */
 async function search(slug: string, ctx: Ctx): Promise<any[]> {
   const ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
+  const shortName = (ctx.profile.name || "")
+    .replace(/,?\s*(spol\.\s*s\s*r\.\s*o\.|s\.\s*r\.\s*o\.|a\.\s*s\.|k\.\s*s\.|v\.\s*o\.\s*s\.|družstvo|advokátska kancelária).*$/i, "")
+    .trim();
   const values: Record<string, string | undefined> = {
     ico: ctx.ico,
     dic: ctx.profile.dic,
     ic_dph: ctx.profile.icDph || (ctx.profile.dic ? `SK${ctx.profile.dic}` : undefined),
+    name: shortName.length >= 5 ? shortName.slice(0, 60) : undefined,
   };
-  const kindOf = (col: string) => (/ic_?dph|icdph/i.test(col) ? "ic_dph" : /^i[cč]o$|_ico$|^ico_/i.test(col) ? "ico" : /^di[cč]$|_dic$/i.test(col) ? "dic" : null);
-  let tries: [string, string][] = [];
-  if (ds?.searchable.length)
+  const kindOf = (col: string) => {
+    const c = fold(col);
+    if (/ic_?dph|icdph/.test(c)) return "ic_dph";
+    if (/(^|_)ico($|_)/.test(c)) return "ico";
+    if (/(^|_)dic($|_)/.test(c)) return "dic";
+    if (/nazov|obchodne|meno|subjekt/.test(c)) return "name";
+    return null;
+  };
+  // poradie: presné identifikátory, až potom meno
+  const order = ["ico", "dic", "ic_dph", "name"];
+  let tries: [string, string, string][] = [];
+  if (ds?.searchable.length) {
     for (const col of ds.searchable) {
       const k = kindOf(col);
-      if (k && values[k]) tries.push([col, values[k]!]);
+      if (k && values[k]) tries.push([col, values[k]!, k]);
     }
-  if (!tries.length) tries = (["ico", "dic", "ic_dph"] as const).filter((k) => values[k]).map((k) => [k, values[k]!]);
+    tries.sort((x, y) => order.indexOf(x[2]) - order.indexOf(y[2]));
+  }
+  if (!tries.length) tries = (["ico", "dic", "ic_dph"] as const).filter((k) => values[k]).map((k) => [k, values[k]!, k]);
 
-  let lastErr: Error | null = null;
+  const matches = (r: any, kind: string) => {
+    const s = JSON.stringify(r);
+    if (s.includes(ctx.ico) || (ctx.profile.dic && s.includes(ctx.profile.dic))) return true;
+    // pri hľadaní podľa mena bez IČO v riadku: zhoda celého mena (bez právnej formy) + obec sídla, ak je v riadku
+    if (kind !== "name") return false;
+    const rowName = fold(String(Object.entries(r).find(([k]) => /nazov|obchodne|meno|subjekt/.test(fold(k)))?.[1] || ""));
+    if (!rowName || !rowName.startsWith(fold(shortName))) return false;
+    const rowCity = fold(String(Object.entries(r).find(([k]) => /obec|mesto/.test(fold(k)))?.[1] || ""));
+    const city = fold(ctx.profile.address || "");
+    return !rowCity || city.includes(rowCity.split(" - ")[0].trim());
+  };
+
+  const errors: string[] = [];
   let answered = false;
-  for (const [col, val] of tries) {
+  for (const [col, val, kind] of tries) {
     try {
       const raw = await getJson<any>(`${API}/data/${slug}/search?page=1&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`, { headers: hdr() });
       const all = rowsOf(raw);
       if (!all) continue;
       answered = true;
-      const rows = all.filter((r) => {
-        const s = JSON.stringify(r);
-        return s.includes(ctx.ico) || (ctx.profile.dic && s.includes(ctx.profile.dic));
-      });
+      const rows = all.filter((r) => matches(r, kind));
       if (rows.length) return rows;
+      if (kind !== "name") return []; // presný identifikátor prehľadaný, subjekt v zozname nie je
     } catch (e) {
       if (e instanceof HttpError && (e.status === 401 || e.status === 403)) throw new Error("neplatný API kľúč Finančnej správy");
       if (e instanceof HttpError && e.status === 404) {
         answered = true; // „Search not found“ – v zozname nie je
+        if (kind !== "name") return [];
         continue;
       }
-      lastErr = e as Error;
+      errors.push(`${col}: ${(e as Error).message}`);
     }
   }
-  if (!answered) throw lastErr || new Error("API Finančnej správy vrátilo neočakávaný formát");
+  if (!answered)
+    throw new Error(
+      `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : ""} – ${errors[0] || "neznámy formát"}`,
+    );
   return [];
 }
 
@@ -211,7 +240,9 @@ export async function checkIds(ctx: Ctx): Promise<CheckResult> {
     const rows = await search(slug, ctx);
     const url = `${ZOZNAMY}/index-danovej-spolahlivosti`;
     if (!rows.length) return { status: "info", summary: "Subjekt nie je hodnotený v indexe daňovej spoľahlivosti.", findings: [], verifyUrl: url };
-    const v = String(pick(rows[0], /index|hodnot|spolahliv|kategor/) ?? JSON.stringify(rows[0]));
+    // skutočný záznam API: { ico, dic, ids: "vysoko spoľahlivý", nazov_subjektu, obec, … }
+    const raw = pick(rows[0], /^ids$|index|hodnot|spolahliv|kategor/) ?? Object.values(rows[0]).find((x) => /spo[lľ]ahliv/i.test(String(x)));
+    const v = raw !== undefined ? String(raw) : "hodnotenie neuvedené";
     const fv = fold(v);
     const f: Finding[] = [];
     if (fv.includes("menej")) f.push({ severity: "warning", text: `Index daňovej spoľahlivosti: ${v}`, penalty: 20 });

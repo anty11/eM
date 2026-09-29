@@ -42,6 +42,9 @@ async function main() {
     "Kancelária URBAN GAŠPEREC BOŠANSKÝ radila pri predaji",
   ], JSON.stringify(arts.map((a) => a.title)) + " zápis bez medzier, predchádzajúce meno, zoradené od najnovšieho; bez FinStatu, Reuters a starých");
   assert.equal(by("news").status, "ok");
+  const rej = (by("news").data as any).rejected as any[];
+  assert.ok(rej.some((x) => /Reuters|London/.test(x.title) && /meno firmy/.test(x.reason)), "nesúvisiaci článok je vo vyradených s dôvodom");
+  assert.ok(rej.some((x) => /rozhovor/.test(x.title) && /starší/.test(x.reason)));
   // nové údaje z registra
   assert.deepEqual(r.profile.activities, ["poskytovanie právnych služieb", "sprostredkovateľská činnosť v oblasti obchodu"]);
   assert.equal(r.profile.lastOwnershipChange, "2024-01-16");
@@ -61,6 +64,7 @@ async function main() {
   assert.equal(by("fs-vat").status, "ok");
   assert.equal(r.profile.icDph, "SK2023674466");
   assert.equal(by("fs-ids").status, "ok");
+  assert.equal(by("fs-ids").summary, "Hodnotenie: vysoko spoľahlivý.");
   assert.equal(by("fs-dppo").status, "ok");
   assert.equal(by("rpvs").status, "ok");
   assert.deepEqual((by("rpvs").data as any).kuv, ["JUDr. Ján Vzor"], "len aktuálni KUV");

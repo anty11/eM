@@ -31,7 +31,13 @@ export async function fetchWithTimeout(
 
 export async function getJson<T = any>(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const res = await fetchWithTimeout(url, { ...init, headers: { Accept: "application/json", ...(init.headers || {}) } });
-  if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status} z ${new URL(url).host}`);
+  if (!res.ok) {
+    // text chyby zo servera (napr. „Column is not searchable“) – pomáha pri diagnostike
+    const body = (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 160);
+    const e = new HttpError(res.status, `HTTP ${res.status} z ${new URL(url).host}${body ? ` (${body})` : ""}`);
+    (e as any).body = body;
+    throw e;
+  }
   return (await res.json()) as T;
 }
 

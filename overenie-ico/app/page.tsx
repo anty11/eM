@@ -424,10 +424,10 @@ export default function Page() {
               </section>
             )}
 
-            {news && ((news.data as any)?.articles?.length > 0 || (news.data as any)?.links) && (
+            {news && ((news.data as any)?.articles?.length > 0 || (news.data as any)?.rejected?.length > 0 || (news.data as any)?.links) && (
               <section className="card news">
                 <h2>Mediálne výstupy – relevantné, od najnovšieho</h2>
-                {!((news.data as any)?.articles?.length) && <p className="src">Za posledné 3 roky sa nenašli články, ktoré by sa preukázateľne týkali tohto subjektu.</p>}
+                {!((news.data as any)?.articles?.length) && <p className="src">Nenašli sa články, v ktorých by sa uvádzalo meno subjektu.</p>}
                 <ul>
                   {((news.data as any)?.articles || []).slice(0, 12).map((a: any, i: number) => (
                     <li key={i}>
@@ -437,6 +437,19 @@ export default function Page() {
                     </li>
                   ))}
                 </ul>
+                {((news.data as any)?.rejected || []).length > 0 && (
+                  <details className="no-print" style={{ marginTop: 8 }}>
+                    <summary className="src" style={{ cursor: "pointer" }}>Ďalšie nájdené výsledky, ktoré sa zrejme netýkajú subjektu ({(news.data as any).rejected.length})</summary>
+                    <ul>
+                      {((news.data as any).rejected as any[]).map((a, i) => (
+                        <li key={i}>
+                          <a href={a.link} target="_blank" rel="noreferrer">{a.title}</a>
+                          <span className="src"> · {[a.source, a.date ? new Date(a.date).toLocaleDateString("sk-SK") : ""].filter(Boolean).join(" · ")} · vyradené: {a.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
                 <div className="links no-print">
                   {Object.entries(((news.data as any)?.links || {}) as Record<string, string>).map(([k, u]) => (
                     <a key={k} className="chip" href={u} target="_blank" rel="noreferrer">
