@@ -297,7 +297,10 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
       .map((r) => ({ r, y: Number(String(pick(r, /^rok|obdobi|zdanovac/) ?? "").match(/\d{4}/)?.[0] || 0) }))
       .sort((a, b) => b.y - a.y);
     const top = withYear[0];
-    const tax = pick(top.r, /dan|vysk|suma/);
+    // výška dane: číselná hodnota v stĺpci typu „dan / vyska / suma“ (nie dátum zdaňovacieho obdobia)
+    const isAmount = (v: any) => /^-?[\d\s.,]+$/.test(String(v).trim()) && !/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(v).trim()) && !/^\d{4}-\d{2}-\d{2}/.test(String(v));
+    const taxEntry = Object.entries(top.r).find(([k, v]) => /dan|vysk|suma/.test(fold(k)) && !/obdobi|datum|od$|do$/.test(fold(k)) && isAmount(v));
+    const tax = taxEntry?.[1];
     return {
       status: "ok",
       summary: `Daňové priznanie podané${top.y ? ` za rok ${top.y}` : ""}${tax !== undefined ? ` – daň ${tax} €` : ""}.`,

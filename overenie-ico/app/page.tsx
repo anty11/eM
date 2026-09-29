@@ -337,10 +337,14 @@ export default function Page() {
                     <dt>Predmet podnikania ({p.activities.length})</dt>
                     <dd>
                       <ul className="print-only acts-print">{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
-                      <details className="acts no-print" open={p.activities.length <= 6}>
-                        <summary>{p.activities.slice(0, 3).join("; ")}{p.activities.length > 3 ? " …" : ""}</summary>
-                        <ul>{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
-                      </details>
+                      {p.activities.length === 1 ? (
+                        <span className="no-print">{p.activities[0]}</span>
+                      ) : (
+                        <details className="acts no-print" open={p.activities.length <= 6}>
+                          <summary>{p.activities.length <= 6 ? `${p.activities.length} predmety podnikania` : `${p.activities.slice(0, 3).join("; ")} …`}</summary>
+                          <ul>{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                        </details>
+                      )}
                     </dd>
                   </div>
                 )}

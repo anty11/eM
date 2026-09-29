@@ -32,13 +32,27 @@ export async function indexFile(buf: Buffer, map: Map<string, Debtor>): Promise<
   const magic = buf.subarray(0, 4).toString("hex");
   if (magic === "504b0304") {
     // XLSX je tiež ZIP – ak neobsahuje hárky s IČO, skúsime ho rozbaliť ako archív so súbormi
-    books = readBook(buf);
-    if (!books.some((rows) => rows.some((r) => r.some((c: any) => /^i[cč]o$/i.test(String(c).trim()))))) {
+    // XLSX je tiež ZIP. Sociálna poisťovňa však dáva ZIP archív so súborom (XLSX sa naň „nechytí“ – Unsupported ZIP file)
+    try {
+      books = readBook(buf);
+    } catch {
+      books = [];
+    }
+    const hasIco = (bs: any[][][]) => bs.some((rows) => rows.some((r) => r.some((c: any) => /^i[cč]o$/i.test(String(c).trim()))));
+    if (!hasIco(books)) {
       const { unzipSync } = await import("fflate");
       const files = unzipSync(new Uint8Array(buf));
+      const names = Object.keys(files);
       books = Object.entries(files)
-        .filter(([n]) => /\.(csv|txt|xlsx?|ods)$/i.test(n))
-        .flatMap(([, d]) => readBook(Buffer.from(d)));
+        .filter(([n, d]) => !n.endsWith("/") && d.length > 0 && !/__MACOSX/.test(n))
+        .flatMap(([, d]) => {
+          try {
+            return readBook(Buffer.from(d));
+          } catch {
+            return [];
+          }
+        });
+      if (!hasIco(books)) throw new Error(`v archíve sa nenašiel zoznam s IČO (súbory: ${names.slice(0, 5).join(", ")})`);
     }
   } else if (magic.startsWith("25504446")) {
     throw new Error("zoznam je vo formáte PDF – nedá sa strojovo spracovať");

@@ -29,7 +29,7 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
   // 1. Účtovná závierka / daňové priznanie
   {
     const dp = (dppo?.data || {}) as any;
-    const taxPart = dp.filed ? ` Daňové priznanie${dp.year ? ` za ${dp.year}` : ""} podané${dp.tax !== undefined ? ` (daň ${dp.tax} €)` : ""}.` : "";
+    const taxPart = dp.filed ? ` Daňové priznanie${dp.year ? ` za ${dp.year}` : ""} podané${dp.tax !== undefined && dp.tax !== null && dp.tax !== "" ? ` (daň ${dp.tax} €)` : ""}.` : "";
     let f: KeyFact;
     if (!ruz || ruz.status === "error") f = { id: "filed", question: "Podala účtovnú závierku / daňové priznanie?", answer: "Nepodarilo sa overiť – skontrolujte v RÚZ.", tone: "unknown" };
     else if (!rd.lastFiledYear) {
