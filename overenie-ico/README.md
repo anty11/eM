@@ -2,7 +2,7 @@
 
 Webová aplikácia pre advokátsku kanceláriu, prístupná len prihláseným používateľom: zadáte IČO a aplikácia overí subjekt vo verejných registroch SR. Z výsledkov vypočíta skóre rizika (0–100) a dá odporúčanie: **ODPORÚČAME / S VÝHRADOU / NEODPORÚČAME**. Výsledok uložíte ako PDF protokol s časom preverenia.
 
-> 📄 Podrobná dokumentácia zdrojov, požadovaných údajov a pravidiel: [docs/ZDROJE.md](docs/ZDROJE.md) · Nasadenie a testovanie na Verceli: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+> 📄 Podrobná dokumentácia zdrojov, požadovaných údajov a pravidiel: [docs/ZDROJE.md](docs/ZDROJE.md) · Nasadenie a testovanie na Verceli: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · Referencia projektu a mapa kódu: [docs/PROJEKT.md](docs/PROJEKT.md) · Kontrolné body verzií: [docs/STAV.md](docs/STAV.md)
 
 ## Dve verzie
 
