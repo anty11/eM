@@ -297,6 +297,19 @@ export default function Page() {
   const metrics = ((ruz?.data as any)?.metrics || []) as any[];
   const p = profile;
 
+  // Číslované odkazy na zdroje pre tlač (namiesto dlhých adries pri každej kontrole)
+  const refs = useMemo(() => {
+    const list: { n: number; url: string; name: string }[] = [];
+    const byUrl = new Map<string, number>();
+    for (const [, items] of grouped)
+      for (const c of items) {
+        if (!c.verifyUrl || byUrl.has(c.verifyUrl)) continue;
+        byUrl.set(c.verifyUrl, list.length + 1);
+        list.push({ n: list.length + 1, url: c.verifyUrl, name: c.name });
+      }
+    return { list, byUrl };
+  }, [grouped]);
+
   return (
     <>
       <Header me={me} active="check" />
@@ -340,8 +353,11 @@ export default function Page() {
         {report && verdict && p && (
           <>
             <div className="print-only print-head">
-              <h1>Protokol o preverení obchodného partnera</h1>
-              <div>Číslo preverenia: {report.scanId} · Čas preverenia: {fmtDate(report.scannedAt)}{report.scannedBy ? ` · Preveril: ${report.scannedBy}` : ""}</div>
+              <div className="ph-row">
+                <h1>Protokol o preverení obchodného partnera</h1>
+                <div className="ph-co">{p.name || "Neznámy subjekt"} · IČO {p.ico}</div>
+              </div>
+              <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.scannedBy ? ` · Preveril ${report.scannedBy}` : ""} · {lawyer ? "verzia Advokát" : "verzia Firma"}</div>
             </div>
 
             {pendingCount > 0 ? (
@@ -479,9 +495,12 @@ export default function Page() {
               <section className="cat" key={cat}>
                 <h3>{CATEGORIES[cat]}</h3>
                 {items.map((c) => (
-                  <article className="check" key={c.id}>
-                    <div>
-                      <div className="name">{c.name}</div>
+                  <article className={`check st-${c.status}`} key={c.id}>
+                    <div className="head">
+                      <div className="name">
+                        {c.name}
+                        {c.verifyUrl && refs.byUrl.has(c.verifyUrl) && <sup className="pref">[{refs.byUrl.get(c.verifyUrl)}]</sup>}
+                      </div>
                       <div className="src">{c.source} · {c.ai && c.status !== "manual" ? "AI vyhľadávanie" : c.automated ? "automaticky" : "manuálne"} · {new Date(c.checkedAt).toLocaleTimeString("sk-SK")}</div>
                     </div>
                     <span className={`pill s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
@@ -491,7 +510,7 @@ export default function Page() {
                     )}
                     {aiBadge(c)}
                     <div className="actions">
-                      {c.verifyUrl && <a className="verify" href={c.verifyUrl} target="_blank" rel="noreferrer">Overiť v zdroji ↗</a>}
+                      {c.verifyUrl && <a className="verify no-print" href={c.verifyUrl} target="_blank" rel="noreferrer">Overiť v zdroji ↗</a>}
                       {lawyer && (baseChecks.find((o) => o.id === c.id)?.status === "manual" || baseChecks.find((o) => o.id === c.id)?.status === "error") && manualButtons(c)}
                       {retryButton(c)}
                       {aiButton(c)}
@@ -559,7 +578,8 @@ export default function Page() {
 
             <section className="card">
               <h2>{lawyer ? "Záver a poznámky advokáta" : "Poznámky"}</h2>
-              <textarea placeholder={lawyer ? "Doplňujúce zistenia, odporúčania pre klienta…" : "Vaše poznámky k partnerovi (vytlačia sa do protokolu)…"} value={note} onChange={(e) => setNote(e.target.value)} />
+              <textarea className="no-print" placeholder={lawyer ? "Doplňujúce zistenia, odporúčania pre klienta…" : "Vaše poznámky k partnerovi (vytlačia sa do protokolu)…"} value={note} onChange={(e) => setNote(e.target.value)} />
+              <div className="print-only note-print">{note.trim() || "–"}</div>
               <div className="toolbar">
                 <input
                   placeholder={lawyer ? "Vypracoval (meno advokáta)" : "Vypracoval (meno)"}
@@ -583,6 +603,16 @@ export default function Page() {
               </div>
             </section>
 
+            {refs.list.length > 0 && (
+              <section className="print-only refs">
+                <h2>Odkazy na zdroje</h2>
+                <ol>
+                  {refs.list.map((r) => (
+                    <li key={r.n}>{r.name}: <span className="url">{r.url}</span></li>
+                  ))}
+                </ol>
+              </section>
+            )}
             <p className="disclaimer">
               Hodnotenie je automatizovaný súhrn údajov z verejných registrov k uvedenému času preverenia a nenahrádza právne
               posúdenie. Údaje v registroch môžu byť oneskorené{lawyer ? "; kontroly označené ako manuálne je potrebné overiť priamo v zdroji" : ""}.

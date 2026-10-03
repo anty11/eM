@@ -67,6 +67,24 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
   return (
     <section className="card contact">
       <h2>Komunikácia s partnerom</h2>
+      <div className="print-only contact-print">
+        {!c.active && !c.personName && !c.phone && !c.email && !c.note ? (
+          <span>Kontakt s partnerom nebol zaznamenaný.</span>
+        ) : (
+          <>
+            <span><b>Spolupráca:</b> {c.active ? "áno" : "nie"}</span>
+            <span><b>Kontaktná osoba:</b> {[c.personName, c.personRole].filter(Boolean).join(", ") || "–"}</span>
+            <span><b>Telefón:</b> {c.phone || "–"}</span>
+            <span><b>E-mail:</b> {c.email || "–"}</span>
+            <span><b>Štatutár v OR:</b> {c.isStatutory ? "áno" : "nie"}{match ? ` (${match} je zapísaný ako štatutár)` : c.personName.trim().length > 3 && statutoryNames.length ? " – meno nezodpovedá štatutárovi, overte plnú moc" : ""}</span>
+            <span><b>Totožnosť overená:</b> {c.identityVerified ? "áno" : "nie"}</span>
+            <span><b>Od nás komunikuje:</b> {c.owners.map(label).join(", ") || "–"}</span>
+            {c.note && <span className="wide"><b>Poznámka:</b> {c.note}</span>}
+            {saved?.updatedAt && <span className="wide src">Naposledy upravil {label(saved.updatedBy || "")} · {new Date(saved.updatedAt).toLocaleString("sk-SK", { dateStyle: "short", timeStyle: "short" })}</span>}
+          </>
+        )}
+      </div>
+      <div className="no-print">
       <label className="check-row big">
         <input type="checkbox" checked={c.active} onChange={(e) => set("active", e.target.checked)} />
         <span>S touto spoločnosťou komunikujeme / spolupracujeme</span>
@@ -127,7 +145,6 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
           ))}
           {!people.length && <span className="src">Načítavam zoznam kolegov…</span>}
         </div>
-        <div className="print-only">{c.owners.map(label).join(", ") || "–"}</div>
       </div>
 
       <div className="field">
@@ -142,6 +159,7 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
         )}
         {dirty && saved && <span className="src f-warning">Neuložené zmeny</span>}
         {msg && <span className={msg.ok ? "f-positive" : "f-critical"}>{msg.text}</span>}
+      </div>
       </div>
     </section>
   );

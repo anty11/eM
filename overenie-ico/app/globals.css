@@ -120,31 +120,12 @@ textarea { width: 100%; min-height: 80px; }
 .disclaimer { font-size: 12px; color: var(--muted); margin-top: 24px; }
 .loading { margin-top: 18px; color: var(--muted); }
 .loading li { margin: 3px 0; }
-.print-only { display: none; }
+.print-only, .pref { display: none; }
 @media (max-width: 600px) {
   .verdict { grid-template-columns: 1fr; }
   .hero h1 { font-size: 24px; }
 }
 
-@media print {
-  :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #bbb; }
-  @page { size: A4; margin: 14mm 14mm 16mm; }
-  html, body { font-size: 11px; background: #fff; }
-  .no-print, .top, .hero { display: none !important; }
-  .print-only { display: block; }
-  .wrap { max-width: none; padding: 0; }
-  .card, .check { break-inside: avoid; border-color: #bbb; }
-  .check { padding: 8px 10px; }
-  .card { padding: 10px 12px; margin-top: 10px; }
-  a { color: #000; text-decoration: none; }
-  .check a.verify::after { content: " (" attr(href) ")"; font-size: 9px; color: #555; word-break: break-all; }
-  .mbtn:not(.on-clean):not(.on-found) { display: none; }
-  .cat > h3 { break-after: avoid; }
-  .print-head { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
-  .print-head h1 { font-family: var(--serif); font-size: 18px; margin: 0; }
-  .sign { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-  .sign div { border-top: 1px solid #000; padding-top: 4px; font-size: 10px; }
-}
 
 /* --- Prihlásenie, administrácia --- */
 .nav { display: flex; align-items: center; gap: 14px; font-size: 14px; flex-wrap: wrap; justify-content: flex-end; }
@@ -206,12 +187,6 @@ textarea { width: 100%; min-height: 80px; }
 .mlist li { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
 .mlist li.done { opacity: .6; }
 .mlist .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; }
-@media print {
-  .contact input, .contact textarea { border: 0; padding: 0; }
-  .owner-list, .contact datalist { display: none; }
-  .check-row input { accent-color: #000; }
-  .acts-print { margin: 2px 0 0; padding-left: 16px; columns: 2; font-size: 10px; }
-}
 
 /* --- AI --- */
 .s-ai { background: var(--info-bg); color: var(--info); }
@@ -224,3 +199,102 @@ textarea { width: 100%; min-height: 80px; }
 .s-pending { background: var(--line); color: var(--muted); }
 .progress-card .score b { color: var(--brand); }
 .progress-card { --c: var(--brand) !important; border-left-color: var(--brand) !important; }
+
+/* --- Tlač / PDF protokol: hustý, čiernobielo čitateľný, bez závislosti od tlače pozadia --- */
+@media print {
+  :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #c8c8c8; --ok: #1e7a4c; --warn: #8a5200; --crit: #b3261e; --info: #3b5b85; --manual: #5f4596; }
+  @page { size: A4; margin: 11mm 12mm 12mm; }
+  html, body { font-size: 9.6px; line-height: 1.3; background: #fff; color: #000; }
+  .no-print, .top, .hero { display: none !important; }
+  .print-only { display: block; }
+  .pref { display: inline; font-size: 7.5px; color: #444; margin-left: 2px; }
+  .wrap { max-width: none; padding: 0; }
+  a { color: #000; text-decoration: none; }
+
+  /* hlavička */
+  .print-head { border-bottom: 1.5px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
+  .ph-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .print-head h1 { font-family: var(--serif); font-size: 15px; margin: 0; }
+  .ph-co { font-weight: 600; font-size: 11px; text-align: right; }
+  .ph-meta { font-size: 8.5px; color: #444; margin-top: 2px; }
+
+  /* karty – bez tieňov, tenké čiary, povolené zalomenie vnútri dlhých kariet */
+  .card { padding: 5px 0 4px; margin-top: 6px; border: 0; border-top: 1px solid #000; border-radius: 0; break-inside: auto; }
+  .card h2 { font-size: 8.5px; letter-spacing: 0.06em; margin: 0 0 3px; color: #000; break-after: avoid; }
+
+  /* verdikt */
+  .verdict { grid-template-columns: auto 1fr; gap: 10px; align-items: start; border-left: 0; break-inside: avoid; }
+  .score { width: 54px; height: 54px; background: none; border: 3px solid var(--c); }
+  .score > div { width: auto; height: auto; }
+  .score b { font-size: 18px; }
+  .score span { font-size: 7.5px; }
+  .vlabel { font-size: 15px; margin: 0; }
+  .vmeta { font-size: 8.5px; }
+  .reasons { margin: 3px 0 0; padding-left: 14px; columns: 2; column-gap: 18px; }
+  .reasons li { break-inside: avoid; margin: 0; }
+  .prelim { background: none; border: 1px solid var(--manual); color: var(--manual); padding: 1px 6px; margin-top: 3px; font-size: 8.5px; }
+  .hint { font-size: 8px; margin-top: 3px; }
+
+  /* kľúčové otázky */
+  .fact { grid-template-columns: 16px minmax(150px, 32%) 1fr; gap: 2px 8px; padding: 2px 0; border-top: 1px solid #ddd; break-inside: avoid; }
+  .ficon { width: 12px; height: 12px; font-size: 8px; background: none !important; border: 1px solid currentColor; }
+  .fact dd .src { font-size: 8px; }
+
+  /* kontakt */
+  .contact-print { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px 14px; }
+  .contact-print .wide { grid-column: 1 / -1; }
+
+  /* identifikácia – dvojica označenie: hodnota v jednom riadku, 3 stĺpce */
+  .company-name { font-size: 12px; margin: 0 0 3px; }
+  .profile { grid-template-columns: repeat(3, 1fr); gap: 1px 14px; }
+  .kv dt, .kv dd { display: inline; }
+  .kv dt { font-size: 8.5px; color: #444; }
+  .kv dt::after { content: ": "; }
+  .kv dd { font-weight: 500; }
+  .acts-print { margin: 1px 0 0; padding-left: 14px; columns: 3; column-gap: 14px; font-size: 8.5px; display: block; }
+  .acts-print li { break-inside: avoid; }
+
+  /* hospodárenie */
+  .card table { font-size: 9px; }
+  .card table th, .card table td { padding: 1px 0 !important; }
+
+  /* kontroly – jeden kompaktný záznam namiesto karty */
+  .cat { margin-top: 6px; }
+  .cat > h3 { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #000; margin: 0 0 2px; padding-top: 4px; border-top: 1px solid #000; break-after: avoid; }
+  .check { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; padding: 2px 0 3px; margin: 0; border: 0; border-top: 1px solid #ddd; border-radius: 0; break-inside: avoid; }
+  .check .head { flex: 1 1 0; min-width: 0; }
+  .check .sum, .check ul, .check .actions, .check .ai-note { flex: 1 1 100%; }
+  .check .name { display: inline; font-size: 10px; }
+  .check .src { display: inline; font-size: 8px; margin-left: 6px; }
+  .check .pill { display: inline-block; font-size: 8px; padding: 0 5px; border: 1px solid currentColor; background: none !important; }
+  .check .sum { display: block; margin-top: 1px; }
+  .check ul { font-size: 9.3px; padding-left: 14px; margin-top: 1px; }
+  .check ul li { margin: 0; }
+  .check .actions { gap: 4px 10px; font-size: 8.5px; margin-top: 1px; }
+  .check .actions:empty { display: none; }
+  .mbtn:not(.on-clean):not(.on-found) { display: none; }
+  .mbtn { border: 1px solid currentColor; background: none !important; padding: 0 5px; font-size: 8px; }
+  .mbtn.on-clean::before { content: "Manuálne overené: "; }
+  .mbtn.on-found::before { content: "Manuálne overené: "; }
+  .ai-note { font-size: 8.5px; }
+  .pill.s-ai { border: 1px solid currentColor; background: none !important; }
+  .evidence { margin: 1px 0 0; padding-left: 14px; }
+  .evidence a::after { content: " (" attr(href) ")"; font-size: 7.5px; color: #555; word-break: break-all; }
+
+  /* médiá */
+  .news ul { margin: 0; padding-left: 14px; }
+  .news li { margin: 1px 0; }
+  .news .pill { border: 1px solid currentColor; background: none !important; font-size: 7.5px; padding: 0 4px; }
+  .news .neg { font-size: 8px; }
+
+  /* poznámky, podpis, odkazy */
+  .note-print { white-space: pre-wrap; min-height: 14px; }
+  .sign { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; break-inside: avoid; }
+  .sign div { border-top: 1px solid #000; padding-top: 3px; font-size: 8.5px; }
+  .refs { font-size: 8px; color: #333; margin-top: 8px; border-top: 1px solid #000; padding-top: 4px; }
+  .refs h2 { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 3px; color: #000; font-weight: 600; }
+  .refs ol { margin: 0; padding-left: 16px; columns: 2; column-gap: 16px; }
+  .refs li { break-inside: avoid; margin: 0; }
+  .refs .url { word-break: break-all; }
+  .disclaimer { font-size: 7.8px; margin-top: 8px; }
+}
