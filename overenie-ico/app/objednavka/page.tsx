@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FIRMS, SiteFooter, SiteHeader } from "../components/site/SiteShell";
+import { OPERATOR, SiteFooter, SiteHeader } from "../components/site/SiteShell";
 
 type Plan = "standard" | "rozsirene";
 
@@ -43,7 +43,7 @@ export default function OrderPage() {
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">Objednávka</span>
-            <h1 style={{ fontSize: "clamp(28px, 3.6vw, 40px)" }}>Objednajte Preverenie partnera pre vašu spoločnosť</h1>
+            <h1 style={{ fontSize: "clamp(28px, 3.6vw, 40px)" }}>Objednávka pre vašu spoločnosť</h1>
             <p>
               Vyplňte údaje o spoločnosti a kontaktnej osobe. Do jedného pracovného dňa vám pošleme cenovú ponuku podľa počtu poverených zamestnancov,
               zmluvu a po jej potvrdení prístupy do klientskej sekcie. Objednávka je do podpisu zmluvy nezáväzná.
@@ -56,7 +56,7 @@ export default function OrderPage() {
                 <b>Ďakujeme, objednávku sme prijali.</b> Číslo objednávky <b>{done}</b>. Na uvedený e-mail vám napíšeme do jedného pracovného dňa.
               </div>
               <p style={{ color: "var(--s-muted)", margin: 0 }}>
-                Ak potrebujete niečo riešiť skôr, napíšte na <a href={`mailto:${FIRMS.urban.email}`}>{FIRMS.urban.email}</a> alebo zavolajte {FIRMS.urban.phone} a uveďte číslo objednávky.
+                Ak potrebujete niečo riešiť skôr, napíšte na <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a> a uveďte číslo objednávky.
               </p>
               <div><a className="s-btn ghost" href="/">Späť na úvod</a></div>
             </div>
@@ -97,7 +97,7 @@ export default function OrderPage() {
               <input className="hp" tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} aria-hidden />
               <label className="check">
                 <input type="checkbox" required checked={f.consent} onChange={set("consent")} />
-                <span>Súhlasím so spracovaním uvedených údajov na účel vybavenia objednávky a prípravy zmluvy advokátskymi kanceláriami {FIRMS.urban.short} a {FIRMS.lexnera.short}.</span>
+                <span>Súhlasím so spracovaním uvedených údajov spoločnosťou {OPERATOR.name} na účel vybavenia objednávky a prípravy zmluvy.</span>
               </label>
               {err && <div className="s-err">{err}</div>}
               <div className="s-actions">

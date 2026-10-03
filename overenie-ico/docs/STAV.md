@@ -57,3 +57,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   s textovými logotypmi. Skutočné logá (SVG) ešte treba doplniť.
 - Kód: `app/page.tsx`, `app/pravny-zaklad/page.tsx`, `app/objednavka/page.tsx`, `app/site.css`, `app/components/site/SiteShell.tsx`,
   `lib/orders.ts`, `app/api/order`, `app/api/admin/orders`, `app/components/OrdersPanel.tsx`, `proxy.ts`; test `test/orders.test.ts`.
+
+## v1.3.2 – 4. 10. 2026 – svetlá vlastná identita webu, prevádzkovateľ vs. odborná záštita
+
+- Web má vlastnú svetlú identitu (pozadie `#faf9fc`, indigovo-fialová `#5b35c9` ako hlavná farba – zjemnená Urban `#7e31fb`, zlatá `#b8893a` – stlmená LEXNERA),
+  mäkké prechody medzi časťami (tónované pozadia, žiadne ostré pásy); jediný tmavší pás „Pre koho“ sa rozplýva do pozadia, päta prechádza plynulo.
+- Pokojnejšie nadpisy (bez hrozieb v titulkoch); právny obsah ostal v texte a na stránke Právny základ.
+- **Prevádzkovateľ je samostatná s.r.o.** (`OPERATOR` v `SiteShell.tsx` – pracovný názov a e-mail treba nahradiť skutočnými), advokátske kancelárie sú
+  „odborná záštita“ len s popisom a odkazom na ich web – bez adries, e-mailov a telefónov. Súhlas v objednávke a päta odkazujú na prevádzkovateľa.

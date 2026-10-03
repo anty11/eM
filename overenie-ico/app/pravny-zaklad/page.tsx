@@ -15,12 +15,12 @@ export default function LawPage() {
         <div className="s-wrap">
           <article className="s-article">
             <span className="s-eyebrow">Právny základ</span>
-            <h1 style={{ fontSize: "clamp(28px, 3.6vw, 40px)" }}>Prečo si podnikateľ musí overiť svojho dodávateľa a odberateľa</h1>
+            <h1 style={{ fontSize: "clamp(28px, 3.6vw, 40px)" }}>Právny základ overenia obchodného partnera</h1>
             <p className="s-lead" style={{ marginTop: 14 }}>
               Zhrnutie pre podnikateľov, nie právne stanovisko. Konkrétny obchodný prípad vždy posúdi advokát alebo daňový poradca.
             </p>
 
-            <h2>1. Právo na odpočet DPH a „vedel alebo mal vedieť“</h2>
+            <h2>1. Právo na odpočet DPH a dobrá viera podnikateľa</h2>
             <p>
               Odpočet DPH je základom neutrality dane a nemožno ho odoprieť len preto, že iný článok dodávateľského reťazca daň neodviedol.
               Súdny dvor EÚ však od rozhodnutia vo veciach <b>Kittel a Recolta Recycling (C‑439/04 a C‑440/04)</b> ustálene uvádza, že právo na odpočet
@@ -76,7 +76,7 @@ export default function LawPage() {
             </ul>
             <p>
               Overenie vykonáva spoločnosť sama prostredníctvom poverených zamestnancov – tak, ako to judikatúra predpokladá: starostlivosť podnikateľa je jeho vlastná
-              a nemožno ju delegovať. Advokátske kancelárie, ktoré projekt zastrešujú, nastavili rozsah overenia podľa toho, na čo sa pri kontrolách a v súdnych konaniach
+              a nemožno ju delegovať. Rozsah overenia nastavili advokátske kancelárie poskytujúce projektu odbornú záštitu podľa toho, na čo sa pri kontrolách a v súdnych konaniach
               skutočne pýta.
             </p>
             <div className="s-actions" style={{ marginTop: 28 }}>
