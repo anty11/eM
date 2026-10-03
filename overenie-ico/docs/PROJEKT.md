@@ -45,6 +45,7 @@ Lokálne bez internetu: `DEMO_DATA=1 npm run dev`.
 | `lib/sources/rpvs.ts` | RPVS OData v2, dvojkrokové vyhľadanie, koneční užívatelia výhod |
 | `lib/sources/news.ts`, `slovakMedia.ts` | médiá: Google News/Bing RSS, DuckDuckGo, priame vyhľadávanie v slovenských médiách; varianty mena, bývalé názvy, skratky (USGB), štatutári a priezviská partnerov; skóre relevancie a zoznam odmietnutých |
 | `lib/keyfacts.ts` | 9 kľúčových otázok advokáta · `lib/scoring.ts` skóre a verdikt (režim Firma ignoruje neverejné registre) |
+| `lib/companies.ts`, `lib/ago.ts` | databáza preverených spoločností (Redis hash `companies`, jeden záznam na IČO, prvé doplnenie z auditu); vek preverenia, hranica `STALE_DAYS = 180` · API `app/api/companies` · zoznam v `app/components/CompanyList.tsx` na stránke `/account` |
 | `lib/auth/*` | používatelia, scrypt heslá, HMAC cookie (12 h), pozvánky, limit pokusov, CSRF · `lib/audit.ts` záznam preverení a nastavení |
 | `lib/ai/*` | záložné vyhľadávanie LLM (Anthropic web_search / OpenAI web_search). **Predvolene VYPNUTÉ** – spúšťa sa len tlačidlom „AI overiť“, nikdy pri každom preverení |
 | `app/page.tsx` | klient so streamovaním (`/api/check?ico=&stream=1`), kľúčové fakty, karta kontaktu, Firma/Advokát, opakovanie zdroja |

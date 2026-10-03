@@ -4,6 +4,7 @@ import { handler, requireUser } from "@/lib/auth/guard";
 import { normalizeIco } from "@/lib/ico";
 import { scan } from "@/lib/scan";
 import { getAiConfig } from "@/lib/ai/config";
+import { recordScan } from "@/lib/companies";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export const GET = handler(async (req) => {
         send({ type: "start", ico, scannedBy, ai: aiInfo });
         try {
           const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }));
+          await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
           await audit({ type: "scan", by: me.email, ico, company: report.profile.name, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId });
           send({ type: "done", report: { ...report, scannedBy, ai: aiInfo } });
         } catch (e) {
@@ -38,6 +40,7 @@ export const GET = handler(async (req) => {
   }
 
   const report = await scan(ico);
+  await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
   await audit({
     type: "scan",
     by: me.email,

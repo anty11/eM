@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Header, { useMe } from "../components/Header";
+import CompanyList from "../components/CompanyList";
 
 export default function AccountPage() {
   const me = useMe();
@@ -29,9 +30,15 @@ export default function AccountPage() {
     <>
       <Header me={me} active="account" />
       <main className="wrap">
-        <div className="auth card">
+        <section className="hero" style={{ paddingBottom: 0 }}>
           <h1>Môj účet</h1>
-          <p className="lead">{me ? `${me.email} · ${me.role === "admin" ? "administrátor" : "používateľ"}` : "…"}</p>
+          <p>{me ? `${me.name ? `${me.name} · ` : ""}${me.email} · ${me.role === "admin" ? "administrátor" : "používateľ"} · verzia ${me.mode === "advokat" ? "Advokát" : "Firma"}` : "…"}</p>
+        </section>
+
+        <CompanyList me={me} />
+
+        <div className="card" style={{ maxWidth: 480 }}>
+          <h2>Zmena hesla</h2>
           <form onSubmit={submit}>
             <div className="field">
               <label htmlFor="o">Súčasné heslo</label>

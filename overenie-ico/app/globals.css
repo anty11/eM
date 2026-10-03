@@ -197,6 +197,15 @@ textarea { width: 100%; min-height: 80px; }
 .ai-running { margin-top: 12px; padding: 10px 14px; border-radius: var(--radius); background: var(--info-bg); color: var(--info); font-size: 14px; }
 
 .s-pending { background: var(--line); color: var(--muted); }
+
+/* --- Preverené spoločnosti --- */
+.companies .filters { align-items: center; }
+.companies .filters input { flex: 1 1 220px; }
+.companies .filters .check-row { white-space: nowrap; align-items: center; }
+.companies tr.stale td { background: color-mix(in srgb, var(--crit-bg) 55%, var(--surface)); }
+.companies .ago { font-weight: 600; }
+.companies a.mbtn { text-decoration: none; display: inline-block; }
+.companies .tbl td:last-child { min-width: 0; }
 .progress-card .score b { color: var(--brand); }
 .progress-card { --c: var(--brand) !important; border-left-color: var(--brand) !important; }
 

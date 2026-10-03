@@ -16,6 +16,8 @@ export interface KV {
   incr(key: string, ttlSec: number): Promise<number>;
   hset(key: string, values: Record<string, string>): Promise<void>;
   hget(key: string, field: string): Promise<string | null>;
+  hgetall(key: string): Promise<Record<string, string>>;
+  hdel(key: string, field: string): Promise<void>;
 }
 
 class RedisKV implements KV {
@@ -59,6 +61,13 @@ class RedisKV implements KV {
   async hget(key: string, field: string) {
     const v = await this.r.hget<string>(key, field);
     return v === null || v === undefined ? null : String(v);
+  }
+  async hgetall(key: string) {
+    const v = (await this.r.hgetall<Record<string, unknown>>(key)) || {};
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, typeof x === "string" ? x : JSON.stringify(x)]));
+  }
+  async hdel(key: string, field: string) {
+    await this.r.hdel(key, field);
   }
 }
 
@@ -117,6 +126,14 @@ class MemoryKV implements KV {
   async hget(key: string, field: string) {
     const v = this.live(key)?.v?.[field];
     return v === undefined ? null : String(v);
+  }
+  async hgetall(key: string) {
+    return { ...(this.live(key)?.v || {}) } as Record<string, string>;
+  }
+  async hdel(key: string, field: string) {
+    const cur = { ...(this.live(key)?.v || {}) };
+    delete cur[field];
+    this.m.set(key, { v: cur });
   }
 }
 

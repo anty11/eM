@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { applyManual, computeVerdict, type ManualAnswers } from "@/lib/scoring";
 import { CATEGORIES, type CategoryId, type CheckResult, type ScanReport } from "@/lib/types";
 import Header, { useMe } from "./components/Header";
@@ -78,12 +78,14 @@ export default function Page() {
     return () => clearInterval(t);
   }, [aiBusy]);
   const lawyer = me?.mode === "advokat";
+  const autoRan = useRef(false);
 
   useEffect(() => {
     setRecent(safeGet("recent", []));
     setAuthor(safeGet("author", ""));
     const q = new URLSearchParams(location.search).get("ico");
-    if (q) {
+    if (q && !autoRan.current) {
+      autoRan.current = true; // vo vývoji React spúšťa efekt dvakrát – preverenie (a jeho záznam) má bežať raz
       setIco(q);
       run(q);
     }

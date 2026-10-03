@@ -15,7 +15,8 @@ export type AuditType =
   | "mode_changed"
   | "contact_saved"
   | "ai_settings"
-  | "ai_check";
+  | "ai_check"
+  | "company_removed";
 
 export interface AuditEvent {
   at: string;
