@@ -2,7 +2,7 @@ import type { CategoryId, CheckResult, Ctx } from "../types";
 
 /**
  * Registre bez verejného strojového prístupu (spoplatnené, s prihlásením alebo s výslovným zákazom
- * automatizovaného overovania). Aplikácia pripraví presný odkaz a advokát výsledok potvrdí v rozhraní –
+ * automatizovaného overovania). Aplikácia pripraví presný odkaz a poverený zamestnanec výsledok potvrdí v rozhraní –
  * potvrdenie sa zapíše do protokolu a prepočíta verdikt.
  */
 interface ManualDef {
@@ -13,7 +13,7 @@ interface ManualDef {
   sourceUrl: string;
   verifyUrl: (ico: string, name?: string) => string;
   note: string;
-  /** Postih do skóre, ak advokát potvrdí negatívny záznam. */
+  /** Postih do skóre, ak poverený zamestnanec potvrdí negatívny záznam. */
   penaltyIfFound: number;
   severityIfFound: "critical" | "warning";
 }
@@ -26,7 +26,7 @@ export const MANUAL: ManualDef[] = [
     source: "Slovenská komora exekútorov – CRE",
     sourceUrl: "https://cre.sk",
     verifyUrl: () => "https://cre.sk",
-    note: "Výpis je spoplatnený a vyžaduje registráciu (advokáti majú prístup cez účet). Overte, či je vedená exekúcia voči subjektu.",
+    note: "Výpis je spoplatnený a vyžaduje registráciu na portáli Slovenskej komory exekútorov. Overte, či je vedená exekúcia voči subjektu.",
     penaltyIfFound: 40,
     severityIfFound: "critical",
   },

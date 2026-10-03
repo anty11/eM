@@ -93,7 +93,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
                 const v = VERDICT[r.verdict] || { short: r.verdict || "–", cls: "s-info" };
                 return (
                   <tr key={r.ico} className={r.stale ? "stale" : ""}>
-                    <td><a href={`/?ico=${r.ico}`}>{r.name || "Neznámy subjekt"}</a>{r.count > 1 && <span className="src"> · {r.count}× preverené</span>}</td>
+                    <td><a href={`/app?ico=${r.ico}`}>{r.name || "Neznámy subjekt"}</a>{r.count > 1 && <span className="src"> · {r.count}× preverené</span>}</td>
                     <td style={{ fontVariantNumeric: "tabular-nums" }}>{r.ico}</td>
                     <td><span className={`pill ${v.cls}`}>{v.short}</span> <span className="src">{r.score}/100</span></td>
                     <td>
@@ -105,7 +105,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
                     <td className="src">{r.lastBy}</td>
                     <td>
                       <div className="row-actions">
-                        <a className={`mbtn ${r.stale ? "on-found" : ""}`} href={`/?ico=${r.ico}`} title="Spustí nové preverenie vo verejných registroch">↻ Preveriť znova</a>
+                        <a className={`mbtn ${r.stale ? "on-found" : ""}`} href={`/app?ico=${r.ico}`} title="Spustí nové preverenie vo verejných registroch">↻ Preveriť znova</a>
                         {me?.role === "admin" && <button className="mbtn" onClick={() => remove(r.ico, r.name)} title="Odstrániť zo zoznamu">Odstrániť</button>}
                       </div>
                     </td>

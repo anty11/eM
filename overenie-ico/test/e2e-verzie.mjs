@@ -7,7 +7,7 @@ const errs = [];
 async function signup(page, email, code, pw) {
   await page.goto(B + "/login?mode=code&email=" + encodeURIComponent(email));
   await page.fill("#code", code); await page.fill("#pw", pw); await page.fill("#pw2", pw);
-  await page.click("button.btn"); await page.waitForURL(B + "/");
+  await page.click("button.btn"); await page.waitForURL(B + "/app");
 }
 // Admin = verzia Firma
 const a = await b.newContext({ viewport: { width: 1200, height: 900 } });
@@ -24,7 +24,7 @@ p.once("dialog", (d) => d.accept("Antonín Čajka"));
 await p.locator("tr", { hasText: "antonin.cajka" }).locator("text=doplniť meno").first().click();
 await p.waitForSelector("text=Antonín Čajka");
 
-await p.goto(B + "/?ico=47244895");
+await p.goto(B + "/app?ico=47244895");
 await p.waitForSelector(".facts");
 assert.equal(await p.locator(".modal").count(), 0, "Firma nemá vyskakovacie okno");
 assert.equal(await p.locator(".prelim").count(), 0, "Firma nemá predbežný verdikt");
@@ -50,7 +50,7 @@ await p.emulateMedia({ media: "screen" });
 const j = await b.newContext({ viewport: { width: 1200, height: 900 } });
 const q = await j.newPage(); q.on("pageerror", (e) => errs.push(e.message));
 await signup(q, "jana.novakova@kancelaria.sk", code, "Kancel4riaHeslo!");
-await q.goto(B + "/?ico=47244895");
+await q.goto(B + "/app?ico=47244895");
 await q.waitForSelector(".modal");
 await q.screenshot({ path: "/tmp/v2-advokat-modal.png" });
 const items = await q.locator(".mlist li").count();

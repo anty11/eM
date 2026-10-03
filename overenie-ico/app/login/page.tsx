@@ -22,7 +22,7 @@ export default function LoginPage() {
 
   function next() {
     const n = new URLSearchParams(location.search).get("next");
-    location.href = n && n.startsWith("/") && !n.startsWith("//") ? n : "/";
+    location.href = n && n.startsWith("/") && !n.startsWith("//") ? n : "/app";
   }
 
   async function submit(e: React.FormEvent) {

@@ -98,7 +98,7 @@ Set **only one** of the two keys.
 
 | Variable | Value | What it's for |
 |---|---|---|
-| `APP_MODE` | `firma` | Default version for new users (`firma` or `advokat`) |
+| `APP_MODE` | `firma` | Default version for new users (`firma` = Štandard, `advokat` = Rozšírené – ids kept for stored data) |
 | `AI_ALLOW_ADMIN_KEY` | *(don't set)* | `1` = allow entering the AI key in Administrácia in production too. Not recommended; for production the key belongs here. |
 
 > ❌ Do **not** set `DEMO_DATA` or `ALLOW_MEMORY_STORE` in production.
@@ -141,7 +141,7 @@ Go through the checks in order. Tick them off and note any that fail (screenshot
 | B4 | Sign out and sign in again with the wrong password 3× | "Nesprávny e-mail alebo heslo." |
 | B5 | As admin: **Nový kód** for the test user | The test user is signed out on their next action; the old password no longer works |
 | B6 | As admin: **Zablokovať** | The blocked user loses access immediately |
-| B7 | Admin → change a user's version to *Advokát* → the user signs in again | After a check, the "Overte manuálne" window appears |
+| B7 | Admin → change a user's version to *Rozšírené* → the user signs in again | After a check, the "Overte manuálne" window appears |
 
 ### C. Company checks (real registers)
 

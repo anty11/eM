@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Preverenie partnera podľa IČO",
-  description: "Kontrola subjektu vo verejných registroch SR – obchodný register, dane, poisťovne, konkurzy, závierky, médiá.",
-  robots: { index: false, follow: false },
+  title: { default: "Preverenie partnera – overenie dodávateľa a odberateľa podľa IČO", template: "%s · Preverenie partnera" },
+  description:
+    "Overte si dodávateľa a odberateľa vo verejných registroch SR tak, ako to vyžaduje judikatúra Súdneho dvora EÚ: obchodný register, dane a DPH, poisťovne, konkurzy, závierky, médiá. Protokol s časovou pečiatkou.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

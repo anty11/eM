@@ -37,7 +37,7 @@ Stav k 28. 9. 2026, verzia aplikácie 1.0.0.
 **Režimy:**
 
 - **automaticky:** údaje sa získajú strojovo z API alebo súboru.
-- **manuálne:** aplikácia pripraví odkaz. Vo verzii *Advokát* používateľ označí výsledok *Bez záznamu / Záznam nájdený*. Vo verzii *Firma* je zdroj v časti *Ďalšie odporúčané overenia*.
+- **manuálne:** aplikácia pripraví odkaz. Vo verzii *Rozšírené* poverený zamestnanec označí výsledok *Bez záznamu / Záznam nájdený*. Vo verzii *Štandard* je zdroj v časti *Ďalšie odporúčané overenia*.
 - **AI:** záložné vyhľadávanie cez LLM (kapitola 4).
 
 ---
@@ -387,7 +387,7 @@ Zobrazuje sa na začiatku výsledku a v PDF (`lib/keyfacts.ts`).
 - **S VÝHRADOU:** skóre 60–84 a žiadny kritický nález.
 - **NEODPORÚČAME:** skóre < 60 **alebo akýkoľvek kritický nález**.
 - **Predbežné:** niektorá kontrola čaká na manuálne overenie alebo zdroj nebol dostupný. Pri kritickom náleze je verdikt konečný. Vo verzii *Firma* neverejné registre verdikt neblokujú.
-- Manuálne potvrdenie vo verzii *Advokát*:
+- Manuálne potvrdenie vo verzii *Rozšírené*:
   - *Bez záznamu* = kontrola v poriadku;
   - *Záznam nájdený* = postih podľa tabuľky 3.8.
 

@@ -9,7 +9,7 @@ export const LEVEL_LABEL = {
   not_recommended: "NEODPORÚČAME – rizikový subjekt",
 } as const;
 
-/** Doplní do kontrol výsledky manuálneho overenia advokátom. */
+/** Doplní do kontrol výsledky manuálneho overenia povereným zamestnancom. */
 export function applyManual(checks: CheckResult[], answers: ManualAnswers): CheckResult[] {
   return checks.map((c) => {
     const a = answers[c.id];

@@ -6,7 +6,7 @@ import { kv } from "./kv";
 const scrypt = promisify(_scrypt) as (pw: string, salt: Buffer, len: number, opts: object) => Promise<Buffer>;
 
 export type Role = "admin" | "user";
-/** Verzia rozhrania: „firma“ (hlavná – spoločnosť si preveruje partnerov sama) alebo „advokát“ (s manuálnymi overeniami). */
+/** Verzia rozhrania: „firma“ = Štandard (verejné registre) alebo „advokat“ = Rozšírené (navyše manuálne overenia neverejných registrov povereným zamestnancom). Identifikátory ostávajú kvôli uloženým údajom. */
 export type Mode = "firma" | "advokat";
 export const defaultMode = (): Mode => (process.env.APP_MODE === "advokat" ? "advokat" : "firma");
 

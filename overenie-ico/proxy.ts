@@ -2,10 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE, verifySession } from "./lib/auth/session";
 
 /**
- * Celá aplikácia je za prihlásením. Proxy overí podpis relácie; úplné overenie účtu
+ * Verejný je len prezentačný web (/, /objednavka, právne informácie) a prihlásenie; klientska sekcia (/app, /account, /admin)
+ * a všetky API sú za prihlásením. Proxy overí podpis relácie; úplné overenie účtu
  * (zablokovanie, zmena hesla, rola) robí každý API endpoint voči databáze.
  */
-const PUBLIC = ["/login", "/api/auth/login", "/api/auth/setup", "/api/auth/logout", "/api/cron/socpoist"];
+const PUBLIC = ["/", "/objednavka", "/pravny-zaklad", "/login", "/api/auth/login", "/api/auth/setup", "/api/auth/logout", "/api/order", "/api/cron/socpoist"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -15,12 +16,12 @@ export async function proxy(req: NextRequest) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Prihláste sa." }, { status: 401 });
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.search = pathname === "/" && !req.nextUrl.search ? "" : `?next=${encodeURIComponent(pathname + req.nextUrl.search)}`;
+    url.search = pathname === "/app" && !req.nextUrl.search ? "" : `?next=${encodeURIComponent(pathname + req.nextUrl.search)}`;
     return NextResponse.redirect(url);
   }
   if ((pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) && s.role !== "admin") {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Len pre administrátorov." }, { status: 403 });
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/app", req.url));
   }
   return NextResponse.next();
 }

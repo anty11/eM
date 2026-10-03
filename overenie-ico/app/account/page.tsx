@@ -32,7 +32,7 @@ export default function AccountPage() {
       <main className="wrap">
         <section className="hero" style={{ paddingBottom: 0 }}>
           <h1>Môj účet</h1>
-          <p>{me ? `${me.name ? `${me.name} · ` : ""}${me.email} · ${me.role === "admin" ? "administrátor" : "používateľ"} · verzia ${me.mode === "advokat" ? "Advokát" : "Firma"}` : "…"}</p>
+          <p>{me ? `${me.name ? `${me.name} · ` : ""}${me.email} · ${me.role === "admin" ? "administrátor" : "používateľ"} · verzia ${me.mode === "advokat" ? "Rozšírené" : "Štandard"}` : "…"}</p>
         </section>
 
         <CompanyList me={me} />

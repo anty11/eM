@@ -41,3 +41,17 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Tlačidlo **↻ Preveriť znova** pri každej spoločnosti spustí nové preverenie; administrátor môže záznam odstrániť.
 - Záznam vzniká pri každom preverení (`recordScan` v `/api/check`); staršie preverenia sa pri prvom načítaní doplnia z auditu.
 - Kód: `lib/companies.ts`, `lib/ago.ts`, `app/api/companies/route.ts`, `app/components/CompanyList.tsx`, `app/account/page.tsx`; test `test/companies.test.ts`.
+
+## v1.3.0 – 4. 10. 2026 – verejný web, objednávka, overuje spoločnosť sama
+
+- **Verejný web na `/`**: prezentácia produktu (prečo overovať – judikatúra SD EÚ a § 69 ods. 14 zákona o DPH, čo overujeme, ako to funguje,
+  pre koho, kancelárie URBAN & PARTNERS a LEXNERA Legal, dve verzie Štandard / Rozšírené, časté otázky), stránka `/pravny-zaklad`
+  a objednávka `/objednavka` (ukladá sa do databázy, administrátor ju vidí v Administrácii → Objednávky z webu a mení stav; voliteľný `ORDER_WEBHOOK_URL`).
+- **Klientska sekcia presunutá na `/app`** (`/app?ico=…`); `/account`, `/admin` a všetky API ostávajú za prihlásením; po prihlásení sa ide na `/app`.
+  Verejné stránky sú indexovateľné, klientska sekcia má `noindex`.
+- **Texty**: overenie vykonáva spoločnosť sama prostredníctvom poverených zamestnancov – nie advokát. Verzie sa volajú **Štandard** (`firma`)
+  a **Rozšírené** (`advokat` – identifikátor ostal kvôli uloženým údajom). Protokol: „Vypracoval (poverený zamestnanec)“, „štandardné / rozšírené overenie“.
+- Farby a kontakty kancelárií sú na jednom mieste: `app/site.css` (premenné `--s-*`) a `app/components/site/SiteShell.tsx` (`FIRMS`).
+  Presné odtiene podľa webov kancelárií a logá treba ešte doplniť (zo sandboxu nebolo možné weby otvoriť).
+- Kód: `app/page.tsx`, `app/pravny-zaklad/page.tsx`, `app/objednavka/page.tsx`, `app/site.css`, `app/components/site/SiteShell.tsx`,
+  `lib/orders.ts`, `app/api/order`, `app/api/admin/orders`, `app/components/OrdersPanel.tsx`, `proxy.ts`; test `test/orders.test.ts`.

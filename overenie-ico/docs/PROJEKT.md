@@ -5,9 +5,9 @@ Jediný zdroj pravdy o tom, kde aplikácia beží, ako je poskladaná a ako sa n
 
 ## Čo to je
 
-Webová aplikácia pre advokátsku kanceláriu: zadá sa IČO spoločnosti, preverí sa vo verejných registroch SR,
+Produkt pre firmy (zastrešený advokátskymi kanceláriami URBAN & PARTNERS a LEXNERA Legal): verejný web `/` s prezentáciou, právnym základom a objednávkou; klientska sekcia `/app`, kde poverení zamestnanci spoločnosti zadajú IČO partnera, preverí sa vo verejných registroch SR,
 vyhodnotí sa skóre a vydá sa verdikt **ODPORÚČAME / S VÝHRADOU / NEODPORÚČAME** s výsledkom na obrazovke
-a PDF protokolom s časovou pečiatkou. Dva pohľady: **Firma** (predvolený, priorita) a **Advokát**
+a PDF protokolom s časovou pečiatkou. Dve verzie: **Štandard** (`firma`, predvolená) a **Rozšírené** (`advokat` – identifikátor ostal kvôli uloženým údajom)
 (vyskakovacie okno so zoznamom manuálnych kontrol neverejných registrov). Prístup len po prihlásení,
 používateľov spravujú administrátori.
 
@@ -16,6 +16,7 @@ používateľov spravujú administrátori.
 | Čo | Hodnota |
 |---|---|
 | GitHub | `anty11/eM`, aplikácia v podpriečinku **`overenie-ico/`**; push do `main` nasadí |
+| Adresy | `/` verejný web · `/pravny-zaklad` · `/objednavka` · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
 | Vercel | projekt **`e-m`**, Root Directory `overenie-ico`, Framework Next.js, región `fra1` |
 | Cron | `vercel.json` → `/api/cron/socpoist` denne 04:20 (stiahne a zaindexuje zoznam dlžníkov SP) |
 | Databáza | Upstash Redis cez Vercel Marketplace (premenné s predponou `KV_`); `lib/auth/kv.ts` prijme aj `*_REST_API_URL/TOKEN` alebo `REDIS_URL`; bez databázy beží lokálne v pamäti |
@@ -44,18 +45,19 @@ Lokálne bez internetu: `DEMO_DATA=1 npm run dev`.
 | `lib/sources/insolvency.ts` | REPLIK (replik.justice.sk) – spracúvajú sa **iba riadky výsledkov** `(IČO: X) - druh č. číslo`; stránka vždy obsahuje slová filtra, preto sa nikdy nehľadá v surovom texte |
 | `lib/sources/rpvs.ts` | RPVS OData v2, dvojkrokové vyhľadanie, koneční užívatelia výhod |
 | `lib/sources/news.ts`, `slovakMedia.ts` | médiá: Google News/Bing RSS, DuckDuckGo, priame vyhľadávanie v slovenských médiách; varianty mena, bývalé názvy, skratky (USGB), štatutári a priezviská partnerov; skóre relevancie a zoznam odmietnutých |
-| `lib/keyfacts.ts` | 9 kľúčových otázok advokáta · `lib/scoring.ts` skóre a verdikt (režim Firma ignoruje neverejné registre) |
+| `lib/keyfacts.ts` | 9 kľúčových otázok (zadanie z praxe daňových kontrol) · `lib/scoring.ts` skóre a verdikt (režim Firma ignoruje neverejné registre) |
 | `lib/companies.ts`, `lib/ago.ts` | databáza preverených spoločností (Redis hash `companies`, jeden záznam na IČO, prvé doplnenie z auditu); vek preverenia, hranica `STALE_DAYS = 180` · API `app/api/companies` · zoznam v `app/components/CompanyList.tsx` na stránke `/account` |
 | `lib/auth/*` | používatelia, scrypt heslá, HMAC cookie (12 h), pozvánky, limit pokusov, CSRF · `lib/audit.ts` záznam preverení a nastavení |
 | `lib/ai/*` | záložné vyhľadávanie LLM (Anthropic web_search / OpenAI web_search). **Predvolene VYPNUTÉ** – spúšťa sa len tlačidlom „AI overiť“, nikdy pri každom preverení |
-| `app/page.tsx` | klient so streamovaním (`/api/check?ico=&stream=1`), kľúčové fakty, karta kontaktu, Firma/Advokát, opakovanie zdroja |
+| `app/page.tsx`, `app/pravny-zaklad`, `app/objednavka`, `app/components/site/SiteShell.tsx`, `app/site.css` | verejný web: prezentácia, judikatúra, objednávka (`lib/orders.ts`, `/api/order`, admin panel `OrdersPanel`); kontakty kancelárií a farby na jednom mieste |
+| `app/app/page.tsx` | klient so streamovaním (`/api/check?ico=&stream=1`), kľúčové fakty, karta kontaktu, Štandard/Rozšírené, opakovanie zdroja |
 | `app/admin` | používatelia, AI kľúč, audit · `app/api/diag?ico=` diagnostika len pre admina; karta „Pokrytie overenia“ sa zobrazí len adminovi s `?diag` – **nikdy klientovi** |
 
 ## Premenné prostredia (Vercel → Production)
 
 `SESSION_SECRET` (≥ 32 znakov) · `ADMIN_EMAILS` · `ADMIN_SETUP_CODE` (po prvom prihlásení zmazať) ·
 `KV_REST_API_URL`, `KV_REST_API_TOKEN` (z integrácie Upstash) · `FS_API_KEY` (kľúč OpenData FS) · `APP_MODE=firma` ·
-voliteľné `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `AI_ALLOW_ADMIN_KEY`, `CRON_SECRET`.
+voliteľné `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `AI_ALLOW_ADMIN_KEY`, `CRON_SECRET`, `ORDER_WEBHOOK_URL` (upozornenie na objednávku z webu).
 
 `AI_AUTO_FALLBACK` a `AI_NO_API_SOURCES` **nenastavovať** (AI musí ostať len na tlačidlo). Každá zmena premenných vyžaduje redeploy.
 

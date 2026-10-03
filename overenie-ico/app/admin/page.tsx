@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Header, { useMe } from "../components/Header";
 import AiSettings from "../components/AiSettings";
+import OrdersPanel from "../components/OrdersPanel";
 
 interface U {
   email: string;
@@ -127,7 +128,7 @@ export default function AdminPage() {
       <main className="wrap">
         <section className="hero" style={{ paddingBottom: 0 }}>
           <h1>Administrácia</h1>
-          <p>Pridávajte používateľov podľa e-mailu. Každý dostane jednorazový kód (platný 7 dní), ktorým si pri prvom prihlásení nastaví heslo. Verzia <b>Firma</b> je určená pre zamestnancov spoločnosti, verzia <b>Advokát</b> navyše ponúkne manuálne overenie neverejných registrov.</p>
+          <p>Pridávajte používateľov podľa e-mailu. Každý dostane jednorazový kód (platný 7 dní), ktorým si pri prvom prihlásení nastaví heslo. Overenie vykonáva spoločnosť sama prostredníctvom poverených zamestnancov. Verzia <b>Štandard</b> preveruje verejné registre, verzia <b>Rozšírené</b> navyše ponúkne poverenému zamestnancovi manuálne overenie neverejných registrov (exekúcie, zdravotné poisťovne, Obchodný vestník…).</p>
         </section>
         {error && <div className="err">{error}</div>}
 
@@ -145,8 +146,8 @@ export default function AdminPage() {
                   <option value="admin">Rola: administrátor</option>
                 </select>
                 <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ margin: 0, width: "auto", padding: "10px 12px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", color: "var(--ink)" }} title="Verzia rozhrania">
-                  <option value="firma">Verzia: Firma</option>
-                  <option value="advokat">Verzia: Advokát (manuálne overenia)</option>
+                  <option value="firma">Verzia: Štandard</option>
+                  <option value="advokat">Verzia: Rozšírené (manuálne overenia)</option>
                 </select>
                 <button className="btn" disabled={!emails.trim()}>Pridať</button>
               </div>
@@ -208,8 +209,8 @@ export default function AdminPage() {
                         {u.role === "admin" ? "Administrátor" : "Používateľ"}
                         <div>
                           <select value={u.mode} onChange={(e) => act(u.email, "mode", { mode: e.target.value })} style={{ font: "inherit", fontSize: 13, padding: "2px 6px", border: "1px solid var(--line)", borderRadius: 6, background: "var(--surface)", color: "var(--ink)", marginTop: 4 }}>
-                            <option value="firma">Firma</option>
-                            <option value="advokat">Advokát</option>
+                            <option value="firma">Štandard</option>
+                            <option value="advokat">Rozšírené</option>
                           </select>
                         </div>
                       </td>
@@ -243,6 +244,8 @@ export default function AdminPage() {
           </div>
         </section>
 
+        <OrdersPanel />
+
         <AiSettings />
 
         <section className="card">
@@ -275,12 +278,12 @@ export default function AdminPage() {
                     <td>{TYPE[e.type] || e.type}</td>
                     <td>
                       {e.type === "ai_check" ? (
-                        <><a href={`/?ico=${e.ico}`}>{e.ico}</a> {e.company} · zdroj {e.target} · {e.detail}</>
+                        <><a href={`/app?ico=${e.ico}`}>{e.ico}</a> {e.company} · zdroj {e.target} · {e.detail}</>
                       ) : e.type === "contact_saved" ? (
-                        <><a href={`/?ico=${e.ico}`}>{e.ico}</a> {e.detail}</>
+                        <><a href={`/app?ico=${e.ico}`}>{e.ico}</a> {e.detail}</>
                       ) : e.type === "scan" ? (
                         <>
-                          <a href={`/?ico=${e.ico}`}>{e.ico}</a> {e.company}{" "}
+                          <a href={`/app?ico=${e.ico}`}>{e.ico}</a> {e.company}{" "}
                           {e.verdict && <span className={`pill ${VCLASS[e.verdict]}`}>{VERDICT[e.verdict]} · {e.score}</span>}
                           <div className="src">{e.scanId}</div>
                         </>

@@ -1,13 +1,13 @@
 # Preverenie partnera podľa IČO
 
-Webová aplikácia pre advokátsku kanceláriu, prístupná len prihláseným používateľom: zadáte IČO a aplikácia overí subjekt vo verejných registroch SR. Z výsledkov vypočíta skóre rizika (0–100) a dá odporúčanie: **ODPORÚČAME / S VÝHRADOU / NEODPORÚČAME**. Výsledok uložíte ako PDF protokol s časom preverenia.
+Produkt pre firmy zastrešený advokátskymi kanceláriami URBAN & PARTNERS a LEXNERA Legal: verejný web s prezentáciou a objednávkou (`/`) a klientska sekcia (`/app`) prístupná len prihláseným povereným zamestnancom. Zadáte IČO a aplikácia overí subjekt vo verejných registroch SR. Z výsledkov vypočíta skóre rizika (0–100) a dá odporúčanie: **ODPORÚČAME / S VÝHRADOU / NEODPORÚČAME**. Výsledok uložíte ako PDF protokol s časom preverenia.
 
 > 📄 Podrobná dokumentácia zdrojov, požadovaných údajov a pravidiel: [docs/ZDROJE.md](docs/ZDROJE.md) · Nasadenie a testovanie na Verceli: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · Referencia projektu a mapa kódu: [docs/PROJEKT.md](docs/PROJEKT.md) · Kontrolné body verzií: [docs/STAV.md](docs/STAV.md)
 
 ## Dve verzie
 
 - **Firma** (predvolená, hlavná) je pre zamestnancov spoločnosti, ktorí si partnerov preverujú sami. Verdikt vychádza z verejných registrov. Neverejné registre (exekúcie, zdravotné poisťovne a i.) sú len v rozbaľovacej časti *Ďalšie odporúčané overenia* s odkazmi.
-- **Advokát** navyše po každom preverení zobrazí okno *Overte manuálne* so zoznamom registrov, ktoré nie sú verejne dostupné. Advokát ich otvorí, označí *Bez záznamu / Záznam nájdený* a verdikt sa hneď prepočíta. Kým nie sú všetky potvrdené, je verdikt označený ako predbežný.
+- **Rozšírené** (interný identifikátor `advokat`) navyše po každom preverení zobrazí okno *Overte manuálne* so zoznamom registrov, ktoré nie sú verejne dostupné. Poverený zamestnanec ich otvorí, označí *Bez záznamu / Záznam nájdený* a verdikt sa hneď prepočíta. Kým nie sú všetky potvrdené, je verdikt označený ako predbežný.
 
 Verziu nastavuje administrátor každému používateľovi zvlášť (pri pridaní alebo neskôr v zozname používateľov). Predvolenú verziu pre nových používateľov môžete zmeniť premennou `APP_MODE=advokat`.
 
@@ -55,7 +55,7 @@ Karta sa ukladá k IČO, vidí ju celá firma a zobrazí sa pri každom ďalšom
 | VšZP, Dôvera, Union | Zoznamy dlžníkov (bez API, Dôvera automatizáciu zakazuje) | manuálne |
 | Obchodný vestník, Register diskvalifikácií, ÚVO – zákaz účasti | MS SR, ÚVO | manuálne |
 
-Pri kontrolách, ktoré treba overiť manuálne, aplikácia zobrazí odkaz na príslušný register a tlačidlá **Bez záznamu / Záznam nájdený**. Keď advokát výsledok označí, verdikt sa hneď prepočíta a výsledok sa zapíše do protokolu. Kým niektorá kontrola nie je potvrdená, verdikt je označený ako **predbežný**. Výnimka: ak sa nájde kritický záznam, verdikt NEODPORÚČAME platí hneď.
+Pri kontrolách, ktoré treba overiť manuálne, aplikácia zobrazí odkaz na príslušný register a tlačidlá **Bez záznamu / Záznam nájdený**. Keď poverený zamestnanec výsledok označí, verdikt sa hneď prepočíta a výsledok sa zapíše do protokolu. Kým niektorá kontrola nie je potvrdená, verdikt je označený ako **predbežný**. Výnimka: ak sa nájde kritický záznam, verdikt NEODPORÚČAME platí hneď.
 
 ## Záložné AI vyhľadávanie
 

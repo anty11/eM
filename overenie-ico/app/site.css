@@ -1,0 +1,190 @@
+/* --- Verejný web (prezentácia produktu) – vlastná paleta, nezávislá od aplikácie ---
+   Farby sú zámerne na jednom mieste: po dodaní presných odtieňov kancelárií (URBAN & PARTNERS, LEXNERA) stačí zmeniť tieto premenné. */
+.site {
+  --s-navy: #142338;
+  --s-navy-2: #1f3a5f;
+  --s-gold: #b08d57;
+  --s-gold-2: #d4b483;
+  --s-paper: #f7f5f0;
+  --s-white: #ffffff;
+  --s-ink: #1a1d22;
+  --s-muted: #5b616b;
+  --s-line: #e3dfd6;
+  --s-ok: #1e7a4c;
+  --s-crit: #b3261e;
+  --s-serif: "Georgia", "Times New Roman", serif;
+  --s-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--s-paper);
+  color: var(--s-ink);
+  font-family: var(--s-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.site * { box-sizing: border-box; }
+.site a { color: var(--s-navy-2); }
+.site h1, .site h2, .site h3 { font-family: var(--s-serif); font-weight: 600; letter-spacing: -0.01em; color: var(--s-navy); margin: 0; }
+.site h1 { font-size: clamp(30px, 4.6vw, 50px); line-height: 1.1; }
+.site h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.2; }
+.site h3 { font-size: 19px; }
+.s-wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+.s-eyebrow { display: inline-block; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--s-gold); font-weight: 700; margin-bottom: 10px; }
+.s-lead { font-size: 18px; color: var(--s-muted); max-width: 720px; }
+.s-btn { display: inline-block; border: 0; border-radius: 8px; padding: 13px 24px; background: var(--s-navy); color: #fff; font-weight: 600; text-decoration: none; cursor: pointer; font: inherit; font-weight: 600; }
+.site a.s-btn { color: #fff; }
+.s-btn:hover { background: var(--s-navy-2); }
+.s-btn.gold, .site a.s-btn.gold { background: var(--s-gold); color: var(--s-navy); }
+.s-btn.gold:hover { background: var(--s-gold-2); }
+.s-btn.ghost, .site a.s-btn.ghost { background: transparent; color: var(--s-navy); border: 1px solid var(--s-navy); }
+.s-btn.ghost:hover { background: rgba(20, 35, 56, 0.06); }
+.s-btn.light, .site a.s-btn.light { background: #fff; color: var(--s-navy); }
+.s-btn:disabled { opacity: 0.6; cursor: progress; }
+
+/* hlavička */
+.s-top { position: sticky; top: 0; z-index: 20; background: rgba(247, 245, 240, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--s-line); }
+.s-top .s-wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
+.s-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--s-navy); font-family: var(--s-serif); font-size: 19px; font-weight: 600; }
+.s-brand .mark { width: 36px; height: 36px; border-radius: 8px; background: var(--s-navy); color: var(--s-gold-2); display: grid; place-items: center; font-family: var(--s-sans); font-size: 18px; font-weight: 700; }
+.s-brand small { display: block; white-space: nowrap; font-family: var(--s-sans); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--s-gold); font-weight: 700; line-height: 1; margin-top: 3px; }
+.s-nav { display: flex; align-items: center; gap: 22px; font-size: 15px; }
+.s-nav a { text-decoration: none; color: var(--s-ink); white-space: nowrap; }
+.s-nav a:hover { color: var(--s-navy-2); }
+.s-nav .s-btn { padding: 9px 16px; font-size: 14px; }
+@media (max-width: 1060px) { .s-nav { gap: 14px; } .s-nav a.sec { display: none; } }
+@media (max-width: 900px) { .s-nav a:not(.s-btn) { display: none; } }
+@media (max-width: 760px) {
+  .s-nav a:not(.s-btn) { display: none; }
+  .s-brand small { display: none; }
+  .s-brand { font-size: 17px; }
+  .s-nav { gap: 8px; }
+  .s-nav .s-btn { padding: 8px 12px; font-size: 13px; }
+}
+@media (max-width: 420px) { .s-nav .s-btn.ghost { display: none; } }
+.s-hero .s-wrap, .s-wrap { min-width: 0; }
+
+/* úvod */
+.s-hero { background: var(--s-navy); color: #fff; padding: 72px 0 64px; position: relative; overflow: hidden; }
+.s-hero::after { content: ""; position: absolute; right: -120px; top: -120px; width: 520px; height: 520px; border-radius: 50%; border: 60px solid rgba(176, 141, 87, 0.14); pointer-events: none; }
+.s-hero .s-wrap { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px; align-items: center; position: relative; }
+.s-hero h1 { color: #fff; }
+.s-hero .s-lead { color: rgba(255, 255, 255, 0.8); margin: 18px 0 28px; }
+.s-hero .s-eyebrow { color: var(--s-gold-2); }
+.s-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.s-hero .s-note { margin-top: 18px; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+.s-proto { background: #fff; color: var(--s-ink); border-radius: 12px; padding: 20px 22px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35); font-size: 13px; }
+.s-proto .ph { display: flex; justify-content: space-between; border-bottom: 1.5px solid var(--s-navy); padding-bottom: 6px; margin-bottom: 10px; font-family: var(--s-serif); font-weight: 600; font-size: 14px; }
+.s-proto .ph small { font-family: var(--s-sans); font-weight: 400; color: var(--s-muted); }
+.s-proto .verdict { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+.s-proto .ring { width: 56px; height: 56px; border-radius: 50%; border: 4px solid var(--s-ok); display: grid; place-items: center; font-weight: 700; color: var(--s-ok); font-size: 18px; }
+.s-proto .vl { font-family: var(--s-serif); color: var(--s-ok); font-weight: 600; font-size: 16px; }
+.s-proto ul { list-style: none; padding: 0; margin: 0; }
+.s-proto li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid var(--s-line); }
+.s-proto .pill { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.s-proto .ok { color: var(--s-ok); }
+.s-proto .warn { color: #8a5200; }
+@media (max-width: 860px) { .s-hero .s-wrap { grid-template-columns: 1fr; } .s-proto { display: none; } }
+
+/* pásy */
+.s-band { padding: 64px 0; }
+.s-band.alt { background: #fff; border-top: 1px solid var(--s-line); border-bottom: 1px solid var(--s-line); }
+.s-band.dark { background: var(--s-navy); color: #fff; }
+.s-band.dark h2, .s-band.dark h3 { color: #fff; }
+.s-band.dark .s-lead, .s-band.dark p { color: rgba(255, 255, 255, 0.78); }
+.s-head { max-width: 760px; margin-bottom: 32px; }
+.s-head p { color: var(--s-muted); margin: 10px 0 0; }
+.s-grid { display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); }
+.s-grid.two { grid-template-columns: repeat(2, 1fr); }
+.s-grid.four { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) { .s-grid, .s-grid.four { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .s-grid, .s-grid.two, .s-grid.four { grid-template-columns: 1fr; } }
+.s-card { background: #fff; border: 1px solid var(--s-line); border-radius: 12px; padding: 22px 24px; }
+.s-card h3 { margin-bottom: 8px; }
+.s-card p { margin: 0; color: var(--s-muted); font-size: 15px; }
+.s-card .num { font-family: var(--s-serif); font-size: 34px; color: var(--s-gold); line-height: 1; margin-bottom: 10px; }
+.s-band.dark .s-card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.14); }
+.s-band.dark .s-card p { color: rgba(255, 255, 255, 0.75); }
+
+/* judikatúra */
+.s-law { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: start; }
+@media (max-width: 860px) { .s-law { grid-template-columns: 1fr; } }
+.s-quote { border-left: 4px solid var(--s-gold); padding: 6px 0 6px 18px; margin: 18px 0; font-family: var(--s-serif); font-size: 18px; color: var(--s-navy); }
+.s-quote small { display: block; font-family: var(--s-sans); font-size: 13px; color: var(--s-muted); margin-top: 6px; }
+.s-cases { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.s-cases li { background: #fff; border: 1px solid var(--s-line); border-radius: 10px; padding: 12px 16px; font-size: 15px; }
+.s-cases b { display: block; color: var(--s-navy); font-family: var(--s-serif); font-size: 16px; }
+.s-cases span { color: var(--s-muted); }
+
+/* zoznam registrov */
+.s-regs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 24px; list-style: none; padding: 0; margin: 0; }
+@media (max-width: 760px) { .s-regs { grid-template-columns: 1fr; } }
+.s-regs li { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--s-line); font-size: 15px; }
+.s-regs li::before { content: "✓"; color: var(--s-gold); font-weight: 700; }
+.s-regs small { color: var(--s-muted); display: block; }
+
+/* kroky */
+.s-steps { counter-reset: s; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+@media (max-width: 900px) { .s-steps { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .s-steps { grid-template-columns: 1fr; } }
+.s-step { counter-increment: s; position: relative; padding-top: 44px; }
+.s-step::before { content: counter(s); position: absolute; top: 0; left: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--s-gold); color: var(--s-navy); display: grid; place-items: center; font-weight: 700; }
+.s-step h3 { font-size: 17px; margin-bottom: 6px; }
+.s-step p { color: var(--s-muted); margin: 0; font-size: 15px; }
+
+/* kancelárie */
+.s-firms { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 760px) { .s-firms { grid-template-columns: 1fr; } }
+.s-firm { background: #fff; border: 1px solid var(--s-line); border-radius: 14px; padding: 28px; display: grid; gap: 12px; }
+.s-firm .logo { font-family: var(--s-serif); font-size: 22px; letter-spacing: 0.04em; color: var(--s-navy); font-weight: 700; }
+.s-firm .logo span { color: var(--s-gold); }
+.s-firm .tag { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--s-gold); font-weight: 700; }
+.s-firm p { margin: 0; color: var(--s-muted); font-size: 15px; }
+.s-firm .meta { font-size: 14px; color: var(--s-ink); display: grid; gap: 2px; }
+
+/* cenník / balíky */
+.s-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 760px) { .s-plans { grid-template-columns: 1fr; } }
+.s-plan { background: #fff; border: 1px solid var(--s-line); border-radius: 14px; padding: 28px; display: grid; gap: 14px; align-content: start; }
+.s-plan.featured { border-color: var(--s-gold); box-shadow: 0 16px 40px rgba(20, 35, 56, 0.1); }
+.s-plan .price { font-family: var(--s-serif); font-size: 22px; color: var(--s-navy); }
+.s-plan .price small { display: block; font-family: var(--s-sans); font-size: 13px; color: var(--s-muted); }
+.s-plan ul { margin: 0; padding-left: 20px; color: var(--s-ink); font-size: 15px; display: grid; gap: 6px; }
+
+/* FAQ */
+.s-faq { display: grid; gap: 10px; max-width: 820px; }
+.s-faq details { background: #fff; border: 1px solid var(--s-line); border-radius: 10px; padding: 14px 18px; }
+.s-faq summary { cursor: pointer; font-weight: 600; color: var(--s-navy); }
+.s-faq p { margin: 10px 0 0; color: var(--s-muted); font-size: 15px; }
+
+/* formulár objednávky */
+.s-form { background: #fff; border: 1px solid var(--s-line); border-radius: 14px; padding: 28px; display: grid; gap: 14px; max-width: 760px; }
+.s-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .s-form .row { grid-template-columns: 1fr; } }
+.s-form label { display: grid; gap: 5px; font-size: 14px; color: var(--s-muted); }
+.s-form input, .s-form select, .s-form textarea { font: inherit; padding: 11px 12px; border: 1px solid var(--s-line); border-radius: 8px; background: #fff; color: var(--s-ink); width: 100%; }
+.s-form input:focus, .s-form select:focus, .s-form textarea:focus { outline: 2px solid var(--s-navy-2); outline-offset: 1px; }
+.s-form textarea { min-height: 90px; }
+.s-form .check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--s-ink); }
+.s-form .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--s-navy); }
+.s-form .hp { position: absolute; left: -9999px; }
+.s-ok-box { background: #e7f4ec; color: var(--s-ok); border-radius: 10px; padding: 16px 18px; }
+.s-err { background: #fbe7e5; color: var(--s-crit); border-radius: 8px; padding: 10px 14px; }
+.s-plan-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .s-plan-pick { grid-template-columns: 1fr; } }
+.s-plan-pick label { border: 1px solid var(--s-line); border-radius: 10px; padding: 12px 14px; cursor: pointer; display: grid; gap: 2px; color: var(--s-ink); }
+.s-plan-pick label.on { border-color: var(--s-gold); background: #fbf7ef; }
+.s-plan-pick b { color: var(--s-navy); }
+.s-plan-pick small { color: var(--s-muted); }
+
+/* právny základ – článok */
+.s-article { max-width: 780px; }
+.s-article h2 { margin: 36px 0 12px; font-size: 24px; }
+.s-article p, .s-article li { color: var(--s-ink); }
+.s-article .s-quote { font-size: 17px; }
+
+/* päta */
+.s-foot { background: #0f1a2b; color: rgba(255, 255, 255, 0.75); padding: 44px 0 28px; font-size: 14px; }
+.s-foot .cols { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 28px; }
+@media (max-width: 760px) { .s-foot .cols { grid-template-columns: 1fr; } }
+.s-foot h4 { color: #fff; font-family: var(--s-serif); margin: 0 0 8px; font-size: 16px; }
+.s-foot a { color: var(--s-gold-2); text-decoration: none; }
+.s-foot .legal { border-top: 1px solid rgba(255, 255, 255, 0.12); margin-top: 28px; padding-top: 16px; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
