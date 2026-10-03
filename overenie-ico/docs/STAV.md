@@ -52,6 +52,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **Texty**: overenie vykonáva spoločnosť sama prostredníctvom poverených zamestnancov – nie advokát. Verzie sa volajú **Štandard** (`firma`)
   a **Rozšírené** (`advokat` – identifikátor ostal kvôli uloženým údajom). Protokol: „Vypracoval (poverený zamestnanec)“, „štandardné / rozšírené overenie“.
 - Farby a kontakty kancelárií sú na jednom mieste: `app/site.css` (premenné `--s-*`) a `app/components/site/SiteShell.tsx` (`FIRMS`).
-  Presné odtiene podľa webov kancelárií a logá treba ešte doplniť (zo sandboxu nebolo možné weby otvoriť).
+- **v1.3.1** – paleta podľa webov kancelárií (odmerané zo screenshotov): tmavý web, fialová `#7e31fb` a gradient `#170c28 → #2b1551` (URBAN & PARTNERS),
+  zlatá `#c09040` / `#a67b30` a hnedočierna `#1e1512` (LEXNERA); písma Montserrat + Playfair Display (Google Fonts); karty kancelárií každá vo svojej farbe
+  s textovými logotypmi. Skutočné logá (SVG) ešte treba doplniť.
 - Kód: `app/page.tsx`, `app/pravny-zaklad/page.tsx`, `app/objednavka/page.tsx`, `app/site.css`, `app/components/site/SiteShell.tsx`,
   `lib/orders.ts`, `app/api/order`, `app/api/admin/orders`, `app/components/OrdersPanel.tsx`, `proxy.ts`; test `test/orders.test.ts`.

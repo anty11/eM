@@ -32,6 +32,10 @@ export const PRODUCT = "Preverenie partnera";
 export function SiteHeader({ active }: { active?: "home" | "law" | "order" }) {
   return (
     <header className="s-top">
+      {/* Písma podľa webov kancelárií: Montserrat (URBAN & PARTNERS), Playfair Display (LEXNERA) */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" />
       <div className="s-wrap">
         <a className="s-brand" href="/">
           <span className="mark">§</span>

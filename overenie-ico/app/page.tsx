@@ -165,8 +165,8 @@ export default function Home() {
             <p>Nástroj vznikol zo skúseností z daňových kontrol a súdnych konaní, v ktorých sa rozhodovalo práve o tom, či si podnikateľ svojho partnera preveril.</p>
           </div>
           <div className="s-firms">
-            <div className="s-firm">
-              <div className="logo">URBAN <span>&amp;</span> PARTNERS</div>
+            <div className="s-firm urban">
+              <div className="logo">URBAN<span>&amp;</span>PARTNERS<em>LAW FIRM</em></div>
               <div className="tag">{u.tagline} · od roku {u.since}</div>
               <p>{u.about}</p>
               <div className="meta">
@@ -175,8 +175,8 @@ export default function Home() {
                 <span><a href={u.web} target="_blank" rel="noreferrer">www.urbanpartners.sk</a></span>
               </div>
             </div>
-            <div className="s-firm">
-              <div className="logo">LEX<span>NERA</span> Legal</div>
+            <div className="s-firm lexnera">
+              <div className="logo">LEXNERA<span>LEGAL</span></div>
               <div className="tag">{l.tagline}</div>
               <p>{l.about}</p>
               <div className="meta">
