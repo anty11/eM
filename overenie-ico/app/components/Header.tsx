@@ -30,7 +30,7 @@ export default function Header({ me, active }: { me?: Me | null; active?: "check
     <header className="top">
       <div className="wrap">
         <a className="brand" href="/app" style={{ textDecoration: "none", color: "inherit" }}>
-          <span className="mark">§</span> Preverenie partnera
+          <span className="mark">§</span> Preverto
         </a>
         {me ? (
           <nav className="nav no-print">

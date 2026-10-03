@@ -1,4 +1,6 @@
-# Overenie IČO – referencia projektu
+# Preverto (Overenie IČO) – referencia projektu
+
+Názov produktu a doména: **Preverto · preverto.sk** („prever to“). Prevádzkovateľ: samostatná spoločnosť (pracovne Preverto s.r.o.), odborná záštita URBAN & PARTNERS a LEXNERA Legal. Názov je na jednom mieste: `PRODUCT`, `DOMAIN`, `OPERATOR` v `app/components/site/SiteShell.tsx` + hlavička aplikácie `app/components/Header.tsx`.
 
 Jediný zdroj pravdy o tom, kde aplikácia beží, ako je poskladaná a ako sa na nej pracuje.
 Čítať pred akoukoľvek zmenou. Podrobnosti k zdrojom sú v [ZDROJE.md](ZDROJE.md), nasadenie v [DEPLOYMENT.md](DEPLOYMENT.md).

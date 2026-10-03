@@ -1,15 +1,16 @@
 import "../../site.css";
 
-export const PRODUCT = "Preverenie partnera";
+export const PRODUCT = "Preverto";
+export const DOMAIN = "preverto.sk";
 
 /**
  * Prevádzkovateľ produktu – samostatná spoločnosť (nie advokátska kancelária).
  * Názov, IČO a kontakt doplňte po založení / rozhodnutí; zobrazujú sa v päte, na stránke objednávky a v súhlase so spracovaním údajov.
  */
 export const OPERATOR = {
-  name: "Preverenie partnera s.r.o.",
+  name: "Preverto s.r.o.",
   nameNote: "pracovný názov – doplní sa po zápise spoločnosti",
-  email: "info@preveriepartnera.sk",
+  email: "info@preverto.sk",
   phone: "",
   address: "",
 };
@@ -46,7 +47,7 @@ export function SiteHeader({ active }: { active?: "home" | "law" | "order" }) {
           <span className="mark">§</span>
           <span>
             {PRODUCT}
-            <small>overenie dodávateľa a odberateľa</small>
+            <small>prever to · overenie obchodného partnera</small>
           </span>
         </a>
         <nav className="s-nav">

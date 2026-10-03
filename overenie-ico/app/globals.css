@@ -224,6 +224,7 @@ textarea { width: 100%; min-height: 80px; }
   .print-head { border-bottom: 1.5px solid #000; padding-bottom: 4px; margin-bottom: 6px; }
   .ph-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .print-head h1 { font-family: var(--serif); font-size: 15px; margin: 0; }
+  .ph-brand { font-family: var(--font); font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #444; margin-left: 10px; vertical-align: middle; }
   .ph-co { font-weight: 600; font-size: 11px; text-align: right; }
   .ph-meta { font-size: 8.5px; color: #444; margin-top: 2px; }
 

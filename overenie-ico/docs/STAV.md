@@ -65,3 +65,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Pokojnejšie nadpisy (bez hrozieb v titulkoch); právny obsah ostal v texte a na stránke Právny základ.
 - **Prevádzkovateľ je samostatná s.r.o.** (`OPERATOR` v `SiteShell.tsx` – pracovný názov a e-mail treba nahradiť skutočnými), advokátske kancelárie sú
   „odborná záštita“ len s popisom a odkazom na ich web – bez adries, e-mailov a telefónov. Súhlas v objednávke a päta odkazujú na prevádzkovateľa.
+
+## v1.3.3 – 4. 10. 2026 – názov Preverto (preverto.sk)
+
+- Produkt sa volá **Preverto** („prever to“), doména preverto.sk; prevádzkovateľ pracovne Preverto s.r.o., e-mail info@preverto.sk.
+  Všetko na jednom mieste: `PRODUCT`, `DOMAIN`, `OPERATOR` v `app/components/site/SiteShell.tsx`, hlavička aplikácie `app/components/Header.tsx`, titulky v `app/layout.tsx`.
+- PDF protokol má v hlavičke značku preverto.sk. Úvodný titulok webu: „Prever to. Obchodného partnera preveríte rýchlo, spoľahlivo a s protokolom.“

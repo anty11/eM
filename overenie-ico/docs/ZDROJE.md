@@ -1,6 +1,6 @@
 # Zdroje údajov, požadované údaje a pravidlá hodnotenia
 
-Technická a metodická dokumentácia aplikácie **Preverenie partnera podľa IČO**. Pre každý zdroj opisuje:
+Technická a metodická dokumentácia aplikácie **Preverto** (preverenie obchodného partnera podľa IČO, preverto.sk). Pre každý zdroj opisuje:
 
 - odkiaľ a ako sa údaje získavajú (API, otvorené dáta, súbor, webová stránka),
 - čo presne sa od zdroja žiada (vstup),

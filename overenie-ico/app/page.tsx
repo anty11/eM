@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FIRMS, OPERATOR, PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
 
 export const metadata: Metadata = {
-  title: "Preverenie partnera – overenie dodávateľa a odberateľa podľa IČO",
+  title: "Preverto – overenie dodávateľa a odberateľa podľa IČO",
   description:
     "Overenie obchodného partnera vo verejných registroch SR za pol minúty: obchodný register, dane a DPH, poisťovne, konkurzy, závierky, médiá. Protokol o preverení ako doklad náležitej starostlivosti. S odbornou záštitou advokátskych kancelárií URBAN & PARTNERS a LEXNERA Legal.",
   alternates: { canonical: "/" },
@@ -34,7 +34,7 @@ export default function Home() {
         <div className="s-wrap">
           <div>
             <span className="s-eyebrow">Overenie obchodného partnera</span>
-            <h1>Preverte si obchodného partnera. Rýchlo, spoľahlivo a s protokolom.</h1>
+            <h1>Prever to. Obchodného partnera preveríte rýchlo, spoľahlivo a s protokolom.</h1>
             <p className="s-lead">
               Zadáte IČO a do pol minúty máte prehľad o dodávateľovi alebo odberateľovi: obchodný register, dane a DPH, poisťovne, konkurzy,
               účtovné závierky aj médiá. Výsledkom je protokol s časom preverenia – doklad náležitej starostlivosti, akú od podnikateľov
@@ -169,7 +169,7 @@ export default function Home() {
           <div className="s-operator">
             <div className="mark">§</div>
             <div>
-              <h3>{PRODUCT} prevádzkuje {OPERATOR.name}</h3>
+              <h3>Prevádzkovateľom je {OPERATOR.name}</h3>
               <p>
                 Samostatná spoločnosť, ktorá vyvíja a prevádzkuje aplikáciu, uzatvára zmluvy s klientmi a poskytuje podporu. Nie je advokátskou kanceláriou
                 a neposkytuje právne služby; pri rizikovom náleze alebo významnom obchode odporúča konzultáciu s advokátom alebo daňovým poradcom.
