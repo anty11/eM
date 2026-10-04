@@ -252,3 +252,4 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - ÚVO potvrdené naživo („Zadaný výraz nebol nájdený.“ pre Slovnaft, searchType=OSZ); pridaný dopyt podľa obchodného mena pred IČO.
   Union: API `/ehip-server/rest/debtors` vracia 401 pre priame volania (token aplikácie) → rieši agent s prehliadačom.
 - Testy: `test/agent.test.ts` – skutočné Chromium proti lokálnemu registru, simulované API Claude aj OpenAI, kontrola tvrdení, zapojenie do aiCheck.
+- **v2.2.1** – Vercel: do funkcií sa pribaľuje celý `playwright-core` (chýbal `browsers.json`) a celý `@sparticuz/chromium`.
