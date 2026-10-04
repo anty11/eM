@@ -77,7 +77,8 @@ async function anthropic(cfg: AiConfig, req: LlmRequest): Promise<LlmResponse> {
     system: req.system,
     messages: [{ role: "user", content: req.user }],
     tools: [
-      { type: "web_search_20260318", name: "web_search", max_uses: req.maxSearches ?? 5, user_location: { type: "approximate", country: "SK", timezone: "Europe/Bratislava" }, ...domains },
+      // bez user_location: Anthropic nepodporuje kód krajiny SK („Country code SK is not supported“); zameranie dávajú povolené domény a slovenské zadanie
+      { type: "web_search_20260318", name: "web_search", max_uses: req.maxSearches ?? 5, ...domains },
       { type: "web_fetch_20260318", name: "web_fetch", max_uses: req.maxSearches ?? 5, max_content_tokens: 30000, ...domains },
     ],
   };

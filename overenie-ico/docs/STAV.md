@@ -233,3 +233,4 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   všetkých registroch; vypnutá ostáva len pre CRE a Dôveru). Zadania pre AI pri týchto registroch výslovne žiadajú „unknown“, ak sa stránka
   s výsledkom nedá otvoriť (nástroj web_fetch len načíta adresu – formulár nevyplní). Voliteľné hlavičky z prostredia: `ANTHROPIC_BETA`, `ANTHROPIC_WORKSPACE_ID` (kľúč organizácie bez
   pracovného priestoru hlási „API key is not scoped to a workspace“ – alebo vytvoriť kľúč priamo v pracovnom priestore).
+- **v2.1.10** – Claude web_search bez `user_location` (API hlásilo „Country code SK is not supported“); prvé živé AI overenie s Claude.
