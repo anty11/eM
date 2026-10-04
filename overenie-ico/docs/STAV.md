@@ -212,3 +212,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   len podľa názvu, DPH/IBAN podľa IČ DPH), skutočné slugy `ds_iz_ran` (index), `ds_dppos` (DPPO), `ds_dph_iban` (účty). Registre bez API:
   hlavičky prehliadača (justice.gov.sk vracal 403), prípravný krok s cookies (VšZP – vypnutie ochrany formulára, POST typ/nazov/docid/proceed),
   v diagnostike prehľadanie skriptov SPA (Union) na adresy API, odkazy na stránke a hľadanie datasetov na data.gov.sk (diskvalifikácie, ÚVO).
+- **v2.1.4** – „bez záznamu“ pri registroch bez API vyžaduje, aby sa hlásenie o prázdnom výsledku týkalo hľadania (v okolí slovo záznam / dlžník /
+  výsledok / subjekt) – druhá diagnostika ukázala, že VšZP by inak prešlo ako „bez záznamu“ bez istoty; dôkaz (úryvok) sa ukladá do výsledku.
+  Diagnostika: okolie hľadaných reťazcov, vložené skripty, úryvky kódu z JS balíka (Union), varianty adries (justice.gov.sk bez www / http),
+  stránka ÚVO s rozhodnutiami o zákaze účasti, hľadanie datasetov na data.slovensko.sk.

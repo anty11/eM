@@ -46,7 +46,35 @@ export function apiHints(js: string): string[] {
 export interface ProbeOutcome {
   result: "found" | "clean" | "unknown";
   rows: string[];
-  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; forms?: string[]; scripts?: string[]; links?: string[]; apiHints?: string[]; raw?: string; contentType?: string; info?: string }[];
+  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; evidence?: string; forms?: string[]; scripts?: string[]; links?: string[]; inlineScripts?: string[]; apiHints?: string[]; codeAround?: string[]; around?: string[]; raw?: string; contentType?: string; info?: string }[];
+}
+
+/** Textové okolie hľadaných reťazcov v odpovedi (diagnostika) – kde sa IČO alebo hlásenie o výsledku nachádza. */
+export function around(html: string, needles: string[], max = 6): string[] {
+  const text = stripHtml(html);
+  const f = fold(text);
+  const out: string[] = [];
+  for (const n of [...needles, "žiadn", "nenašl", "nenachádz", "neboli", "dlžník", "záznam"]) {
+    const i = f.indexOf(fold(n));
+    if (i >= 0) out.push(`…${text.slice(Math.max(0, i - 160), i + 220)}…`);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/** Úryvky kódu okolo kľúčových slov v JS balíku (diagnostika SPA) – odhalia volania API. */
+export function codeAround(js: string, words: string[], max = 6): string[] {
+  const out: string[] = [];
+  for (const w of words) {
+    let from = 0;
+    while (out.length < max) {
+      const i = js.indexOf(w, from);
+      if (i < 0) break;
+      out.push(js.slice(Math.max(0, i - 260), i + 260).replace(/\s+/g, " "));
+      from = i + w.length;
+    }
+  }
+  return out;
 }
 
 /** Z HTML vytiahne formuláre (action, metóda, polia) a skripty – na doladenie dopytov podľa diagnostiky bez prístupu k stránke. */
@@ -76,6 +104,15 @@ export function describePage(html: string): { forms: string[]; scripts: string[]
   return { forms, scripts, links };
 }
 
+/** Vložené skripty, ktoré volajú server (ajax/fetch/eID/api) – diagnostika TYPO3 a pod. */
+export function inlineScripts(html: string): string[] {
+  return (html.match(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/gi) || [])
+    .map((s) => s.replace(/<\/?script[^>]*>/gi, "").trim())
+    .filter((s) => /ajax|fetch\(|XMLHttpRequest|eID|\/api\/|action=|dataTable|DataTable/i.test(s))
+    .slice(0, 5)
+    .map((s) => s.replace(/\s+/g, " ").slice(0, 700));
+}
+
 const NO_RESULTS = /(ziadne|ziadny|neboli najdene|nebol najdeny|nenasli sa|nenasiel sa|sa nenachadza|nenachadza sa|nebol zisteny|0 zaznamov|pocet zaznamov: 0|no records|no results|nothing found)/;
 
 /** Riadky tabuľky, ktoré obsahujú hľadaný identifikátor (IČO alebo meno). */
@@ -94,15 +131,22 @@ export function matchingRows(html: string, needles: string[]): string[] {
   return [];
 }
 
-export function judge(html: string, needles: string[]): { verdict: "found" | "clean" | "unknown"; rows: string[] } {
+export function judge(html: string, needles: string[]): { verdict: "found" | "clean" | "unknown"; rows: string[]; evidence?: string } {
   const rows = matchingRows(html, needles);
   if (rows.length) return { verdict: "found", rows };
   const text = fold(stripHtml(html));
   // JSON prázdne pole = register odpovedal, nič nenašiel
-  if (/^\s*(\[\s*\]|\{\s*"(data|items|content)"\s*:\s*\[\s*\][^}]*\})\s*$/.test(html.trim())) return { verdict: "clean", rows: [] };
-  // „bez záznamu“ len keď register výslovne hlási prázdny výsledok A zároveň v odpovedi vidno náš dopyt (IČO v poli formulára)
+  if (/^\s*(\[\s*\]|\{\s*"(data|items|content)"\s*:\s*\[\s*\][^}]*\})\s*$/.test(html.trim())) return { verdict: "clean", rows: [], evidence: "prázdna odpoveď JSON" };
+  // „bez záznamu“ len keď register výslovne hlási prázdny výsledok, hlásenie sa týka hľadania (v okolí je slovo o zázname / dlžníkovi / výsledku / subjekte)
+  // a zároveň v odpovedi vidno náš dopyt (IČO v poli formulára) – navigačné texty typu „žiadne poplatky“ sa tak neuznajú
   const raw = fold(html);
-  if (NO_RESULTS.test(text) && needles.some((n) => n && raw.includes(fold(n)))) return { verdict: "clean", rows: [] };
+  const echoed = needles.some((n) => n && raw.includes(fold(n)));
+  if (echoed) {
+    for (const m of text.matchAll(new RegExp(NO_RESULTS.source, "g"))) {
+      const win = text.slice(Math.max(0, m.index! - 120), m.index! + m[0].length + 120);
+      if (/(zaznam|dlzn|vysledk|subjekt|osob|zhod|polozk|record|result)/.test(win)) return { verdict: "clean", rows: [], evidence: win.trim() };
+    }
+  }
   return { verdict: "unknown", rows: [] };
 }
 
@@ -126,19 +170,27 @@ export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 
       const html = await r.text();
       const j = r.ok && !a.info ? judge(html, needles) : { verdict: "unknown" as const, rows: [] };
       const d = describePage(html);
-      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 6000 : 1500), verdict: j.verdict, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 4000 : 1500), contentType: r.headers.get("content-type") || undefined, info: a.info };
-      // jednostránková aplikácia bez obsahu – v diagnostike prezrieme jej skripty a vytiahneme adresy API
+      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 3000 : 1500), verdict: j.verdict, evidence: j.evidence, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 3000 : 1500), contentType: r.headers.get("content-type") || undefined, info: a.info };
+      if (opts.diag) {
+        rec.around = around(html, needles);
+        rec.inlineScripts = inlineScripts(html);
+      }
+      // jednostránková aplikácia bez obsahu – v diagnostike prezrieme jej skripty a vytiahneme adresy API a kód okolo kľúčových slov
       if (opts.diag && j.verdict === "unknown" && d.scripts.length && stripHtml(html).length < 400) {
         const hints = new Set<string>();
+        const code: string[] = [];
         for (const src of d.scripts.filter((s) => !/^https?:/.test(s) || new URL(s).origin === new URL(a.url).origin).slice(0, 3)) {
           try {
-            const js = await (await fetchWithTimeout(new URL(src, a.url).toString(), { timeoutMs })).text();
-            apiHints(js.slice(0, 3_000_000)).forEach((h) => hints.add(h));
+            const js = (await (await fetchWithTimeout(new URL(src, a.url).toString(), { timeoutMs })).text()).slice(0, 4_000_000);
+            apiHints(js).forEach((h) => hints.add(h));
+            for (const m of js.matchAll(/["'`](https?:\/\/[^"'`\s]{8,160})["'`]/g)) if (!/\.(js|css|png|svg|woff2?|ico|jpg)(\?|$)/i.test(m[1]) && !/w3\.org|schema\.org|react|npm|github/i.test(m[1])) hints.add(m[1]);
+            code.push(...codeAround(js, ["dlznici", "dlznik", "baseURL", "baseUrl", "VITE_", "/pub/"], 8));
           } catch {
             /* skript sa nepodarilo načítať */
           }
         }
-        rec.apiHints = [...hints];
+        rec.apiHints = [...hints].slice(0, 80);
+        rec.codeAround = code.slice(0, 10);
       }
       out.attempts.push(rec);
       if (j.verdict !== "unknown") {
@@ -166,9 +218,12 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       return {
         attempts: [
           { url: `${base}?pageNum=1&size=10` },
+          { url: `https://justice.gov.sk/registre/registerDiskvalifikacii/?pageNum=1&size=10`, info: "variant bez www" },
+          { url: `http://www.justice.gov.sk/registre/registerDiskvalifikacii/?pageNum=1&size=10`, info: "variant http" },
           { url: `${base}?ico=${ico}&pageNum=1&size=50` },
           ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50` })),
-          { url: "https://data.gov.sk/api/3/action/package_search?q=diskvalifik%C3%A1ci%C3%AD&rows=5", info: "otvorené dáta – hľadanie datasetu Registra diskvalifikácií" },
+          { url: "https://data.slovensko.sk/api/datasets?q=diskvalifik%C3%A1ci%C3%AD", info: "otvorené dáta (data.slovensko.sk) – hľadanie datasetu" },
+          { url: "https://data.slovensko.sk/api/v1/datasets/search?q=diskvalifik%C3%A1ci%C3%AD", info: "otvorené dáta (data.slovensko.sk) – variant API" },
         ],
         needles: [ico, ...statutory],
       };
@@ -178,9 +233,9 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       return {
         attempts: [
           { url: base },
-          { url: `${base}?tx_uvosearch[search]=${ico}` },
-          { url: "https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=" + ico },
-          { url: "https://data.gov.sk/api/3/action/package_search?q=z%C3%A1kaz%20%C3%BA%C4%8Dasti%20verejn%C3%A9%20obstar%C3%A1vanie&rows=5", info: "otvorené dáta – hľadanie datasetu ÚVO" },
+          { url: "https://www.uvo.gov.sk/dohlad/spravne-delikty/prehlad-rozhodnuti-o-ulozeni-pokuty-a-sankcie-zakazu-ucasti-vo-vo" },
+          { url: "https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=" + ico + "&searchType=zakaz" },
+          { url: "https://data.slovensko.sk/api/datasets?q=z%C3%A1kaz%20%C3%BA%C4%8Dasti", info: "otvorené dáta (data.slovensko.sk) – hľadanie datasetu ÚVO" },
         ],
         needles: [ico],
       };
