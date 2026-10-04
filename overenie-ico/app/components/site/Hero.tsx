@@ -2,8 +2,6 @@ import { FIRMS } from "./SiteShell";
 
 /** Úvodný blok s ukážkou protokolu – spoločný pre úvodnú stranu a jej náhľad. */
 export function Hero({ lead }: { lead?: string }) {
-  const u = FIRMS.urban;
-  const l = FIRMS.lexnera;
   return (
       <section className="s-hero">
         <div className="s-wrap">
@@ -17,10 +15,6 @@ export function Hero({ lead }: { lead?: string }) {
               <a className="s-btn gold" href="/objednavka">Objednať pre našu firmu</a>
               <a className="s-btn light" href="/login">Klientska sekcia</a>
             </div>
-            <p className="s-note">
-              Overenie vykonáva vaša spoločnosť sama prostredníctvom poverených zamestnancov. Odbornú záštitu nad obsahom overenia poskytujú advokátske
-              kancelárie {u.short} a {l.short}.
-            </p>
           </div>
           <div className="s-proto" aria-hidden>
             <div className="ph">
