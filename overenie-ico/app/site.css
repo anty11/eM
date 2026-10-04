@@ -142,12 +142,7 @@
 .s-step h3 { font-size: 17px; margin-bottom: 6px; min-height: 2.6em; display: flex; align-items: flex-end; }
 .s-step p { color: var(--s-muted); margin: 0; font-size: 15px; }
 
-/* prevádzkovateľ a odborná záštita */
-.s-operator { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 14px; padding: 28px 30px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; margin-bottom: 24px; box-shadow: 0 6px 24px rgba(42, 29, 92, 0.04); }
-@media (max-width: 600px) { .s-operator { grid-template-columns: 1fr; } }
-.s-operator .mark { width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, var(--s-primary) 0%, var(--s-primary-deep) 100%); color: #fff; display: grid; place-items: center; font-size: 24px; font-weight: 700; }
-.s-operator h3 { font-family: var(--s-serif); font-size: 20px; margin: 10px 0 6px; }
-.s-operator p { margin: 0; color: var(--s-muted); font-size: 15px; }
+/* odborná záštita */
 .s-firms { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 @media (max-width: 760px) { .s-firms { grid-template-columns: 1fr; } }
 .s-firm { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 14px; padding: 28px 30px; display: grid; gap: 12px; grid-template-rows: auto auto 1fr auto; position: relative; overflow: hidden; }
@@ -168,25 +163,7 @@
 .s-firm.urban .meta a { color: #6a2bd9; }
 .s-firm.lexnera .meta a { color: var(--s-gold-2); }
 
-/* balíky */
-.s-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-@media (max-width: 760px) { .s-plans { grid-template-columns: 1fr; } }
-.s-plan { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 14px; padding: 30px; display: grid; gap: 16px; grid-template-rows: auto auto 1fr auto; box-shadow: 0 6px 24px rgba(42, 29, 92, 0.04); }
-.s-plan .s-btn { justify-self: start; align-self: end; }
-.s-plan .price { min-height: 3.4em; }
-.s-plan.featured { border-color: var(--s-gold); box-shadow: 0 18px 44px rgba(184, 137, 58, 0.14); }
-.s-plan h3 { font-family: var(--s-serif); font-size: 22px; }
-.s-plan .price { font-size: 17px; color: var(--s-ink); font-weight: 500; }
-.s-plan .price small { display: block; font-size: 13px; color: var(--s-muted); font-weight: 400; margin-top: 4px; }
-.s-plan ul { margin: 0; padding-left: 20px; color: var(--s-ink-2); font-size: 15px; display: grid; gap: 7px; }
-.s-plan ul li::marker { color: var(--s-gold); }
 
-/* FAQ */
-.s-faq { display: grid; gap: 10px; max-width: 840px; }
-.s-faq details { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 10px; padding: 14px 18px; }
-.s-faq summary { cursor: pointer; font-weight: 600; color: var(--s-ink); }
-.s-faq summary::marker { color: var(--s-gold); }
-.s-faq p { margin: 10px 0 0; color: var(--s-muted); font-size: 15px; }
 
 /* formulár objednávky */
 .s-form { background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 14px; padding: 30px; display: grid; gap: 16px; max-width: 780px; position: relative; box-shadow: 0 6px 24px rgba(42, 29, 92, 0.04); }
@@ -223,3 +200,29 @@
 .s-foot h4 { color: #fff; font-family: var(--s-serif); margin: 0 0 8px; font-size: 16px; font-weight: 600; }
 .s-foot a { color: #e2c07a; text-decoration: none; }
 .s-foot .legal { border-top: 1px solid rgba(255, 255, 255, 0.14); margin-top: 28px; padding-top: 16px; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+
+/* porovnanie verzií – jedna tabuľka namiesto dvoch kariet */
+.s-compare-wrap { overflow-x: auto; background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 14px; box-shadow: 0 6px 24px rgba(42, 29, 92, 0.04); }
+.s-compare { width: 100%; border-collapse: collapse; min-width: 640px; }
+.s-compare th, .s-compare td { padding: 14px 18px; text-align: left; vertical-align: top; border-top: 1px solid var(--s-line); }
+.s-compare thead th { border-top: 0; vertical-align: bottom; padding-top: 24px; padding-bottom: 22px; }
+.s-compare th.feat span { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--s-muted); font-weight: 600; }
+.s-compare .plan { text-align: center; width: 26%; }
+.s-compare .plan.hi { background: var(--s-gold-soft); }
+.s-compare thead .plan.hi { border-top: 3px solid var(--s-gold); }
+.s-compare .pn { display: block; font-family: var(--s-serif); font-size: 22px; font-weight: 600; color: var(--s-ink); }
+.s-compare .pd { display: block; font-size: 13px; color: var(--s-muted); margin: 4px 0 14px; font-weight: 400; }
+.s-compare thead .s-btn { padding: 10px 16px; font-size: 14px; }
+.s-compare td.feat { color: var(--s-ink-2); font-size: 15px; }
+.s-compare td.feat small { display: block; color: var(--s-muted); font-size: 13px; margin-top: 2px; }
+.s-compare .yes { color: var(--s-ok); font-weight: 700; font-size: 17px; }
+.s-compare .no { color: #b9b3c9; font-size: 17px; }
+.s-compare tbody tr:nth-child(even) td { background: rgba(42, 29, 92, 0.015); }
+.s-compare tbody tr:nth-child(even) td.hi { background: #f1e8d3; }
+
+/* záverečná výzva */
+.s-close { padding-bottom: 96px; }
+.s-close-box { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: center; background: var(--s-surface); border: 1px solid var(--s-line); border-radius: 16px; padding: 36px 40px; box-shadow: 0 10px 32px rgba(42, 29, 92, 0.06); }
+.s-close-box p { color: var(--s-muted); margin: 10px 0 0; }
+.s-close-box .s-actions { justify-content: flex-end; flex-wrap: nowrap; }
+@media (max-width: 760px) { .s-close-box { grid-template-columns: 1fr; padding: 28px 24px; } .s-close-box .s-actions { justify-content: flex-start; } }

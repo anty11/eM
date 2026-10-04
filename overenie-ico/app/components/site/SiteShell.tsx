@@ -19,7 +19,7 @@ export const OPERATOR = {
 export const FIRMS = {
   urban: {
     short: "URBAN & PARTNERS",
-    tagline: "Advokátska kancelária · Bratislava",
+    tagline: "Advokátska kancelária",
     web: "https://www.urbanpartners.sk",
     webLabel: "www.urbanpartners.sk",
     about:
@@ -80,10 +80,9 @@ export function SiteFooter() {
             </p>
           </div>
           <div>
-            <h4>Prevádzkovateľ</h4>
-            <div>{OPERATOR.name}</div>
-            {OPERATOR.address && <div>{OPERATOR.address}</div>}
+            <h4>Kontakt</h4>
             <div><a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>{OPERATOR.phone ? ` · ${OPERATOR.phone}` : ""}</div>
+            <div><a href="/objednavka">Objednávka a cenová ponuka</a></div>
           </div>
           <div>
             <h4>Odborná záštita</h4>
@@ -92,9 +91,9 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="legal">
-          © {new Date().getFullYear()} {OPERATOR.name}. Odbornú záštitu nad obsahom overenia poskytujú advokátske kancelárie {u.short} a {l.short}; prevádzkovateľ je
-          samostatná spoločnosť a nie je advokátskou kanceláriou. Výstup aplikácie je automatizovaný súhrn údajov z verejných registrov k času preverenia
-          a nie je právnou službou ani právnym stanoviskom; nenahrádza posúdenie konkrétneho obchodného prípadu advokátom alebo daňovým poradcom.
+          © {new Date().getFullYear()} {OPERATOR.name}. Odbornú záštitu nad obsahom overenia poskytujú advokátske kancelárie {u.short} a {l.short}.
+          Výstup aplikácie je automatizovaný súhrn údajov z verejných registrov k času preverenia a nie je právnou službou ani právnym stanoviskom;
+          nenahrádza posúdenie konkrétneho obchodného prípadu advokátom alebo daňovým poradcom.
         </div>
       </div>
     </footer>

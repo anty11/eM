@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FIRMS, OPERATOR, PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
+import { FIRMS, PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
 
 export const metadata: Metadata = {
   title: "Preverto – overenie dodávateľa a odberateľa podľa IČO",
@@ -21,6 +21,20 @@ const REGISTERS: { name: string; src: string }[] = [
   { name: "Médiá a internet – správy o spoločnosti a jej štatutároch", src: "slovenské spravodajské weby" },
   { name: "Vek spoločnosti, zmeny vlastníkov a štatutárov, predmet podnikania", src: "Obchodný register" },
   { name: "Kontrolný zoznam neverejných registrov (exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie)", src: "na manuálne overenie" },
+];
+
+const FEATURES: { name: string; note?: string; ext: boolean; std: boolean }[] = [
+  { name: "Všetkých 10 automatických zdrojov", note: "obchodný register, Finančná správa, Sociálna poisťovňa, závierky, konkurzy, RPVS, médiá", ext: true, std: true },
+  { name: "Výsledok, skóre a 9 kľúčových otázok k partnerovi", ext: true, std: true },
+  { name: "PDF protokol s časovou pečiatkou a menom zamestnanca", ext: true, std: true },
+  { name: "Databáza preverených spoločností s pripomienkou po 180 dňoch", ext: true, std: true },
+  { name: "Karta kontaktu", note: "s kým u partnera komunikujete a kto od vás", ext: true, std: true },
+  { name: "Neobmedzený počet preverení", ext: true, std: true },
+  { name: "Kontrolný zoznam neverejných registrov so zápisom výsledku do protokolu", note: "exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie, verejné obstarávanie", ext: true, std: false },
+  { name: "Prepočet výsledku po manuálnom overení povereným zamestnancom", ext: true, std: false },
+  { name: "Voliteľné AI dohľadanie údajov v zdrojoch bez rozhrania", ext: true, std: false },
+  { name: "Úvodné školenie poverených zamestnancov", ext: true, std: false },
+  { name: "Zvýhodnená konzultácia s advokátom pri rizikovom náleze", ext: true, std: false },
 ];
 
 export default function Home() {
@@ -159,22 +173,12 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="s-band warm" id="zastita">
+      <section className="s-band alt" id="zastita">
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">O projekte</span>
             <h2>Samostatný projekt s odbornou záštitou dvoch advokátskych kancelárií.</h2>
             <p>Rozsah overenia a hodnotenie rizika vychádzajú zo skúseností z daňových kontrol a súdnych konaní, v ktorých sa rozhodovalo práve o tom, či si podnikateľ svojho partnera preveril.</p>
-          </div>
-          <div className="s-operator">
-            <div className="mark">§</div>
-            <div>
-              <h3>Prevádzkovateľom je {OPERATOR.name}</h3>
-              <p>
-                Samostatná spoločnosť, ktorá vyvíja a prevádzkuje aplikáciu, uzatvára zmluvy s klientmi a poskytuje podporu. Nie je advokátskou kanceláriou
-                a neposkytuje právne služby; pri rizikovom náleze alebo významnom obchode odporúča konzultáciu s advokátom alebo daňovým poradcom.
-              </p>
-            </div>
           </div>
           <div className="s-firms">
             <div className="s-firm urban">
@@ -193,82 +197,59 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="s-band" id="objednat">
+      <section className="s-band warm" id="objednat">
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">Objednávka</span>
             <h2>Dve verzie podľa potrieb vašej firmy.</h2>
             <p>Cena závisí od počtu poverených zamestnancov. Po odoslaní objednávky vám do jedného pracovného dňa pošleme ponuku, zmluvu a prístupy do klientskej sekcie.</p>
           </div>
-          <div className="s-plans">
-            <div className="s-plan">
-              <h3>Štandard</h3>
-              <div className="price">Pre bežný obchodný styk<small>verejné registre · protokol · databáza preverení</small></div>
-              <ul>
-                <li>Všetkých 10 automatických zdrojov vrátane Finančnej správy a Sociálnej poisťovne</li>
-                <li>Výsledok, skóre a 9 kľúčových otázok k partnerovi</li>
-                <li>PDF protokol s časovou pečiatkou a menom zamestnanca</li>
-                <li>Databáza preverených spoločností s pripomienkou po 180 dňoch</li>
-                <li>Karta kontaktu: s kým u partnera komunikujete a kto od vás</li>
-                <li>Neobmedzený počet preverení</li>
-              </ul>
-              <a className="s-btn" href="/objednavka?plan=standard">Objednať Štandard</a>
-            </div>
-            <div className="s-plan featured">
-              <h3>Rozšírené</h3>
-              <div className="price">Pre väčšie obchody a regulované odvetvia<small>všetko zo Štandardu + neverejné registre</small></div>
-              <ul>
-                <li>Kontrolný zoznam neverejných registrov (exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie, verejné obstarávanie) s odkazmi a zápisom výsledku do protokolu</li>
-                <li>Výsledok sa prepočíta po manuálnom overení povereným zamestnancom</li>
-                <li>Voliteľné AI dohľadanie údajov v zdrojoch bez rozhrania</li>
-                <li>Úvodné školenie poverených zamestnancov</li>
-                <li>Zvýhodnená konzultácia s advokátom pri rizikovom náleze</li>
-              </ul>
-              <a className="s-btn gold" href="/objednavka?plan=rozsirene">Objednať Rozšírené</a>
-            </div>
+          <div className="s-compare-wrap">
+            <table className="s-compare">
+              <thead>
+                <tr>
+                  <th className="feat"><span>Čo je súčasťou</span></th>
+                  <th className="plan hi">
+                    <span className="pn">Rozšírené</span>
+                    <span className="pd">pre väčšie obchody a regulované odvetvia</span>
+                    <a className="s-btn gold" href="/objednavka?plan=rozsirene">Objednať Rozšírené</a>
+                  </th>
+                  <th className="plan">
+                    <span className="pn">Štandard</span>
+                    <span className="pd">pre bežný obchodný styk</span>
+                    <a className="s-btn ghost" href="/objednavka?plan=standard">Objednať Štandard</a>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURES.map((f) => (
+                  <tr key={f.name}>
+                    <td className="feat">{f.name}{f.note && <small>{f.note}</small>}</td>
+                    <td className="plan hi">{f.ext ? <span className="yes">✓</span> : <span className="no">–</span>}</td>
+                    <td className="plan">{f.std ? <span className="yes">✓</span> : <span className="no">–</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
 
-      <section className="s-band alt">
+      <section className="s-band s-close">
         <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Časté otázky</span>
-            <h2>Čo sa podnikatelia pýtajú najčastejšie</h2>
-          </div>
-          <div className="s-faq">
-            <details>
-              <summary>Nahrádza protokol právne posúdenie?</summary>
-              <p>Nie. Protokol je automatizovaný súhrn verejných údajov k času preverenia a doklad o tom, že ste partnera overili. Pri rizikovom náleze alebo významnom obchode odporúčame konzultáciu s advokátom alebo daňovým poradcom.</p>
-            </details>
-            <details>
-              <summary>Kto overenie vykonáva?</summary>
-              <p>Vaša spoločnosť sama. Administrátor vo vašej firme pridá poverených zamestnancov (e-mail a jednorazový kód), tí sa prihlásia a preverujú partnerov. Každé preverenie je zaznamenané s menom zamestnanca a časom.</p>
-            </details>
-            <details>
-              <summary>Aký je vzťah projektu k advokátskym kanceláriám?</summary>
-              <p>Aplikáciu prevádzkuje samostatná spoločnosť {OPERATOR.name}. Advokátske kancelárie {u.short} a {l.short} poskytli odbornú záštitu – nastavili rozsah overenia a hodnotenie rizika podľa svojej praxe z daňových kontrol. Zmluvu uzatvárate s prevádzkovateľom; právne služby si prípadne objednávate priamo u kancelárií.</p>
-            </details>
-            <details>
-              <summary>Odkiaľ sú údaje a sú aktuálne?</summary>
-              <p>Výlučne z oficiálnych verejných registrov (Štatistický úrad SR, Finančná správa SR, Sociálna poisťovňa, Ministerstvo spravodlivosti SR, Ministerstvo financií SR, EÚ VIES) a slovenských médií – vždy k momentu preverenia. Niektoré zoznamy aktualizujú úrady raz denne alebo mesačne; protokol uvádza, z akého zdroja údaj pochádza.</p>
-            </details>
-            <details>
-              <summary>Čo sa deje s údajmi?</summary>
-              <p>Aplikácia pracuje s údajmi o právnických osobách a podnikateľoch z verejných registrov. Osobné údaje spracúva len v rozsahu prihlásenia poverených zamestnancov a kontaktov, ktoré si k partnerovi sami zapíšete. Dáta sú uložené v EÚ.</p>
-            </details>
-            <details>
-              <summary>Ako často treba overovať?</summary>
-              <p>Pred každým novým obchodným vzťahom a pri významnej zmene (nový konateľ, zmena vlastníka, vyšší objem). Databáza preverení označí spoločnosti, ktorým uplynulo 180 dní od posledného overenia, a jedným klikom ich preveríte znova.</p>
-            </details>
-          </div>
-          <div className="s-actions" style={{ marginTop: 32 }}>
-            <a className="s-btn gold" href="/objednavka">Objednať pre našu firmu</a>
-            <a className="s-btn ghost" href="/login">Klientska sekcia</a>
+          <div className="s-close-box">
+            <div>
+              <span className="s-eyebrow">Začnite dnes</span>
+              <h2>Prvé preverenie môžete urobiť ešte tento týždeň.</h2>
+              <p>Po objednávke vám do jedného pracovného dňa pošleme ponuku a prístupy do klientskej sekcie.</p>
+            </div>
+            <div className="s-actions">
+              <a className="s-btn gold" href="/objednavka">Objednať pre našu firmu</a>
+              <a className="s-btn ghost" href="/pravny-zaklad">Právny základ</a>
+            </div>
           </div>
         </div>
       </section>
-
       <SiteFooter />
     </div>
   );

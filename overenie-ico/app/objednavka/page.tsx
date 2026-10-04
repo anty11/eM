@@ -6,7 +6,7 @@ import { OPERATOR, SiteFooter, SiteHeader } from "../components/site/SiteShell";
 type Plan = "standard" | "rozsirene";
 
 export default function OrderPage() {
-  const [plan, setPlan] = useState<Plan>("standard");
+  const [plan, setPlan] = useState<Plan>("rozsirene");
   const [f, setF] = useState({ company: "", ico: "", contactName: "", email: "", phone: "", users: "3", message: "", consent: false, website: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -65,15 +65,15 @@ export default function OrderPage() {
               <div>
                 <label style={{ marginBottom: 8 }}>Verzia</label>
                 <div className="s-plan-pick">
-                  <label className={plan === "standard" ? "on" : ""}>
-                    <input type="radio" name="plan" checked={plan === "standard"} onChange={() => setPlan("standard")} style={{ display: "none" }} />
-                    <b>Štandard</b>
-                    <small>verejné registre, protokol, databáza preverení</small>
-                  </label>
                   <label className={plan === "rozsirene" ? "on" : ""}>
                     <input type="radio" name="plan" checked={plan === "rozsirene"} onChange={() => setPlan("rozsirene")} style={{ display: "none" }} />
                     <b>Rozšírené</b>
                     <small>+ neverejné registre, školenie, konzultácia pri riziku</small>
+                  </label>
+                  <label className={plan === "standard" ? "on" : ""}>
+                    <input type="radio" name="plan" checked={plan === "standard"} onChange={() => setPlan("standard")} style={{ display: "none" }} />
+                    <b>Štandard</b>
+                    <small>verejné registre, protokol, databáza preverení</small>
                   </label>
                 </div>
               </div>
