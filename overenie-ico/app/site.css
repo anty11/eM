@@ -265,3 +265,7 @@
 
 /* objednávka – nadpis, formulár aj tabuľka v jednom vycentrovanom stĺpci */
 .s-wrap.s-center > .s-form, .s-wrap.s-center > .s-compare-wrap { max-width: 780px; margin-left: auto; margin-right: auto; }
+
+/* texty do bloku (justify) s delením slov – odseky, odrážky a popisy; nie nadpisy, tlačidlá, tabuľky a krátke popisky */
+.site p, .site li, .site .s-quote, .site .s-firm p, .site .s-card p, .site .s-step p, .site .s-legal, .site .s-foot .legal { text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
+.site .s-note, .site .s-eyebrow, .site .s-actions, .site .s-compare td, .site .s-compare th, .site .s-proto, .site .s-form label, .site .s-plan-pick small, .site .s-more-menu a, .site .s-teaser .more, .site .s-compare-more { text-align: left; hyphens: manual; }
