@@ -25,6 +25,8 @@ export default function CompanyList({ me }: { me?: Me | null }) {
   const [mine, setMine] = useState(false);
   const [q, setQ] = useState("");
   const [onlyStale, setOnlyStale] = useState(false);
+  const [people, setPeople] = useState<{ email: string; name?: string }[]>([]);
+  const who = (e: string) => people.find((p) => p.email === e)?.name || e.split("@")[0];
 
   async function load() {
     setErr("");
@@ -38,6 +40,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
   }
   useEffect(() => {
     load();
+    fetch("/api/directory").then((r) => r.json()).then((j) => Array.isArray(j) && setPeople(j)).catch(() => {});
   }, []);
 
   const shown = useMemo(() => {
@@ -45,7 +48,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
     return (rows || [])
       .filter((r) => !mine || r.lastBy === me?.email)
       .filter((r) => !onlyStale || r.stale)
-      .filter((r) => !needle || r.ico.includes(needle) || r.name.toLowerCase().includes(needle) || r.lastBy.toLowerCase().includes(needle));
+      .filter((r) => !needle || r.ico.includes(needle) || r.name.toLowerCase().includes(needle) || r.lastBy.toLowerCase().includes(needle) || who(r.lastBy).toLowerCase().includes(needle));
   }, [rows, mine, onlyStale, q, me]);
 
   const staleCount = (rows || []).filter((r) => r.stale).length;
@@ -102,7 +105,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
                       </span>
                       <div className="src">{fmt(r.lastAt)}{r.stale ? " · odporúčame opakované preverenie" : ""}</div>
                     </td>
-                    <td className="src">{r.lastBy}</td>
+                    <td className="src" title={me?.role === "admin" ? r.lastBy : undefined}>{who(r.lastBy)}</td>
                     <td>
                       <div className="row-actions">
                         <a className={`mbtn ${r.stale ? "on-found" : ""}`} href={`/app?ico=${r.ico}`} title="Spustí nové preverenie vo verejných registroch">↻ Preveriť znova</a>

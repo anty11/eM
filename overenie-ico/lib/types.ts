@@ -120,7 +120,7 @@ export interface ScanReport {
   keyFacts: KeyFact[];
   /** IČO nebolo nájdené v registri – preverenie sa skončilo pri obchodnom registri. */
   notFound?: boolean;
-  /** Kto preverenie spustil (doplní API). */
+  /** Kto preverenie spustil – len meno povereného zamestnanca, bez e-mailu (doplní API; e-mail ostáva v audite). */
   scannedBy?: string;
   /** Dostupnosť záložného AI vyhľadávania (doplní API). */
   ai?: { available: boolean; auto?: boolean; noApiSources?: boolean; provider?: string };

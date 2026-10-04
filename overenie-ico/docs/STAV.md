@@ -111,3 +111,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Produkt premenovaný z Preverto na **Obozretne** (doména obozretne.sk, prevádzkovateľ pracovne Obozretne s.r.o., e-mail info@obozretne.sk) – Preverto kolidovalo s konkurenciou.
 - Wordmark: „obozretne“ so zlatým prvým písmenom a zlatou bodkou (číta sa ako výrok „Obozretne.“); pečať s fajkou ostáva symbolom a faviconou.
 - Úvodný titulok: „Obchodujte obozretne. Partnera preveríte rýchlo, spoľahlivo a s protokolom.“ PDF protokol má v hlavičke obozretne.sk.
+- **v1.5.1** – ochrana údajov vo výstupoch: v protokole, PDF, JSON exporte, karte kontaktu a zozname preverených spoločností sa uvádza len **meno**
+  povereného zamestnanca, nikdy e-mail („poverený zamestnanec“, ak meno nie je nastavené). E-maily ostávajú len v audite a v administrácii.
+  Odporúčanie: administrátor nastaví používateľom mená (Administrácia → Používatelia).

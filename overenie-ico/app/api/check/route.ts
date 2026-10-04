@@ -14,7 +14,8 @@ export const GET = handler(async (req) => {
   const me = await requireUser();
   const ico = normalizeIco(new URL(req.url).searchParams.get("ico") || "");
   if (!ico) return NextResponse.json({ error: "Zadajte platné IČO (6–8 číslic)." }, { status: 400 });
-  const scannedBy = me.name ? `${me.name} <${me.email}>` : me.email;
+  // Do výsledku a protokolu ide len meno povereného zamestnanca – e-mail sa v zdieľaných výstupoch neuvádza (ostáva v audite).
+  const scannedBy = me.name || "poverený zamestnanec";
   const ai = await getAiConfig().catch(() => null);
   const aiInfo = ai ? { available: true, auto: ai.auto, noApiSources: ai.noApiSources, provider: ai.provider } : { available: false };
 

@@ -47,6 +47,8 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
   const dirty = JSON.stringify({ ...c, updatedAt: 0, updatedBy: 0 }) !== JSON.stringify({ ...(saved || EMPTY), updatedAt: 0, updatedBy: 0 });
   const set = <K extends keyof Contact>(k: K, v: Contact[K]) => setC((s) => ({ ...s, [k]: v }));
   const label = (e: string) => people.find((p) => p.email === e)?.name || e;
+  /** Do protokolu len meno; ak používateľ meno nemá, e-mail sa neuvádza. */
+  const printLabel = (e: string) => people.find((p) => p.email === e)?.name || "poverený zamestnanec";
 
   async function save() {
     setBusy(true);
@@ -80,9 +82,9 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
             <span><b>Štatutár v OR:</b> {c.isStatutory ? "áno" : "nie"}{match ? ` (${match} je zapísaný ako štatutár)` : c.personName.trim().length > 3 && statutoryNames.length ? " – meno nezodpovedá štatutárovi, overte plnú moc" : ""}</span>
             <span><b>Totožnosť overená:</b> {c.identityVerified ? "áno" : "nie"}</span>
             <span><b>Oprávnenie konať doložené:</b> {c.isStatutory || match ? "štatutár" : c.authorityVerified ? "áno (plná moc)" : "nie"}</span>
-            <span><b>Od nás komunikuje:</b> {c.owners.map(label).join(", ") || "–"}</span>
+            <span><b>Od nás komunikuje:</b> {c.owners.map(printLabel).join(", ") || "–"}</span>
             {c.note && <span className="wide"><b>Poznámka:</b> {c.note}</span>}
-            {saved?.updatedAt && <span className="wide src">Naposledy upravil {label(saved.updatedBy || "")} · {new Date(saved.updatedAt).toLocaleString("sk-SK", { dateStyle: "short", timeStyle: "short" })}</span>}
+            {saved?.updatedAt && <span className="wide src">Naposledy upravil {printLabel(saved.updatedBy || "")} · {new Date(saved.updatedAt).toLocaleString("sk-SK", { dateStyle: "short", timeStyle: "short" })}</span>}
           </>
         )}
       </div>

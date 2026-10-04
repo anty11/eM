@@ -638,7 +638,7 @@ export default function Page() {
                 <button className="btn ghost no-print" onClick={() => run(report.ico)}>Preveriť znova</button>
               </div>
               <div className="print-only sign">
-                <div>Vypracoval (poverený zamestnanec): {author || me?.name || me?.email || "………………………"}</div>
+                <div>Vypracoval (poverený zamestnanec): {author || me?.name || "………………………"}</div>
                 <div>Dátum a podpis</div>
               </div>
             </section>
