@@ -30,15 +30,34 @@ async function main() {
   assert.ok(!raw.includes("sk-ant-test"), "kľúč nesmie byť v databáze v čitateľnej podobe");
   const st = await aiStatus();
   assert.equal(st.keyHint, "…XYZ9");
-  assert.equal(st.model, "");
+  assert.equal(st.model, "claude-sonnet-5", "stav uvádza účinný model");
   const cfg = (await getAiConfig())!;
   assert.equal(cfg.key, "sk-ant-test-0123456789abcdefXYZ9");
   assert.equal(cfg.model, "claude-sonnet-5");
-  // premenné prostredia majú prednosť a zamknú administráciu
+  // premenné prostredia majú prednosť pre kľúč daného poskytovateľa a zamknú jeho zmenu v administrácii
   process.env.ANTHROPIC_API_KEY = "sk-ant-env-0000000000000000ENV1";
   assert.equal((await getAiConfig())!.origin, "env");
-  await assert.rejects(saveAiSettings({ key: "sk-ant-other-000000000000000000" }, "a"), /premenných prostredia/);
+  assert.equal((await getAiConfig())!.key, "sk-ant-env-0000000000000000ENV1");
+  await assert.rejects(saveAiSettings({ provider: "anthropic", key: "sk-ant-other-000000000000000000" }, "a"), /premenných prostredia/);
+  // druhý poskytovateľ má vlastný kľúč; prepínanie je možné vždy a kľúč druhého ostáva
+  await saveAiSettings({ provider: "openai", key: "sk-openai-test-00000000000000AB12" }, "admin@x.sk");
+  let c2 = (await getAiConfig())!;
+  assert.equal(c2.provider, "openai");
+  assert.equal(c2.key, "sk-openai-test-00000000000000AB12");
+  assert.equal(c2.model, "gpt-5.5");
+  await saveAiSettings({ provider: "openai", model: "gpt-5.5-mini" }, "admin@x.sk");
+  assert.equal((await getAiConfig())!.model, "gpt-5.5-mini");
+  await saveAiSettings({ provider: "anthropic" }, "admin@x.sk");
+  c2 = (await getAiConfig())!;
+  assert.equal(c2.provider, "anthropic");
+  assert.equal(c2.origin, "env", "po prepnutí späť sa použije kľúč Claude z prostredia");
+  const st2 = await aiStatus();
+  assert.equal(st2.providers.openai.hasKey, true, "kľúč OpenAI po prepnutí ostáva uložený");
+  assert.equal(st2.providers.openai.model, "gpt-5.5-mini");
+  assert.equal(st2.providers.anthropic.envLocked, true);
   delete process.env.ANTHROPIC_API_KEY;
+  await saveAiSettings({ provider: "openai", clearKey: true }, "admin@x.sk");
+  await saveAiSettings({ provider: "anthropic" }, "admin@x.sk");
   // v produkcii len cez prostredie
   (process.env as any).NODE_ENV = "production";
   assert.equal(await getAiConfig(), null, "v produkcii sa kľúč z administrácie nepoužije");

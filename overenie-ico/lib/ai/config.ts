@@ -3,12 +3,16 @@ import { audit } from "../audit";
 import { kv } from "../auth/kv";
 
 /**
- * Nastavenie AI (LLM) pre záložné vyhľadávanie.
- * Produkcia: premenné prostredia (ANTHROPIC_API_KEY alebo OPENAI_API_KEY, AI_PROVIDER, AI_MODEL, AI_AUTO_FALLBACK).
- * Testovanie: administrátor zadá kľúč v Administrácii – uloží sa šifrovane (AES-256-GCM) do databázy.
- * Zadávanie kľúča v Administrácii je povolené lokálne a v produkcii len pri AI_ALLOW_ADMIN_KEY=1.
+ * Nastavenie AI (LLM) pre záložné vyhľadávanie – dvaja poskytovatelia (Claude / OpenAI), medzi ktorými správca platformy prepína.
+ *  - Kľúče: z premenných prostredia (ANTHROPIC_API_KEY, OPENAI_API_KEY) alebo – lokálne / pri AI_ALLOW_ADMIN_KEY=1 – zadané v Administrácii
+ *    a uložené šifrovane (AES-256-GCM) pre každého poskytovateľa zvlášť; prepnutie poskytovateľa druhý kľúč nezmaže.
+ *  - Aktívny poskytovateľ: voľba správcu (uložená v databáze) → AI_PROVIDER z prostredia → ten, ktorý má kľúč (prednosť Claude).
+ *    Prepínať možno vždy, aj keď sú kľúče v prostredí.
+ *  - Model na poskytovateľa: voľba správcu → AI_MODEL (len pre poskytovateľa z prostredia) → predvolený.
  */
 export type Provider = "anthropic" | "openai";
+export const PROVIDERS: Provider[] = ["anthropic", "openai"];
+export const PROVIDER_LABEL: Record<Provider, string> = { anthropic: "Claude (Anthropic)", openai: "OpenAI" };
 
 export const DEFAULT_MODEL: Record<Provider, string> = {
   anthropic: "claude-sonnet-5",
@@ -26,37 +30,33 @@ export interface AiConfig {
   origin: "env" | "admin";
 }
 
+interface StoredKey {
+  enc: string;
+  hint: string;
+}
 interface Stored {
-  provider: Provider;
+  /** Aktívny poskytovateľ zvolený správcom */
+  provider?: Provider;
+  /** Model na poskytovateľa (prázdne = predvolený) */
+  models?: Partial<Record<Provider, string>>;
+  /** Kľúče zadané v Administrácii, na poskytovateľa */
+  keys?: Partial<Record<Provider, StoredKey>>;
+  auto?: boolean;
+  noApiSources?: boolean;
+  updatedAt: string;
+  updatedBy: string;
+  // staršie polia (do v2.1) – prevezmú sa pri prvom čítaní
   model?: string;
   keyEnc?: string;
   keyHint?: string;
-  auto: boolean;
-  noApiSources: boolean;
-  updatedAt: string;
-  updatedBy: string;
 }
 
 const KEY = "settings:ai";
 
 export const adminKeyAllowed = () => process.env.NODE_ENV !== "production" || process.env.AI_ALLOW_ADMIN_KEY === "1";
 
-function envConfig(): AiConfig | null {
-  const provider: Provider | null =
-    process.env.AI_PROVIDER === "openai" ? "openai" : process.env.AI_PROVIDER === "anthropic" ? "anthropic" : process.env.ANTHROPIC_API_KEY ? "anthropic" : process.env.OPENAI_API_KEY ? "openai" : null;
-  if (!provider) return null;
-  const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
-  if (!key) return null;
-  return {
-    provider,
-    model: process.env.AI_MODEL || DEFAULT_MODEL[provider],
-    key,
-    // Predvolene VYPNUTÉ – AI sa spúšťa len tlačidlom „Overiť cez AI“ (šetrí kredit)
-    auto: process.env.AI_AUTO_FALLBACK === "1",
-    noApiSources: process.env.AI_NO_API_SOURCES === "1",
-    origin: "env",
-  };
-}
+const envKey = (p: Provider) => (p === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY) || "";
+const envProvider = (): Provider | null => (process.env.AI_PROVIDER === "openai" ? "openai" : process.env.AI_PROVIDER === "anthropic" ? "anthropic" : null);
 
 function cipherKey() {
   const secret = process.env.SESSION_SECRET || "dev-only-secret-dev-only-secret-dev-only";
@@ -75,72 +75,123 @@ function decrypt(s: string) {
   return Buffer.concat([d.update(enc), d.final()]).toString("utf8");
 }
 
-export async function getAiConfig(): Promise<AiConfig | null> {
-  const env = envConfig();
-  if (env) return env;
-  if (!adminKeyAllowed()) return null;
-  const s = await kv().get<Stored>(KEY);
-  if (!s?.keyEnc) return null;
-  try {
-    return { provider: s.provider, model: s.model || DEFAULT_MODEL[s.provider], key: decrypt(s.keyEnc), auto: s.auto, noApiSources: s.noApiSources, origin: "admin" };
-  } catch {
-    return null; // zmenený SESSION_SECRET – kľúč treba zadať znova
-  }
+async function stored(): Promise<Stored> {
+  const s = (await kv().get<Stored>(KEY)) || { updatedAt: "", updatedBy: "" };
+  // prevod staršieho tvaru (jeden kľúč) na kľúče podľa poskytovateľa
+  if (s.keyEnc && s.provider && !s.keys?.[s.provider]) s.keys = { ...(s.keys || {}), [s.provider]: { enc: s.keyEnc, hint: s.keyHint || "" } };
+  if (s.model && s.provider && !s.models?.[s.provider]) s.models = { ...(s.models || {}), [s.provider]: s.model };
+  return s;
 }
 
-/** Verejný stav pre Administráciu (bez kľúča). */
-export async function aiStatus() {
-  const env = envConfig();
-  const s = await kv().get<Stored>(KEY);
+/** Kľúč poskytovateľa a jeho pôvod – prostredie má prednosť; kľúč z administrácie len kde je to dovolené. */
+function keyFor(p: Provider, s: Stored): { key: string; origin: "env" | "admin" } | null {
+  const e = envKey(p);
+  if (e) return { key: e, origin: "env" };
+  const k = s.keys?.[p];
+  if (k?.enc && adminKeyAllowed()) {
+    try {
+      return { key: decrypt(k.enc), origin: "admin" };
+    } catch {
+      return null; // zmenený SESSION_SECRET – kľúč treba zadať znova
+    }
+  }
+  return null;
+}
+
+function modelFor(p: Provider, s: Stored): string {
+  return s.models?.[p] || (envProvider() === p || (!envProvider() && envKey(p)) ? process.env.AI_MODEL : "") || DEFAULT_MODEL[p];
+}
+
+function activeProvider(s: Stored): Provider | null {
+  const candidates = [s.provider, envProvider(), ...PROVIDERS].filter(Boolean) as Provider[];
+  for (const p of candidates) if (keyFor(p, s)) return p;
+  return null;
+}
+
+export async function getAiConfig(): Promise<AiConfig | null> {
+  const s = await stored();
+  const p = activeProvider(s);
+  if (!p) return null;
+  const k = keyFor(p, s)!;
   return {
-    configured: Boolean(env || (adminKeyAllowed() && s?.keyEnc)),
-    origin: env ? "env" : s?.keyEnc && adminKeyAllowed() ? "admin" : null,
-    provider: env?.provider || s?.provider || "anthropic",
-    model: env?.model || s?.model || "",
-    keyHint: env ? `…${env.key.slice(-4)}` : s?.keyHint,
-    auto: env ? env.auto : s?.auto ?? false,
-    noApiSources: env ? env.noApiSources : s?.noApiSources ?? false,
+    provider: p,
+    model: modelFor(p, s),
+    key: k.key,
+    // Predvolene VYPNUTÉ – AI sa spúšťa len tlačidlom „Overiť cez AI“ (šetrí kredit)
+    auto: s.auto ?? process.env.AI_AUTO_FALLBACK === "1",
+    noApiSources: s.noApiSources ?? process.env.AI_NO_API_SOURCES === "1",
+    origin: k.origin,
+  };
+}
+
+/** Verejný stav pre Administráciu (bez kľúčov). */
+export async function aiStatus() {
+  const s = await stored();
+  const cfg = await getAiConfig();
+  const providers = Object.fromEntries(
+    PROVIDERS.map((p) => {
+      const k = keyFor(p, s);
+      return [p, { label: PROVIDER_LABEL[p], hasKey: Boolean(k), origin: k?.origin || null, keyHint: envKey(p) ? `…${envKey(p).slice(-4)}` : s.keys?.[p]?.hint, model: modelFor(p, s), defaultModel: DEFAULT_MODEL[p], envLocked: Boolean(envKey(p)) }];
+    }),
+  ) as Record<Provider, { label: string; hasKey: boolean; origin: "env" | "admin" | null; keyHint?: string; model: string; defaultModel: string; envLocked: boolean }>;
+  return {
+    configured: Boolean(cfg),
+    origin: cfg?.origin || null,
+    provider: cfg?.provider || s.provider || envProvider() || "anthropic",
+    model: cfg?.model || "",
+    keyHint: cfg ? providers[cfg.provider].keyHint : undefined,
+    auto: cfg?.auto ?? s.auto ?? false,
+    noApiSources: cfg?.noApiSources ?? s.noApiSources ?? false,
     adminKeyAllowed: adminKeyAllowed(),
-    envLocked: Boolean(env),
-    updatedAt: s?.updatedAt,
-    updatedBy: s?.updatedBy,
+    /** Kľúč aktívneho poskytovateľa je z prostredia – nedá sa meniť tu (prepnúť poskytovateľa sa dá vždy) */
+    envLocked: Boolean(cfg && cfg.origin === "env"),
+    providers,
+    updatedAt: s.updatedAt || undefined,
+    updatedBy: s.updatedBy || undefined,
     defaults: DEFAULT_MODEL,
   };
 }
 
+/**
+ * Uloženie: prepnutie poskytovateľa a voľby (auto, registre bez API) sú možné vždy; model na poskytovateľa vždy;
+ * kľúč len tam, kde nie je z prostredia a kde je zadávanie v administrácii dovolené.
+ */
 export async function saveAiSettings(
   input: { provider?: string; model?: string; key?: string; clearKey?: boolean; auto?: boolean; noApiSources?: boolean },
   by: string,
 ) {
-  if (envConfig()) throw Object.assign(new Error("AI je nastavená v premenných prostredia – zmeny robte tam."), { status: 409 });
-  if (!adminKeyAllowed()) throw Object.assign(new Error("V produkcii sa kľúč zadáva len v premenných prostredia (ANTHROPIC_API_KEY / OPENAI_API_KEY)."), { status: 403 });
-  const prev = (await kv().get<Stored>(KEY)) || undefined;
-  const provider: Provider = input.provider === "openai" ? "openai" : "anthropic";
+  const prev = await stored();
+  const provider: Provider = input.provider === "openai" ? "openai" : input.provider === "anthropic" ? "anthropic" : prev.provider || "anthropic";
   const next: Stored = {
     provider,
-    model: (input.model || "").trim().slice(0, 80) || undefined,
-    keyEnc: prev?.keyEnc,
-    keyHint: prev?.keyHint,
-    auto: input.auto ?? prev?.auto ?? false,
-    noApiSources: input.noApiSources ?? prev?.noApiSources ?? false,
+    models: { ...(prev.models || {}) },
+    keys: { ...(prev.keys || {}) },
+    auto: input.auto ?? prev.auto,
+    noApiSources: input.noApiSources ?? prev.noApiSources,
     updatedAt: new Date().toISOString(),
     updatedBy: by,
   };
-  if (prev && prev.provider !== provider && !input.key) {
-    next.keyEnc = undefined; // kľúč patrí k inému poskytovateľovi
-    next.keyHint = undefined;
+  if (input.model !== undefined) {
+    const m = (input.model || "").trim().slice(0, 80);
+    if (m) next.models![provider] = m;
+    else delete next.models![provider];
   }
   const key = (input.key || "").trim();
+  const notes: string[] = [];
+  if (key || input.clearKey) {
+    if (envKey(provider)) throw Object.assign(new Error(`Kľúč pre ${PROVIDER_LABEL[provider]} je nastavený v premenných prostredia – zmeny robte tam.`), { status: 409 });
+    if (!adminKeyAllowed()) throw Object.assign(new Error("V produkcii sa kľúč zadáva len v premenných prostredia (ANTHROPIC_API_KEY / OPENAI_API_KEY)."), { status: 403 });
+  }
   if (key) {
     if (key.length < 20 || /\s/.test(key)) throw Object.assign(new Error("Kľúč nevyzerá platne."), { status: 400 });
-    next.keyEnc = encrypt(key);
-    next.keyHint = `…${key.slice(-4)}`;
+    next.keys![provider] = { enc: encrypt(key), hint: `…${key.slice(-4)}` };
+    notes.push(`nový kľúč ${next.keys![provider]!.hint}`);
   }
   if (input.clearKey) {
-    next.keyEnc = undefined;
-    next.keyHint = undefined;
+    delete next.keys![provider];
+    notes.push("kľúč zmazaný");
   }
   await kv().set(KEY, next);
-  await audit({ type: "ai_settings", by, detail: `${provider}${next.model ? ` / ${next.model}` : ""}${key ? " · nový kľúč " + next.keyHint : ""}${input.clearKey ? " · kľúč zmazaný" : ""}` });
+  await audit({ type: "ai_settings", by, detail: [`aktívny: ${PROVIDER_LABEL[provider]}`, next.models?.[provider] ? `model ${next.models[provider]}` : "", ...notes].filter(Boolean).join(" · ") });
   return aiStatus();
 }

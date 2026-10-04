@@ -74,7 +74,7 @@ Lokálne bez internetu: `DEMO_DATA=1 npm run dev`.
 
 `SESSION_SECRET` (≥ 32 znakov) · `ADMIN_EMAILS` · `ADMIN_SETUP_CODE` (po prvom prihlásení zmazať) ·
 `KV_REST_API_URL`, `KV_REST_API_TOKEN` (z integrácie Upstash) · `FS_API_KEY` (kľúč OpenData FS) · `APP_MODE=firma` ·
-voliteľné `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `AI_ALLOW_ADMIN_KEY`, `CRON_SECRET`, `ORDER_WEBHOOK_URL` (upozornenie na objednávku z webu) · Obchodný vestník: `OV_EXPORT_URL` (šablóna s `{date}` alebo `{yyyymmdd}`), `OV_USER`, `OV_PASSWORD` (prístup od MS SR po registrácii) · pripravené pre CRE: `CRE_CERT`, `CRE_KEY` (po registrácii na cre.sk).
+voliteľné `ANTHROPIC_API_KEY` a/alebo `OPENAI_API_KEY` (oba môžu byť naraz; aktívneho poskytovateľa prepína správca v Administrácii, `AI_PROVIDER` je len východiskový), `AI_MODEL`, `AI_ALLOW_ADMIN_KEY`, `CRON_SECRET`, `ORDER_WEBHOOK_URL` (upozornenie na objednávku z webu) · Obchodný vestník: `OV_EXPORT_URL` (šablóna s `{date}` alebo `{yyyymmdd}`), `OV_USER`, `OV_PASSWORD` (prístup od MS SR po registrácii) · pripravené pre CRE: `CRE_CERT`, `CRE_KEY` (po registrácii na cre.sk).
 
 `AI_AUTO_FALLBACK` a `AI_NO_API_SOURCES` **nenastavovať** (AI musí ostať len na tlačidlo). Každá zmena premenných vyžaduje redeploy.
 

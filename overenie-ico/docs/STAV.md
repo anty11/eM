@@ -225,3 +225,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   poľa pre hľadaný text, „bez záznamu“ len pri totalRows = 0. ÚVO: globálne vyhľadávanie `searchType=OSZ` (Osoba so zákazom), vyhodnotenie
   „N záznamov“ + blok s IČO a slovom zákaz. Register diskvalifikácií: justice.gov.sk vracia 403 aj cez Edge runtime → z Vercelu nedostupný
   (ostáva manuálne / AI; možnosť: proxy so slovenskou adresou).
+- **v2.1.7** – AI: dvaja poskytovatelia naraz – kľúče na poskytovateľa (prostredie `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` alebo administrácia,
+  šifrovane), správca prepína aktívneho poskytovateľa v Administrácii kedykoľvek (aj keď sú kľúče v prostredí), model na poskytovateľa;
+  predvolený Claude. AI vypnutá s vysvetlením pre VšZP, Union (formulár / API – overuje server), Obchodný vestník (formulár) a Register
+  diskvalifikácií (blokovanie); ÚVO cez globálne vyhľadávanie OSZ. Audit AI overení ide do protokolu firmy.
