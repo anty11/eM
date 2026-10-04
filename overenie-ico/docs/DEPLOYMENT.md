@@ -88,6 +88,7 @@ Set **only one** of the two keys.
 | Variable | Value | What it's for |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | `sk-ant-…` | Claude with web search + web fetch (recommended) |
+| `ANTHROPIC_WORKSPACE_ID` | `wrkspc_…` | Only when the key is an organisation key not scoped to a workspace (API error "not scoped to a workspace"); otherwise create the key inside a workspace |
 | `OPENAI_API_KEY` | `sk-…` | OpenAI with web search |
 | `AI_PROVIDER` | `anthropic` / `openai` | Only needed if both keys are set |
 | `AI_MODEL` | empty | Empty = `claude-sonnet-5` / `gpt-5.5` |

@@ -32,7 +32,9 @@ async function post(url: string, headers: Record<string, string>, body: unknown,
     const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal: ctrl.signal, cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const msg = j?.error?.message || j?.message || `HTTP ${r.status}`;
+      const msg: string = j?.error?.message || j?.message || `HTTP ${r.status}`;
+      if (/not scoped to a workspace/i.test(msg))
+        throw new Error("Kľúč Anthropic nie je viazaný na pracovný priestor – nastavte ANTHROPIC_WORKSPACE_ID (ID priestoru z konzoly Anthropic, Settings → Workspaces) alebo použite kľúč vytvorený priamo v pracovnom priestore.");
       throw new Error(r.status === 401 ? "neplatný API kľúč" : r.status === 429 ? "prekročený limit API (skúste neskôr)" : msg);
     }
     return j;
@@ -52,6 +54,21 @@ function collectUrls(node: unknown, out: Set<string>) {
   for (const v of Object.values(o)) if (v && typeof v === "object") collectUrls(v, out);
 }
 
+/**
+ * Hlavičky pre Anthropic API. Voliteľné z prostredia:
+ *  - ANTHROPIC_WORKSPACE_ID – kľúč organizácie (bez pracovného priestoru) ho vyžaduje („API key is not scoped to a workspace“);
+ *    alternatíva je vytvoriť kľúč priamo v pracovnom priestore v konzole Anthropic.
+ *  - ANTHROPIC_BETA – beta hlavička pre webové nástroje, ak ju API vyžaduje.
+ */
+function anthropicHeaders(key: string): Record<string, string> {
+  return {
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    ...(process.env.ANTHROPIC_WORKSPACE_ID ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID.trim() } : {}),
+    ...(process.env.ANTHROPIC_BETA ? { "anthropic-beta": process.env.ANTHROPIC_BETA } : {}),
+  };
+}
+
 async function anthropic(cfg: AiConfig, req: LlmRequest): Promise<LlmResponse> {
   const domains = req.allowedDomains?.length ? { allowed_domains: req.allowedDomains } : {};
   const body: any = {
@@ -64,8 +81,7 @@ async function anthropic(cfg: AiConfig, req: LlmRequest): Promise<LlmResponse> {
       { type: "web_fetch_20260318", name: "web_fetch", max_uses: req.maxSearches ?? 5, max_content_tokens: 30000, ...domains },
     ],
   };
-  // Beta hlavička pre webové nástroje, ak ju API vyžaduje (nastaviteľná bez nasadenia: ANTHROPIC_BETA)
-  const headers: Record<string, string> = { "x-api-key": cfg.key, "anthropic-version": "2023-06-01", ...(process.env.ANTHROPIC_BETA ? { "anthropic-beta": process.env.ANTHROPIC_BETA } : {}) };
+  const headers = anthropicHeaders(cfg.key);
   const visited = new Set<string>();
   const deadline = Date.now() + (req.timeoutMs ?? 90000);
   let usage = { input: 0, output: 0, searches: 0 };
@@ -120,7 +136,7 @@ export async function pingLlm(cfg: AiConfig): Promise<string> {
   }
   const j = await post(
     `${ANTHROPIC_URL}/v1/messages`,
-    { "x-api-key": cfg.key, "anthropic-version": "2023-06-01" },
+    anthropicHeaders(cfg.key),
     { model: cfg.model, max_tokens: 10, messages: [{ role: "user", content: "Odpovedz jedným slovom: OK" }] },
     30000,
   );
