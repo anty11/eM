@@ -187,3 +187,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   napr. Slovnaft), kritický postih za zrušenie sa počíta raz, záložné práva sú informácia; zmeny členov veľkých orgánov sa nehodnotia jednotlivo.
   RPO: jeden opakovaný pokus pri pomalej odpovedi. Chybné zdroje majú odkaz „Otvoriť“ na register aj v zozname manuálnych overení. FS OpenData: širšie
   rozpoznanie prehľadávateľných stĺpcov a diagnostika v chybovej správe. AI: poznámka o obmedzení (OpenAI bez otvárania stránok), kratší limit. Test `test/scoring.test.ts`.
+- **v2.0.2** – RÚZ: zlyhanie načítania závierky už nevyzerá ako „závierka chýba“ (opakovaný pokus, inak výsledok „neúplný“ bez zrážky);
+  pri viacerých účtovných jednotkách na IČO sa vyberie platná s najviac závierkami; zavedená spoločnosť bez jedinej závierky v RÚZ (6+ splatných
+  období) = upozornenie na manuálne overenie (−12), nie kritický nález „34 období“ (Slovnaft). Manuálne overenie: poznámka „čo ste zistili“
+  (ide do zhrnutia, nálezu a protokolu), manuálny výsledok má prednosť pred výsledkom AI, tlačidlo „Zahodiť výsledok AI“. `CheckResult.manual`.

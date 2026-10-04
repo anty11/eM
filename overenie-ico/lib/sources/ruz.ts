@@ -135,17 +135,22 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
           f.push({ severity: "warning", text: "Obchodná spoločnosť nie je evidovaná v Registri účtovných závierok", penalty: 12 });
         return { status: statusFromFindings(f, "info"), summary: "Subjekt nemá v RÚZ žiadne záznamy.", findings: f, verifyUrl };
       }
-      const uj = await getJson<any>(`${BASE}/uctovna-jednotka?id=${list.id[list.id.length - 1]}`).finally(() => ctx.resolveDic?.());
-      if (uj.dic && !ctx.profile.dic) ctx.profile.dic = uj.dic;
+      // IČO môže mať v RÚZ viac účtovných jednotiek (historické, zmazané) – vyberie sa platná s najväčším počtom závierok
+      const units = (await pool(list.id.slice(-4), 4, (id: number) => getJson<any>(`${BASE}/uctovna-jednotka?id=${id}`).catch(() => null))).filter(Boolean);
       ctx.resolveDic?.();
+      if (!units.length) throw new Error("detail účtovnej jednotky sa nepodarilo načítať");
+      const uj = units.filter((u: any) => !/zmaz/i.test(String(u.stav || ""))).sort((a: any, b: any) => (b.idUctovnychZavierok?.length || 0) - (a.idUctovnychZavierok?.length || 0))[0] || units[units.length - 1];
+      if (uj.dic && !ctx.profile.dic) ctx.profile.dic = uj.dic;
       // stačí posledných ~6 závierok (ID rastú s časom) – rýchlejšie ako sťahovať celú históriu
+      const totalStatements = (uj.idUctovnychZavierok || []).length;
       uj.idUctovnychZavierok = [...(uj.idUctovnychZavierok || [])].sort((a: number, b: number) => b - a).slice(0, 6);
 
-      const zav = (
-        await pool(uj.idUctovnychZavierok || [], 6, (id: number) =>
-          getJson<any>(`${BASE}/uctovna-zavierka?id=${id}`).catch(() => null),
-        )
-      ).filter((z) => z && z.datumZostaveniaK && !z.stav);
+      // Zlyhanie načítania závierky NESMIE vyzerať ako „závierka chýba“ – jeden opakovaný pokus, inak sa výsledok označí za neúplný
+      let incomplete = false;
+      const zavRaw = await pool(uj.idUctovnychZavierok || [], 6, (id: number) =>
+        getJson<any>(`${BASE}/uctovna-zavierka?id=${id}`).catch(() => getJson<any>(`${BASE}/uctovna-zavierka?id=${id}`).catch(() => ((incomplete = true), null))),
+      );
+      const zav = zavRaw.filter((z) => z && z.datumZostaveniaK && !/zmaz/i.test(String(z.stav || "")));
       // Len riadne/mimoriadne závierky za celé obdobie (nie priebežné)
       const full = zav.filter((z) => z.typ !== "Priebežná").sort((a, b) => (a.datumZostaveniaK < b.datumZostaveniaK ? 1 : -1));
       const years = [...new Set(full.map((z) => z.datumZostaveniaK.slice(0, 4)))];
@@ -174,13 +179,22 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       const expected = now.getFullYear() - (now.getMonth() >= 9 ? 1 : 2);
       const latest = Number(years[0] || 0);
       const fs = filingStatus({ expected, latest, established: ctx.profile.established });
-      if (fs.missing >= 2)
+      // Keď sa niektorú závierku nepodarilo načítať, o chýbajúcich závierkach nerozhodujeme – treba zopakovať
+      if (incomplete) {
+        if (totalStatements > 0) f.push({ severity: "warning", text: `Register účtovných závierok eviduje ${totalStatements} závierok, ale ich detail sa nepodarilo načítať – overte v registri alebo zopakujte`, penalty: 0 });
+      } else if (!latest && totalStatements > 0) {
+        // závierky v registri sú, ale žiadna neprešla filtrom (iný typ / stav) – nie je to „nepodaná závierka“
+        f.push({ severity: "warning", text: `Register eviduje ${totalStatements} závierok, no žiadnu riadnu závierku sa nepodarilo vyhodnotiť – overte v registri`, penalty: 0 });
+      } else if (!latest && fs.duePeriods >= 6) {
+        // zavedená spoločnosť bez jedinej závierky v RÚZ je skôr medzera v dátach registra (RÚZ eviduje závierky od r. 2014) než 6+ rokov porušovania – na manuálne overenie, nie kritický nález
+        f.push({ severity: "warning", text: `V Registri účtovných závierok nie je uložená žiadna závierka spoločnosti (splatných období: ${fs.duePeriods}) – overte priamo v registri; pri potvrdení ide o dôvod na zrušenie súdom (§ 68b ods. 1 písm. c) ObZ)`, penalty: 12 });
+      } else if (fs.missing >= 2)
         f.push({
           severity: "critical",
           text: `Účtovná závierka nie je uložená za ${fs.missing} po sebe idúce účtovné obdobia${latest ? ` (posledná za rok ${latest})` : ` (žiadna závierka od vzniku, prvé splatné obdobie ${fs.firstDue})`} – nesplnenie povinnosti za dve a viac období je dôvodom na zrušenie spoločnosti súdom (§ 68b ods. 1 písm. c) Obchodného zákonníka)`,
           penalty: 40,
         });
-      else if (fs.missing === 1)
+      else if (fs.missing === 1 && !incomplete)
         f.push({ severity: "warning", text: latest ? `Posledná uložená závierka je za rok ${latest} – chýba závierka za ${expected}` : `Chýba prvá účtovná závierka (za rok ${expected})`, penalty: 12 });
       // fs.missing === 0: buď je všetko uložené, alebo spoločnosť ešte nemusela podať – bez zrážky
 
@@ -206,7 +220,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
         status: statusFromFindings(f, "ok"),
         summary: c
           ? `Závierky za roky: ${years.slice(0, 6).join(", ") || "–"}. ${c.period}: tržby ${eur(c.revenue)}, VH ${eur(c.profit)}, VI ${eur(c.equity)}, záväzky ${eur(c.liabilities)}.`
-          : `Závierky za roky: ${years.slice(0, 6).join(", ") || "žiadne"}.${pdfOnly ? " Posledná závierka je len v PDF (napr. IFRS) – čísla overte v dokumente." : ""}`,
+          : `Závierky za roky: ${years.slice(0, 6).join(", ") || "žiadne"}.${pdfOnly ? " Posledná závierka je len v PDF (napr. IFRS) – čísla overte v dokumente." : ""}${incomplete ? " Niektoré závierky sa nepodarilo načítať – výsledok je neúplný, skúste znova." : ""}`,
         findings: f,
         verifyUrl,
         data: {
@@ -233,8 +247,9 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
             : undefined,
           duePeriods: fs.duePeriods,
           firstDuePeriod: fs.firstDue,
-          missingPeriods: fs.missing,
-          dissolutionRisk: fs.missing >= 2,
+          missingPeriods: incomplete ? undefined : fs.missing,
+          dissolutionRisk: !incomplete && !!latest && fs.missing >= 2,
+          incomplete,
         },
       };
     },

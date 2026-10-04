@@ -117,6 +117,7 @@ button { font: inherit; cursor: pointer; }
 .f-positive { color: var(--ok); }
 .mbtn { font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .mbtn.on-clean { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.manual-note { font: inherit; font-size: 13px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); flex: 1 1 100%; min-width: 240px; margin-top: 4px; }
 .mbtn.on-found { background: var(--crit-bg); color: var(--crit); border-color: var(--crit); }
 
 .news li { margin: 4px 0; }

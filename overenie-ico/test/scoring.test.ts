@@ -40,3 +40,18 @@ function main() {
   console.log("OK – testy hodnotenia prešli.");
 }
 main();
+
+// manuálne overenie s poznámkou a prednosť pred AI
+{
+  const { applyManual } = require("../lib/scoring");
+  const manual = { ...check("vszp", []), status: "manual", data: { penaltyIfFound: 25, severityIfFound: "critical" } } as CheckResult;
+  const ai = { ...check("union", []), status: "ok", ai: { provider: "anthropic", model: "x", at: "", evidence: [] } } as CheckResult;
+  const out = applyManual([manual, ai], { vszp: "found", union: "clean" }, { vszp: "dlh 1 250 € k 1. 10. 2026" });
+  assert.equal(out[0].status, "critical");
+  assert.match(out[0].findings[0].text, /dlh 1 250 €/);
+  assert.match(out[0].summary, /Zistenie: dlh 1 250 €/);
+  assert.equal(out[0].manual?.note, "dlh 1 250 € k 1. 10. 2026");
+  assert.equal(out[1].status, "ok");
+  assert.equal(out[1].manual?.answer, "clean", "manuálne overenie prepíše výsledok AI");
+  console.log("OK – manuálne overenie s poznámkou.");
+}

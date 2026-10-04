@@ -2,7 +2,7 @@
 
 import { selectedOrg, withOrg } from "../components/org";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyManual, computeVerdict, type ManualAnswers } from "@/lib/scoring";
+import { applyManual, computeVerdict, type ManualAnswers, type ManualNotes } from "@/lib/scoring";
 import { CATEGORIES, type CategoryId, type CheckResult, type ScanReport } from "@/lib/types";
 import Header, { useMe } from "../components/Header";
 import ContactCard from "../components/ContactCard";
@@ -66,6 +66,7 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ScanReport | null>(null);
   const [answers, setAnswers] = useState<ManualAnswers>({});
+  const [notes, setNotes] = useState<ManualNotes>({});
   const [author, setAuthor] = useState("");
   const [note, setNote] = useState("");
   const [recent, setRecent] = useState<{ ico: string; name?: string }[]>([]);
@@ -119,6 +120,7 @@ export default function Page() {
     setError(null);
     setReport(null);
     setAnswers({});
+    setNotes({});
     setNote("");
     setAiResults({});
     setProfilePatch({});
@@ -203,9 +205,9 @@ export default function Page() {
   const profile = useMemo(() => (report ? ({ ...report.profile, ...profilePatch } as CompanyProfile) : null), [report, profilePatch]);
   const dealCheck = useMemo(() => (profile ? buildDealCheck(deal, profile, bank) : null), [deal, profile, bank]);
   const checks = useMemo(() => {
-    const base = applyManual(baseChecks, answers);
+    const base = applyManual(baseChecks, answers, notes);
     return dealCheck ? [...base, dealCheck] : base;
-  }, [baseChecks, answers, dealCheck]);
+  }, [baseChecks, answers, notes, dealCheck]);
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
   const pendingCount = checks.filter((c) => c.status === "pending").length;
   const totalAuto = checks.filter((c) => c.automated !== false && !NON_PUBLIC.includes(c.id)).length || 1;
@@ -340,6 +342,7 @@ export default function Page() {
       </div>
     ) : null;
 
+  /** Manuálne overenie: výsledok + poznámka, čo poverený zamestnanec zistil (ide do protokolu); výsledok AI možno zahodiť. */
   const manualButtons = (c: CheckResult) => (
     <>
       <span className="src no-print">Výsledok manuálneho overenia:</span>
@@ -348,6 +351,20 @@ export default function Page() {
           {a === "clean" ? "Bez záznamu" : "Záznam nájdený"}
         </button>
       ))}
+      {aiResults[c.id] && !aiBusy[c.id] && (
+        <button className="mbtn no-print" title="Odstráni výsledok AI; kontrola sa vráti na manuálne overenie" onClick={() => setAiResults((s) => { const n = { ...s }; delete n[c.id]; return n; })}>
+          Zahodiť výsledok AI
+        </button>
+      )}
+      {answers[c.id] && (
+        <input
+          className="manual-note no-print"
+          value={notes[c.id] || ""}
+          onChange={(e) => setNotes((s) => ({ ...s, [c.id]: e.target.value }))}
+          placeholder={answers[c.id] === "found" ? "Čo ste zistili – napr. výška dlhu, dátum, číslo konania (do protokolu)" : "Poznámka k overeniu – napr. dátum a stav zoznamu (do protokolu)"}
+          maxLength={600}
+        />
+      )}
     </>
   );
 

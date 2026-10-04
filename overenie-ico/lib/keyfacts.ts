@@ -39,6 +39,8 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
         answer: `NIE – závierka chýba za ${rd.missingPeriods} po sebe idúce účtovné obdobia${rd.lastFiledYear ? ` (posledná za rok ${rd.lastFiledYear})` : ""}. Dve a viac období je dôvodom na zrušenie spoločnosti súdom (§ 68b ods. 1 písm. c) ObZ).${taxPart}`,
         tone: "bad",
       };
+    else if (rd.incomplete || (!rd.lastFiledYear && rd.duePeriods >= 6))
+      f = { id: "filed", question: "Podala účtovnú závierku / daňové priznanie?", answer: `Nepodarilo sa spoľahlivo overiť – ${rd.incomplete ? "detail závierok sa nenačítal, zopakujte zdroj alebo" : "register neobsahuje žiadnu závierku zavedenej spoločnosti,"} skontrolujte priamo v RÚZ.${taxPart}`, tone: "unknown" };
     else if (!rd.lastFiledYear) {
       const young = rd.duePeriods === 0 || (rd.duePeriods === undefined && monthsSince(p.established) < 24);
       f = {

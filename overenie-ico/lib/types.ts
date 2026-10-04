@@ -42,6 +42,8 @@ export interface CheckResult {
     rejected?: string;
     usage?: unknown;
   };
+  /** Vyplnené, ak výsledok určil poverený zamestnanec manuálne (s prípadnou poznámkou, čo zistil). */
+  manual?: { answer: "clean" | "found"; note?: string };
 }
 
 export type CategoryId =

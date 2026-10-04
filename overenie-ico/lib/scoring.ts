@@ -2,6 +2,8 @@ import type { CheckResult, Finding, Verdict } from "./types";
 
 export type ManualAnswer = "clean" | "found";
 export type ManualAnswers = Record<string, ManualAnswer | undefined>;
+/** Poznámka povereného zamestnanca k manuálnemu overeniu (čo konkrétne zistil) – ide do protokolu. */
+export type ManualNotes = Record<string, string | undefined>;
 
 export const LEVEL_LABEL = {
   recommended: "ODPORÚČAME – bezpečný obchodný partner",
@@ -9,20 +11,26 @@ export const LEVEL_LABEL = {
   not_recommended: "NEODPORÚČAME – rizikový subjekt",
 } as const;
 
-/** Doplní do kontrol výsledky manuálneho overenia povereným zamestnancom. */
-export function applyManual(checks: CheckResult[], answers: ManualAnswers): CheckResult[] {
+/**
+ * Doplní do kontrol výsledky manuálneho overenia povereným zamestnancom. Manuálne overenie má prednosť aj pred výsledkom AI
+ * (človek v registri videl viac než model). Poznámka sa prepíše do zhrnutia aj do nálezu, aby bola v protokole.
+ */
+export function applyManual(checks: CheckResult[], answers: ManualAnswers, notes: ManualNotes = {}): CheckResult[] {
   return checks.map((c) => {
     const a = answers[c.id];
-    if (c.status !== "manual" && !(c.status === "error" && a)) return c;
     if (!a) return c;
-    if (a === "clean") return { ...c, status: "ok", findings: [], summary: `${c.summary} — Overené manuálne: bez záznamu.` };
+    if (c.status !== "manual" && c.status !== "error" && !c.ai) return c;
+    const note = (notes[c.id] || "").trim().slice(0, 600);
+    const noteText = note ? ` Zistenie: ${note}` : "";
+    if (a === "clean") return { ...c, status: "ok", findings: note ? [{ severity: "info", text: `${c.name}: overené manuálne – bez záznamu. ${note}`, penalty: 0 }] : [], summary: `${c.summary} — Overené manuálne: bez záznamu.${noteText}`, manual: { answer: a, note: note || undefined } };
     const pen = Number((c.data as any)?.penaltyIfFound ?? 30);
     const sev = ((c.data as any)?.severityIfFound ?? "critical") as Finding["severity"];
     return {
       ...c,
       status: sev === "critical" ? "critical" : "warning",
-      findings: [{ severity: sev, text: `${c.name}: manuálne zistený negatívny záznam`, penalty: pen }],
-      summary: `${c.summary} — Overené manuálne: ZÁZNAM NÁJDENÝ.`,
+      findings: [{ severity: sev, text: `${c.name}: manuálne zistený negatívny záznam${note ? ` – ${note}` : ""}`, penalty: pen }],
+      summary: `${c.summary} — Overené manuálne: ZÁZNAM NÁJDENÝ.${noteText}`,
+      manual: { answer: a, note: note || undefined },
     };
   });
 }
