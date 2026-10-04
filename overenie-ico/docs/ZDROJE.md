@@ -427,7 +427,7 @@ Zobrazuje sa na začiatku výsledku a v PDF (`lib/keyfacts.ts`).
 | (vii) cenová politika | posúdi poverený zamestnanec | −10 |
 | (viii) porušovanie predpisov / nabádanie | posúdi poverený zamestnanec | **kritické −40** |
 | (ix) povolenie / zápis v registri | predmet obchodu vs. zoznam regulovaných činností (`REGULATED`): PHM, lieh, tabak, odpady, finančné služby, doprava, lieky, zbrane, SBS, agentúrne zamestnávanie, stavby, VTZ, potraviny, hazard | pripomienka s odkazom na register |
-| (x) nezvyčajné platby | IBAN partnera vs. zoznam bankových účtov platiteľov DPH (FS OpenData, `bankAccounts`); platby v hotovosti a iné metódy posúdi zamestnanec | neoznámený účet **kritické −35** (§ 69 ods. 14 písm. c) ZDPH); hotovosť −12; iné −10; neplatný IBAN −5 |
+| (x) nezvyčajné platby | IBAN partnera vs. zoznam bankových účtov platiteľov DPH (FS OpenData, `bankAccounts`); úhrady faktúr v hotovosti namiesto bezhotovostného prevodu (aj pod limitom) a iné metódy posúdi zamestnanec | neoznámený účet **kritické −35** (§ 69 ods. 14 písm. c) ZDPH); hotovosť −12; iné −10; neplatný IBAN −5 |
 | (xi) preprava | posúdi poverený zamestnanec | −6 |
 | (xii) umelé zapojenie osôb | posúdi poverený zamestnanec | **kritické −40** |
 | (xiii) referencie len od sprostredkovateľa | posúdi poverený zamestnanec | −8 |
