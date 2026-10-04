@@ -139,3 +139,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - API `/api/check?asOf=YYYY-MM-DD` – len pre používateľov Rozšírené, dátum v minulosti (≥ 1993). Databáza preverení ukladá dnešný dátum.
 - Kód: `lib/retro.ts`, `lib/sources/{rpo,ruz,insolvency,news}.ts` (pole `data.asOf`), `app/app/page.tsx`, `lib/seal.ts` (`asOf` v odtlačku). Test `test/retro.test.ts`.
 - Tlač zhustená (prázdne údaje o obchode = jeden riadok), všetky varianty protokolu na 2 stranách.
+- **v1.7.1** – AI dohľadanie sa na verejnom webe už neuvádza (ostáva internou záložnou funkciou v klientskej sekcii na tlačidlo, predvolene vypnuté);
+  demo meno vo všetkých ukážkach a testoch je Janko Mrkvička.

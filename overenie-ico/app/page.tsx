@@ -34,7 +34,6 @@ const FEATURES: { name: string; note?: string; ext: boolean; std: boolean }[] = 
   { name: "Neobmedzený počet preverení", ext: true, std: true },
   { name: "Kontrolný zoznam neverejných registrov so zápisom výsledku do protokolu", note: "exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie, verejné obstarávanie – výsledok sa premietne do skóre", ext: true, std: false },
   { name: "Spätné preverenie existujúcej spolupráce k rozhodnému dátumu", note: "čo bolo z registrov zistiteľné pri začiatku spolupráce; protokol je vždy vyhotovený k dnešku", ext: true, std: false },
-  { name: "Voliteľné AI dohľadanie údajov v zdrojoch bez rozhrania", ext: true, std: false },
   { name: "Úvodné školenie poverených zamestnancov", ext: true, std: false },
   { name: "Komunikácia s advokátom obratom pri rizikovom náleze", note: "prednostný kontakt na advokátske kancelárie poskytujúce odbornú záštitu; právne služby nie sú v cene a účtujú sa osobitne", ext: true, std: false },
 ];
