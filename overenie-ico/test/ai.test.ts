@@ -49,11 +49,14 @@ async function main() {
   assert.throws(() => parseAiJson("žiadny json"), /štruktúrovanú/);
   assert.throws(() => parseAiJson('<json>{"result":"asi"}</json>'), /neplatný/);
 
-  // Register bez API – čistý subjekt (vrátane pause_turn pokračovania)
-  let r = await aiCheck(cfg, stub("vszp"), GOOD, { ico: GOOD, name: "URBAN & PARTNERS s.r.o." });
+  // Register bez API s priamou adresou (ÚVO) – čistý subjekt (vrátane pause_turn pokračovania)
+  let r = await aiCheck(cfg, stub("uvo"), GOOD, { ico: GOOD, name: "URBAN & PARTNERS s.r.o." });
   assert.equal(r.check.status, "ok");
   assert.equal(r.check.ai?.evidence.length, 1);
-  assert.match(r.check.ai!.evidence[0].url, /vszp\.sk/);
+  assert.match(r.check.ai!.evidence[0].url, /uvo\.gov\.sk/);
+  // registre, kde AI nemôže fungovať (formulár POST, vlastné API, blokovanie) – s vysvetlením
+  await assert.rejects(aiCheck(cfg, stub("vszp"), GOOD, { ico: GOOD }), /formulár/);
+  await assert.rejects(aiCheck(cfg, stub("diskv"), GOOD, { ico: GOOD }), /blokuje/);
 
   // Negatívny nález – postih ako pri API
   r = await aiCheck(cfg, stub("socpoist"), BAD, { ico: BAD, name: "C.C.C. s.r.o." });
