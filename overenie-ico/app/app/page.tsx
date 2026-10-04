@@ -110,7 +110,7 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function run(value = ico) {
+  async function run(value = ico, fresh = false) {
     const v = value.replace(/\s/g, "");
     if (!/^\d{6,8}$/.test(v)) {
       setError("IČO musí mať 6 až 8 číslic.");
@@ -133,7 +133,7 @@ export default function Page() {
         setLoading(false);
         return;
       }
-      const r = await fetch(withOrg(`/api/check?ico=${v}&stream=1${asOf}`));
+      const r = await fetch(withOrg(`/api/check?ico=${v}&stream=1${asOf}${fresh ? "&fresh=1" : ""}`));
       if (r.status === 401) {
         location.href = `/login?next=${encodeURIComponent(`/app?ico=${v}`)}`;
         return;
@@ -480,7 +480,7 @@ export default function Page() {
               </ul>
               <div className="toolbar no-print">
                 <a className="btn ghost" href={`https://www.orsr.sk/hladaj_ico.asp?ICO=${report.ico}&SID=0`} target="_blank" rel="noreferrer">Overiť v ORSR ↗</a>
-                <button className="btn ghost" onClick={() => run(report.ico)}>Preveriť znova</button>
+                <button className="btn ghost" title="Obíde uložené výsledky a položí všetky dopyty do registrov nanovo" onClick={() => run(report.ico, true)}>Preveriť znova</button>
               </div>
             </div>
           </section>
@@ -663,6 +663,7 @@ export default function Page() {
                     </div>
                     <span className={`pill s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
                     <div className="sum">{c.summary}</div>
+                    {c.status === "manual" && (c.data as any)?.autoNote && <div className="src">Automatický pokus: {String((c.data as any).autoNote)}</div>}
                     {c.findings.filter((f) => f.severity !== "info" || f.text).length > 0 && (
                       <ul>{c.findings.map((f, i) => <li key={i} className={`f-${f.severity}`}>{f.text}</li>)}</ul>
                     )}
@@ -760,7 +761,7 @@ export default function Page() {
                   a.download = `${report.scanId}.json`;
                   a.click();
                 }}>Stiahnuť dáta (JSON)</button>
-                <button className="btn ghost no-print" onClick={() => run(report.ico)}>Preveriť znova</button>
+                <button className="btn ghost no-print" title="Obíde uložené výsledky a položí všetky dopyty do registrov nanovo" onClick={() => run(report.ico, true)}>Preveriť znova</button>
               </div>
               <div className="print-only sign">
                 <div>Vypracoval (poverený zamestnanec): {author || me?.name || "………………………"}</div>

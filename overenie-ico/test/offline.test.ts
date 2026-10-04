@@ -115,6 +115,17 @@ async function main() {
   const v2 = computeVerdict(applyManual(r.checks, { cre: "found" }));
   assert.equal(v2.level, "not_recommended");
 
+  // 5) Vyrovnávacia pamäť: opakované preverenie toho istého IČO nevolá registre (okrem chýb/manuálnych), „fresh“ ju obíde
+  const before = calls.length;
+  const r3 = await scan(GOOD);
+  assert.ok(r3.checks.find((c) => c.id === "rpo")!.cachedAt, "RPO z pamäte");
+  assert.equal(r3.profile.name, r.profile.name, "profil obnovený z pamäte");
+  const apiCalls = (from: number) => calls.slice(from).filter((u) => !/vszp|unionzp|uvo\.gov|justice|data\.slovensko/.test(u));
+  assert.equal(apiCalls(before).length, 0, `opakované preverenie nevolá API registre (${apiCalls(before).join(", ")})`);
+  const r4 = await scan(GOOD, undefined, { fresh: true });
+  assert.ok(!r4.checks.find((c) => c.id === "rpo")!.cachedAt, "fresh obíde pamäť");
+  assert.ok(apiCalls(before).length > 5, "fresh volá registre");
+
   console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
 
   // Chýbajúce účtovné závierky – posudzujú sa len obdobia s uplynutou lehotou; mladá firma bez zrážky

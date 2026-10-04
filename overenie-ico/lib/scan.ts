@@ -6,6 +6,7 @@ import { checkInsolvency } from "./sources/insolvency";
 import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
 import { PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
+import { kv } from "./auth/kv";
 import { checkNews } from "./sources/news";
 import { checkRpo } from "./sources/rpo";
 import { checkRpvs } from "./sources/rpvs";
@@ -14,19 +15,68 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.2.2";
+export const APP_VERSION = "2.3.0";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
+/** Registre bez API (vrátane dopytu cez prehliadač na serveri – spustenie Chromia a hľadanie trvá 5 – 15 s) majú vlastný, dlhší limit. */
+const MANUAL_DEADLINE_MS = 55000;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Vyrovnávacia pamäť výsledkov podľa zdroja a IČO (Redis, TTL). Registre sa aktualizujú nanajvýš raz denne, takže opakované
+ * preverenie toho istého IČO (iný používateľ, návrat k firme, obnovenie stránky) nezaťažuje registre ani limity ich API a je okamžité.
+ * Ukladajú sa len úspešné výsledky (ok / warning / critical), nie chyby ani manuálne kontroly. „Preveriť znova“ (fresh) pamäť obíde
+ * a obnoví ju; spätné preverenie k dátumu (asOf) pamäť nepoužíva. Spolu s výsledkom sa uložia aj údaje profilu, ktoré zdroj doplnil
+ * (RPO: identifikácia, RÚZ: DIČ …), aby ďalšie kontroly fungovali rovnako ako pri živom dopyte.
+ */
+const CACHE_TTL_SEC: Record<string, number> = { default: 6 * 3600, news: 2 * 3600, socpoist: 12 * 3600 };
+const CACHE_VERSION = "1";
+const cacheKey = (id: string, ico: string) => `cache:check:${CACHE_VERSION}:${id}:${ico}`;
+interface CachedCheck {
+  check: CheckResult;
+  profile: Partial<CompanyProfile>;
+  at: string;
+}
+
+async function cachedRun(ctx: Ctx, id: string, fn: () => Promise<CheckResult>, fresh: boolean): Promise<CheckResult> {
+  const key = cacheKey(id, ctx.ico);
+  if (!fresh && !ctx.asOf) {
+    const hit = await kv().get<CachedCheck>(key).catch(() => null);
+    if (hit?.check) {
+      for (const [k, v] of Object.entries(hit.profile || {})) if ((ctx.profile as any)[k] === undefined && v !== undefined) (ctx.profile as any)[k] = v;
+      if (id === "ruz") ctx.resolveDic?.();
+      return { ...hit.check, cachedAt: hit.at };
+    }
+  }
+  const before = JSON.stringify(ctx.profile);
+  const check = await fn();
+  if (!ctx.asOf && ["ok", "warning", "critical"].includes(check.status) && !ctx.profile.notFound) {
+    const prev = JSON.parse(before) as Record<string, unknown>;
+    const patch: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(ctx.profile)) if (JSON.stringify(v) !== JSON.stringify(prev[k])) patch[k] = v;
+    await kv()
+      .set(key, { check, profile: patch, at: new Date().toISOString() } satisfies CachedCheck, CACHE_TTL_SEC[id] || CACHE_TTL_SEC.default)
+      .catch(() => undefined);
+  }
+  return check;
+}
+
+/** Zmaže uložené výsledky pre IČO (po „Skúsiť znova“ pri jednom zdroji sa obnoví len ten). */
+export async function invalidateCache(ico: string, id?: string) {
+  const ids = id ? [id] : Object.keys(META);
+  await Promise.all(ids.map((i) => kv().del(cacheKey(i, ico)).catch(() => undefined)));
+}
+
 export type Progress = (c: CheckResult, profile: Ctx["profile"]) => void;
 
-export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: string } = {}): Promise<ScanReport> {
+export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: string; fresh?: boolean } = {}): Promise<ScanReport> {
   const t0 = Date.now();
   const scannedAt = new Date().toISOString();
   const ctx: Ctx = { ico, profile: { ico }, asOf: opts.asOf };
+  const fresh = Boolean(opts.fresh);
+  const run = (id: string, fn: (c: Ctx) => Promise<CheckResult>) => cachedRun(ctx, id, () => fn(ctx), fresh);
   let resolveDic!: () => void;
   ctx.dicReady = new Promise<void>((r) => (resolveDic = r));
   ctx.resolveDic = resolveDic;
@@ -58,7 +108,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
     ]);
 
   // Najprv identifikácia v Registri právnických osôb – ak IČO neexistuje, ostatné kontroly nemajú zmysel
-  const rpoP = checkRpo(ctx);
+  const rpoP = run("rpo", checkRpo);
   ctx.rpoDone = rpoP.catch(() => undefined);
   const rpoFirst = await capRaw("rpo", rpoP);
   if (ctx.profile.notFound || (rpoFirst.data as any)?.notFound) {
@@ -84,28 +134,28 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
     };
   }
   for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
-  const ruzP = checkRuz(ctx);
+  const ruzP = run("ruz", checkRuz);
   // daňové kontroly: potrebujú meno (RPO) a DIČ (RÚZ) – na DIČ čakajú najviac 8 s
   const idReady = Promise.all([ctx.rpoDone, Promise.race([ctx.dicReady, sleep(8000)])]);
-  const after = (fn: (c: Ctx) => Promise<CheckResult>) => idReady.then(() => fn(ctx));
+  const after = (id: string, fn: (c: Ctx) => Promise<CheckResult>) => idReady.then(() => run(id, fn));
 
   // Registre bez API: server položí dopyt priamo (diskvalifikácie, ÚVO, VšZP, Union) alebo číta index Obchodného vestníka;
   // ak odpoveď nie je jednoznačná, ostáva manuálna kontrola
-  const manualP = resolveManual(ctx, (c) => onProgress?.(c, ctx.profile));
+  const manualP = resolveManual(ctx, (c) => onProgress?.(c, ctx.profile), fresh);
   const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await Promise.all([
     cap("rpo", Promise.resolve(rpoFirst)),
     cap("ruz", ruzP),
-    cap("fs-debtors", after(checkTaxDebtors)),
-    cap("fs-vat", after(checkVat)),
-    cap("fs-ids", after(checkIds)),
-    cap("fs-dppo", after(checkIncomeTax)),
-    cap("socpoist", checkSocpoist(ctx)),
-    cap("insolvency", checkInsolvency(ctx)),
-    cap("rpvs", checkRpvs(ctx)),
-    cap("news", ctx.rpoDone.then(() => checkNews(ctx))),
+    cap("fs-debtors", after("fs-debtors", checkTaxDebtors)),
+    cap("fs-vat", after("fs-vat", checkVat)),
+    cap("fs-ids", after("fs-ids", checkIds)),
+    cap("fs-dppo", after("fs-dppo", checkIncomeTax)),
+    cap("socpoist", run("socpoist", checkSocpoist)),
+    cap("insolvency", run("insolvency", checkInsolvency)),
+    cap("rpvs", run("rpvs", checkRpvs)),
+    cap("news", ctx.rpoDone.then(() => run("news", checkNews))),
   ]);
 
-  const manual = await Promise.race([manualP, sleep(Math.max(1000, DEADLINE_MS - (Date.now() - t0))).then(() => manualChecks(ctx))]);
+  const manual = await Promise.race([manualP, sleep(Math.max(1000, MANUAL_DEADLINE_MS - (Date.now() - t0))).then(() => manualChecks(ctx))]);
   const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manual];
   if (!icoChecksumValid(ico))
     rpo.findings.push({ severity: "info", text: "IČO nespĺňa kontrolný súčet (môže ísť o historické IČO) – overte správnosť", penalty: 0 });
@@ -125,21 +175,40 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
 }
 
 /** Manuálne registre: pokus o automatické overenie; neúspech = pôvodná manuálna kontrola. Výsledky sa hlásia priebežne. */
-export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => void): Promise<CheckResult[]> {
+export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => void, fresh = false): Promise<CheckResult[]> {
   const base = manualChecks(ctx);
-  await ctx.rpoDone; // mená štatutárov pre register diskvalifikácií
   return Promise.all(
     base.map(async (m) => {
       try {
+        if (!fresh && !ctx.asOf) {
+          const hit = await kv().get<CachedCheck>(cacheKey(m.id, ctx.ico)).catch(() => null);
+          if (hit?.check) {
+            const c = { ...hit.check, cachedAt: hit.at };
+            onProgress?.(c);
+            return c;
+          }
+        }
         let auto: CheckResult | null = null;
+        if (m.id === "diskv" || m.id === "uvo") await ctx.rpoDone; // mená štatutárov (diskvalifikácie), obchodné meno (ÚVO)
         if (m.id === "ov") auto = await checkOv(ctx);
-        else if ((PUBLIC_QUERY_IDS as readonly string[]).includes(m.id)) auto = (await queryPublicRegister(m.id, ctx)).check;
+        else if ((PUBLIC_QUERY_IDS as readonly string[]).includes(m.id)) {
+          const r = await queryPublicRegister(m.id, ctx);
+          auto = r.check;
+          // neúspech: stručne prečo (posledný pokus) – zobrazí sa pri manuálnej kontrole a v diagnostike
+          if (!auto) {
+            const last = r.outcome.attempts[r.outcome.attempts.length - 1];
+            m.data = { ...(m.data || {}), autoNote: last ? `${last.info || last.url}: ${last.error || (last.status ? `HTTP ${last.status}` : "")}${last.verdict === "unknown" ? " – výsledok sa nedal vyhodnotiť" : ""}`.slice(0, 300) : undefined };
+          }
+        }
         if (auto) {
+          if (!ctx.asOf && ["ok", "warning", "critical"].includes(auto.status))
+            await kv().set(cacheKey(m.id, ctx.ico), { check: auto, profile: {}, at: new Date().toISOString() } satisfies CachedCheck, CACHE_TTL_SEC[m.id] || CACHE_TTL_SEC.default).catch(() => undefined);
           onProgress?.(auto);
           return auto;
         }
-      } catch {
-        /* ostáva manuálne */
+      } catch (e) {
+        // ostáva manuálne; dôvod si zapamätáme pre diagnostiku
+        m.data = { ...(m.data || {}), autoError: (e as Error).message.slice(0, 300) };
       }
       return m;
     }),
@@ -168,6 +237,7 @@ const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {
 export async function runOne(ico: string, id: string, profile: Partial<CompanyProfile>): Promise<{ check: CheckResult; profile: CompanyProfile } | null> {
   const fn = RUNNERS[id];
   if (!fn) return null;
+  await invalidateCache(ico, id);
   const ctx: Ctx = { ico, profile: { ...profile, ico } as CompanyProfile, rpoDone: Promise.resolve(), dicReady: Promise.resolve(), resolveDic: () => undefined };
   const check = await fn(ctx);
   return { check, profile: ctx.profile };

@@ -46,6 +46,27 @@ async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: n
   return { status: j.status, body: String(j.body || ""), contentType: j.contentType || null };
 }
 
+/**
+ * Skriptovaný dopyt cez prehliadač na serveri. Na nasadení ide cez oddelenú funkciu /api/browser/flow (jediná s pribaleným Chromiom),
+ * lokálne a v testoch priamo. Chyby sa vracajú ako výsledok „unknown“ s popisom.
+ */
+async function browserFlow(source: "union", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult> {
+  const origin = selfOrigin();
+  const t0 = Date.now();
+  try {
+    if (origin) {
+      const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: 50000 });
+      const j = await r.json().catch(() => null);
+      if (!j || !j.verdict) throw new Error(`prehliadač: ${j?.error || `HTTP ${r.status}`}`);
+      return j;
+    }
+    const { unionFlow } = await import("../browser/flows");
+    return await unionFlow(ico, { diag });
+  } catch (e) {
+    return { verdict: "unknown", rows: [], url: "", ms: Date.now() - t0, error: (e as Error).message.slice(0, 300) };
+  }
+}
+
 /** Hlavičky bežného prehliadača – niektoré weby (nginx/WAF) odmietajú požiadavky bez nich. */
 const BROWSER_HEADERS: Record<string, string> = {
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7",
@@ -414,8 +435,7 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
   const outcome = await probe(attempts.map((a) => ({ ...a, source: id })), needles, undefined, opts);
   // Union: API portálu vyžaduje token aplikácie (401) → skriptovaný dopyt cez prehliadač na serveri (bez AI)
   if (outcome.result === "unknown" && id === "union" && process.env.BROWSER_DISABLED !== "1") {
-    const { unionFlow } = await import("../browser/flows");
-    const r = await unionFlow(ctx.ico, { diag: opts.diag });
+    const r = await browserFlow("union", ctx.ico, opts.diag);
     outcome.attempts.push({ url: r.url, ms: r.ms, error: r.error, excerpt: (r.rendered || "").slice(0, opts.diag ? 6000 : 400), verdict: r.verdict, evidence: r.evidence, info: "prehliadač na serveri (skript)" });
     if (r.verdict !== "unknown") {
       outcome.result = r.verdict;

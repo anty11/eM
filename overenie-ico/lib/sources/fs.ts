@@ -175,6 +175,9 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
   }
   if (!answered) {
     const keys = (ds as any)?.keys as string[] | undefined;
+    // zoznam sa dá prehľadávať len podľa názvu a názov subjektu nie je známy (identifikácia v RPO zlyhala / meškala)
+    if (ds?.searchable.length && ds.searchable.every((c) => kindOf(c) === "name") && !values.name)
+      throw new Error(`zoznam ${slug} sa prehľadáva len podľa názvu subjektu (${ds.searchable.join(", ")}) a názov nie je známy – identifikácia v Registri právnických osôb neprebehla; skúste „Skúsiť znova“`);
     throw new Error(
       `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : ` (API neuviedlo prehľadávateľné stĺpce${keys?.length ? `; detail zoznamu obsahuje polia: ${keys.join(", ")}` : ""})`} – ${errors.slice(0, 3).join(" | ") || "neznámy formát"}`,
     );

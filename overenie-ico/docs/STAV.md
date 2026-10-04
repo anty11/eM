@@ -258,3 +258,16 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   kontextu padala (`Target page … has been closed`, ERR_INSUFFICIENT_RESOURCES). **Union automaticky bez AI:** skriptovaný dopyt cez prehliadač
   (`lib/browser/flows.ts` – vyplní IČO, Hľadať, prečíta tabuľku; „bez záznamu“ len po skutočnom hľadaní, nie z úvodného zoznamu) ako záloha
   po API (401). Diagnostika: strop 25 s na stránku, klient čaká najviac 150 s a hlási prekročenie limitu.
+
+## v2.3.0 – 4. 10. 2026 – výkon a škálovanie: vyrovnávacia pamäť výsledkov, oddelená funkcia prehliadača
+
+- **Vyrovnávacia pamäť výsledkov** (`cache:check:<verzia>:<zdroj>:<IČO>` v Redise, TTL 6 h; médiá 2 h, Sociálna poisťovňa 12 h): registre sa
+  menia nanajvýš denne, takže opakované preverenie toho istého IČO – iným používateľom, návratom k firme, obnovením stránky – je okamžité
+  a nezaťažuje registre ani limity ich API (pripravené na tisíce preverení denne). Ukladajú sa len úspešné výsledky (nie chyby/manuálne);
+  spolu s nimi údaje profilu, ktoré zdroj doplnil (RPO identifikácia, DIČ z RÚZ…). Výsledok z pamäte je označený „· uložené“.
+  „Preveriť znova“ (`fresh=1`) pamäť obíde a obnoví; „Skúsiť znova“ pri zdroji zmaže len ten zdroj; spätné preverenie k dátumu pamäť nepoužíva.
+- **Oddelená funkcia prehliadača** `/api/browser/flow` (interný token): Chromium (~80 MB) sa pribaľuje len k nej, k AI agentovi a k diagnostike
+  (`outputFileTracingExcludes` pre ostatné). Hlavná funkcia preverenia ostáva malá → rýchly studený štart (pomalé „0 z 10“ po nasadení).
+- Registre bez API majú vlastný limit 55 s (prehliadač + hľadanie), ÚVO/diskvalifikácie čakajú na RPO, ostatné sa spúšťajú hneď; funkcia
+  preverenia 120 s. Pri neúspechu automatického dopytu sa pri manuálnej kontrole zobrazí dôvod („Automatický pokus: …“).
+- Finančná správa: zrozumiteľná chyba, keď sa zoznam prehľadáva len podľa názvu (ds_dsdd) a názov nie je známy (identifikácia v RPO zlyhala).

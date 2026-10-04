@@ -9,7 +9,7 @@ import { effectiveMode, getOrg } from "@/lib/orgs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export const GET = handler(async (req) => {
   const me = await requireUser();
@@ -31,6 +31,7 @@ export const GET = handler(async (req) => {
       return NextResponse.json({ error: "Rozhodný dátum musí byť platný dátum v minulosti." }, { status: 400 });
     asOf = asOfRaw;
   }
+  const fresh = new URL(req.url).searchParams.get("fresh") === "1";
   const ai = await getAiConfig().catch(() => null);
   const aiInfo = ai ? { available: true, auto: ai.auto, noApiSources: ai.noApiSources, provider: ai.provider } : { available: false };
 
@@ -42,7 +43,7 @@ export const GET = handler(async (req) => {
         const send = (o: unknown) => controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
         send({ type: "start", ico, scannedBy, orgName, ai: aiInfo });
         try {
-          const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }), { asOf });
+          const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }), { asOf, fresh });
           if (!report.notFound) await recordScan(orgId, { ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
           await audit({ type: "scan", by: me.email, orgId, ico, company: report.profile.name || (report.notFound ? "IČO nenájdené" : undefined), verdict: report.notFound ? "not_found" : report.verdict.level, score: report.verdict.score, scanId: report.scanId });
           send({ type: "done", report: { ...report, scannedBy, orgName, ai: aiInfo } });
@@ -55,7 +56,7 @@ export const GET = handler(async (req) => {
     return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" } });
   }
 
-  const report = await scan(ico, undefined, { asOf });
+  const report = await scan(ico, undefined, { asOf, fresh });
   if (!report.notFound) await recordScan(orgId, { ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
   await audit({
     type: "scan",

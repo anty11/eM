@@ -32,6 +32,8 @@ export interface CheckResult {
   checkedAt: string;
   durationMs: number;
   automated: boolean;
+  /** Výsledok z vyrovnávacej pamäte servera (čas uloženia) – registre sa menia nanajvýš denne, opakované preverenia ich nezaťažujú. */
+  cachedAt?: string;
   /** Vyplnené, ak výsledok pochádza zo záložného AI vyhľadávania. */
   ai?: {
     provider: string;
