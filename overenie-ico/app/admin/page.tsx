@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Header, { useMe } from "../components/Header";
 import AiSettings from "../components/AiSettings";
+import DiagPanel from "../components/DiagPanel";
 import OrdersPanel from "../components/OrdersPanel";
 import OrgsPanel, { type OrgPrefill, type OrgRow } from "../components/OrgsPanel";
 import { selectedOrg, setSelectedOrg } from "../components/org";
@@ -278,6 +279,8 @@ export default function AdminPage() {
         <OrdersPanel onCreateOrg={(o: Order) => setPrefill({ name: o.company, ico: o.ico, mode: o.plan === "rozsirene" ? "advokat" : "firma", seats: o.users, orderId: o.id })} />
 
         <AiSettings />
+
+        <DiagPanel />
 
         <section className="card">
           <h2>Protokol činností</h2>

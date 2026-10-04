@@ -341,3 +341,6 @@ textarea { width: 100%; min-height: 80px; }
   .refs .url { word-break: break-all; }
   .disclaimer { font-size: 7.5px; margin-top: 6px; line-height: 1.25; }
 }
+
+/* diagnostika zdrojov – výstup JSON */
+.diag-out { margin-top: 12px; max-height: 520px; overflow: auto; font-size: 12px; line-height: 1.45; background: var(--surface-2, #f6f5fa); border: 1px solid var(--line); border-radius: 8px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
