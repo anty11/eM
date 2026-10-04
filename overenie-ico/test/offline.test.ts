@@ -7,6 +7,7 @@ import { BAD, GOOD, calls, installMock } from "./mock";
 import { scan } from "../lib/scan";
 import { applyManual, computeVerdict } from "../lib/scoring";
 import { icoChecksumValid, normalizeIco } from "../lib/ico";
+import { missingFilingPeriods } from "../lib/sources/ruz";
 
 async function main() {
   installMock();
@@ -115,9 +116,17 @@ async function main() {
   assert.equal(v2.level, "not_recommended");
 
   console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
+
+  // Chýbajúce účtovné závierky – dve a viac období = dôvod na zrušenie súdom (§ 68b ods. 1 písm. c) ObZ)
+  assert.equal(missingFilingPeriods({ expected: 2025, latest: 2025, ageYears: 10 }), 0, "aktuálna závierka");
+  assert.equal(missingFilingPeriods({ expected: 2025, latest: 2024, ageYears: 10 }), 1, "chýba jedna – len upozornenie");
+  assert.equal(missingFilingPeriods({ expected: 2025, latest: 2023, ageYears: 10 }), 2, "dve po sebe – kritické");
+  assert.equal(missingFilingPeriods({ expected: 2025, latest: 0, firstPeriod: 2021, ageYears: 5 }), 5, "žiadna závierka od vzniku 2021");
+  assert.equal(missingFilingPeriods({ expected: 2025, latest: 0, firstPeriod: 2025, ageYears: 0.5 }), 1, "nová firma – jedno obdobie");
 }
 
 main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+

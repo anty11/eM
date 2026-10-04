@@ -143,8 +143,9 @@ Dáta výkazu sú plochý zoznam hodnôt. Počet stĺpcov na riadok udáva `poce
 | Situácia | Závažnosť | Body |
 |---|---|---|
 | Obchodná spoločnosť staršia ako 2 roky nie je v RÚZ | upozornenie | −12 |
-| Staršia ako 2 roky a nemá žiadnu riadnu závierku | upozornenie | −15 |
-| Posledná závierka je staršia ako očakávaná | upozornenie | −12 |
+| **Závierka chýba za 2 a viac po sebe idúcich období** (od poslednej uloženej, resp. od vzniku) – dôvod na zrušenie spoločnosti súdom podľa § 68b ods. 1 písm. c) ObZ | **kritické** | **−40** |
+| Staršia ako 2 roky a nemá žiadnu riadnu závierku (len 1 chýbajúce obdobie) | upozornenie | −15 |
+| Chýba len posledná očakávaná závierka | upozornenie | −12 |
 | **Záporné vlastné imanie** | kritická | −30 |
 | Spoločnosť v kríze podľa § 67a ObZ (vlastné imanie / záväzky < 0,08) | upozornenie | −18 |
 | Strata v poslednom roku | upozornenie | −5 |
@@ -368,7 +369,7 @@ Zobrazuje sa na začiatku výsledku a v PDF (`lib/keyfacts.ts`).
 
 | Otázka | Zdroj | Odpoveď |
 |---|---|---|
-| Podala účtovnú závierku / daňové priznanie? | RÚZ (rok, dátum uloženia), FS – daň z príjmov | Áno / Oneskorene / NIE; u firiem mladších ako 2 roky „zatiaľ nie“ |
+| Podala účtovnú závierku / daňové priznanie? | RÚZ (rok, dátum uloženia), FS – daň z príjmov | Áno / Oneskorene (chýba posledná) / NIE – chýba za 2+ období, dôvod na zrušenie súdom (§ 68b ObZ); u firiem mladších ako 2 roky „zatiaľ nie“ |
 | Je vedené konanie o zrušení, výmaze alebo likvidácii? | RPO (meno, právne skutočnosti, zánik), REPLIK | ÁNO / Nie / insolvenčné konanie / treba potvrdiť |
 | Typ spoločnosti | RPO | právna forma |
 | Vek spoločnosti | RPO | „X rokov Y mesiacov (vznik …)“; pod 1 rok = pozor |

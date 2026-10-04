@@ -32,6 +32,13 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
     const taxPart = dp.filed ? ` Daňové priznanie${dp.year ? ` za ${dp.year}` : ""} podané${dp.tax !== undefined && dp.tax !== null && dp.tax !== "" ? ` (daň ${dp.tax} €)` : ""}.` : "";
     let f: KeyFact;
     if (!ruz || ruz.status === "error") f = { id: "filed", question: "Podala účtovnú závierku / daňové priznanie?", answer: "Nepodarilo sa overiť – skontrolujte v RÚZ.", tone: "unknown" };
+    else if (rd.dissolutionRisk)
+      f = {
+        id: "filed",
+        question: "Podala účtovnú závierku / daňové priznanie?",
+        answer: `NIE – závierka chýba za ${rd.missingPeriods} po sebe idúce účtovné obdobia${rd.lastFiledYear ? ` (posledná za rok ${rd.lastFiledYear})` : ""}. Dve a viac období je dôvodom na zrušenie spoločnosti súdom (§ 68b ods. 1 písm. c) ObZ).${taxPart}`,
+        tone: "bad",
+      };
     else if (!rd.lastFiledYear) {
       const young = monthsSince(p.established) < 24;
       f = {
@@ -44,7 +51,7 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
       f = {
         id: "filed",
         question: "Podala účtovnú závierku / daňové priznanie?",
-        answer: `${rd.filedExpected ? "Áno" : "Oneskorene"} – posledná závierka za rok ${rd.lastFiledYear}${rd.lastFiledOn ? `, uložená ${d(rd.lastFiledOn)}` : ""}.${taxPart}`,
+        answer: `${rd.filedExpected ? "Áno" : "Oneskorene"} – posledná závierka za rok ${rd.lastFiledYear}${rd.lastFiledOn ? `, uložená ${d(rd.lastFiledOn)}` : ""}${!rd.filedExpected && rd.expectedYear ? `; chýba závierka za ${rd.expectedYear}` : ""}.${taxPart}`,
         tone: rd.filedExpected ? "good" : "warn",
       };
     f.source = "Register účtovných závierok" + (dp.filed ? ", Finančná správa" : "");

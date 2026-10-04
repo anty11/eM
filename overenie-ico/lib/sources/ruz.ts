@@ -88,6 +88,16 @@ async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Prom
 
 const eur = (n?: number) => (n === undefined ? "–" : `${Math.round(n).toLocaleString("sk-SK")} €`);
 
+/**
+ * Koľko po sebe idúcich účtovných období chýba v registri: od poslednej uloženej závierky po očakávané obdobie,
+ * resp. od prvého obdobia po vzniku spoločnosti, ak nie je uložená žiadna. Dve a viac = dôvod na zrušenie súdom (§ 68b ods. 1 písm. c) ObZ).
+ */
+export function missingFilingPeriods(o: { expected: number; latest: number; firstPeriod?: number; ageYears: number }): number {
+  if (o.latest) return Math.max(0, o.expected - o.latest);
+  if (o.firstPeriod) return Math.max(0, o.expected - o.firstPeriod + 1);
+  return o.ageYears > 2 ? 2 : 0;
+}
+
 export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
   return runCheck(
     {
@@ -154,9 +164,18 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       const expected = now.getFullYear() - (now.getMonth() >= 9 ? 1 : 2);
       const latest = Number(years[0] || 0);
       const age = ctx.profile.established ? (Date.now() - +new Date(ctx.profile.established)) / 31557600000 : 99;
-      if (!latest && age > 2) f.push({ severity: "warning", text: "Subjekt nemá uložené žiadne riadne účtovné závierky", penalty: 15 });
+      // Počet po sebe idúcich účtovných období, za ktoré závierka chýba (od poslednej uloženej, resp. od vzniku spoločnosti)
+      const firstPeriod = ctx.profile.established ? Number(ctx.profile.established.slice(0, 4)) : undefined;
+      const missingPeriods = missingFilingPeriods({ expected, latest, firstPeriod, ageYears: age });
+      if (missingPeriods >= 2 && age > 2)
+        f.push({
+          severity: "critical",
+          text: `Účtovná závierka nie je uložená za ${missingPeriods} po sebe idúce účtovné obdobia${latest ? ` (posledná za rok ${latest})` : " (žiadna závierka v registri)"} – nesplnenie povinnosti za dve a viac období je dôvodom na zrušenie spoločnosti súdom (§ 68b ods. 1 písm. c) Obchodného zákonníka)`,
+          penalty: 40,
+        });
+      else if (!latest && age > 2) f.push({ severity: "warning", text: "Subjekt nemá uložené žiadne riadne účtovné závierky", penalty: 15 });
       else if (latest && latest < expected && age > 2)
-        f.push({ severity: "warning", text: `Posledná uložená závierka je za rok ${latest} – chýbajú novšie (očakávaná aspoň za ${expected})`, penalty: 12 });
+        f.push({ severity: "warning", text: `Posledná uložená závierka je za rok ${latest} – chýba závierka za ${expected}`, penalty: 12 });
 
       const [c, p] = metrics;
       if (c) {
@@ -192,6 +211,8 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
           lastFiledYear: latest || undefined,
           lastFiledOn: full[0]?.datumPodania,
           filedExpected: latest >= expected,
+          missingPeriods,
+          dissolutionRisk: missingPeriods >= 2 && age > 2,
         },
       };
     },
