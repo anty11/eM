@@ -50,7 +50,7 @@ async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: n
  * Skriptovaný dopyt cez prehliadač na serveri. Na nasadení ide cez oddelenú funkciu /api/browser/flow (jediná s pribaleným Chromiom),
  * lokálne a v testoch priamo. Chyby sa vracajú ako výsledok „unknown“ s popisom.
  */
-async function browserFlow(source: "union", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult> {
+export async function browserFlow(source: "union" | "ov", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult> {
   const origin = selfOrigin();
   const t0 = Date.now();
   try {
@@ -425,6 +425,31 @@ function amountIn(rows: string[]): string | undefined {
  * Pokus o automatické overenie registra bez API. Vráti výsledok kontroly, alebo null, keď odpoveď registra nebola jednoznačná
  * (vtedy ostáva pôvodná manuálna kontrola). `diag` = výňatky odpovedí pre diagnostiku (len na /api/diag).
  */
+/** Obchodný vestník cez prehliadač (keď import vydaní nie je zapnutý): skriptované vyhľadanie podľa IČO a roztriedenie oznámení. */
+export async function checkOvViaBrowser(ctx: Ctx): Promise<CheckResult | null> {
+  if (process.env.BROWSER_DISABLED === "1") return null;
+  const def = MANUAL.find((m) => m.id === "ov")!;
+  const t0 = Date.now();
+  const r = await browserFlow("ov", ctx.ico);
+  if (r.verdict === "unknown") throw new Error(r.error || "výsledok sa nedal vyhodnotiť");
+  const f: Finding[] = r.verdict === "found" ? [{ severity: def.severityIfFound, text: `${def.name}: ${r.rows.slice(0, 3).join("; ")}`, penalty: def.penaltyIfFound }] : [];
+  return {
+    id: def.id,
+    category: def.category,
+    name: def.name,
+    source: def.source,
+    sourceUrl: def.sourceUrl,
+    verifyUrl: r.url || def.verifyUrl(ctx.ico, ctx.profile.name),
+    status: r.verdict === "found" ? (def.severityIfFound === "critical" ? "critical" : "warning") : "ok",
+    summary: r.verdict === "found" ? `Negatívne oznámenia za posledné 3 roky: ${r.rows.slice(0, 3).join("; ")}` : `Bez negatívneho oznámenia za posledné 3 roky (vyhľadané podľa IČO priamo vo Vestníku; ${r.evidence || ""}).`,
+    findings: f,
+    data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: r.rows, queriedUrl: r.url, via: "browser" },
+    checkedAt: new Date().toISOString(),
+    durationMs: Date.now() - t0,
+    automated: true,
+  };
+}
+
 export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: boolean } = {}): Promise<{ check: CheckResult | null; outcome: ProbeOutcome }> {
   const def = MANUAL.find((m) => m.id === id);
   const { attempts, needles } = attemptsFor(id, ctx);

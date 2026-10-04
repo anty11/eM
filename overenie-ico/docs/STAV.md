@@ -276,3 +276,14 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   vylúčenie zo stopovania odstránilo aj závislosti (`tar-fs` → „Cannot find package 'tar-fs'“); namiesto toho funkcia preverenia kód
   prehliadača vôbec neimportuje (volá `/api/browser/flow` cez HTTP, lokálne `SELF_ORIGIN`) a Chromium so závislosťami sa stopuje len
   do troch funkcií prehliadača (overené v stope zostavenia).
+
+## v2.4.0 – 4. 10. 2026 – agent potvrdený naživo (Obchodný vestník), rýchlejší agent, OV skriptom bez AI
+
+- **Prvé živé overenie agentom**: OpenAI gpt-5.5 cez prehliadač prešiel Obchodným vestníkom (11 krokov, ~60 s) – vyhľadal IČO Slovnaftu
+  s dátumom od 3 rokov, prečítal tabuľku (len podania OR) → „bez záznamu“ s citátmi z výsledkovej tabuľky; serverová kontrola prešla.
+- **Úvod bez AI (`searchPrelude`)**: server pred prvým volaním modelu sám prijme cookies, nájde pole IČO, vyplní ho, nastaví dátum „od“
+  a odošle; model dostane rovno snímku výsledku a spravidla rozhodne bez jediného kroku (test: 0 krokov) – namiesto ~60 s okolo 10 – 15 s.
+  Model môže zreťaziť viac akcií v jednej odpovedi. Záznam krokov obsahuje aj kroky servera.
+- **Obchodný vestník bez AI**: skriptovaný dopyt cez prehliadač (`ovFlow`) pri každom preverení, keď import vydaní nie je zapnutý –
+  oznámenia sa triedia ako pri importe XML (`classifyNotice`); negatívne = záznam, len podania OR / závierky = bez záznamu; viac strán = AI/manuálne.
+  Diagnostika: zdroj „Obchodný vestník cez prehliadač“.

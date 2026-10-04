@@ -21,7 +21,7 @@ const page = (q: URLSearchParams) => {
       ? `<p class="msg">Nenašli sa žiadne záznamy.</p>`
       : `<table><tr><th>Obchodné meno</th><th>IČO</th><th>Pohľadávka</th></tr><tr><td>Dlžník s.r.o.</td><td>${ico}</td><td>1 234,00 €</td></tr></table>`;
   return `<!doctype html><html lang="sk"><head><title>Zoznam dlžníkov – test</title></head><body>
-  <div id="cookie"><p>Používame cookies.</p><button onclick="document.getElementById('cookie').remove()">Súhlasím</button></div>
+  ${ico ? "" : `<div id="cookie"><p>Používame cookies.</p><button onclick="document.getElementById('cookie').remove()">Súhlasím</button></div>`}
   <main><h1>Zoznam dlžníkov</h1>
   <form method="get" action="/reg">
     <label for="typ">Typ platiteľa</label><select id="typ" name="typ"><option value="1">Zamestnávatelia</option><option value="2">SZČO</option></select>
@@ -70,7 +70,10 @@ function mockLlm(ico: string, startUrl: string) {
       const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
       const lastUse = lastAssistant?.content?.find((b: any) => b.type === "tool_use");
       const lastResult = msgs[msgs.length - 1]?.content?.find?.((b: any) => b.type === "tool_result");
-      const step = policy(lastUse?.name || null, String(lastResult?.content || ""), ico, startUrl);
+      const firstUser = typeof msgs[0]?.content === "string" ? msgs[0].content : "";
+      // úvod servera (prelude): ak prvá správa už obsahuje odoslaný formulár s výsledkom, model rozhodne bez akcie
+      const snapPart = firstUser.split("Aktuálna snímka stránky:")[1] || "";
+      const step = !lastUse && /formulár je odoslaný/.test(firstUser) ? policy("click", snapPart, ico, startUrl) : policy(lastUse?.name || null, String(lastResult?.content || ""), ico, startUrl);
       if (step.tool) return reply({ stop_reason: "tool_use", content: [{ type: "tool_use", id: `tu_${++n}`, name: step.tool.name, input: step.tool.args }], usage: { input_tokens: 100, output_tokens: 20 } });
       return reply({ stop_reason: "end_turn", content: [{ type: "text", text: step.final }], usage: { input_tokens: 100, output_tokens: 50 } });
     }
@@ -167,6 +170,21 @@ async function main() {
     llm.close();
   }
   console.log("OK – agent s prehliadačom (Claude aj OpenAI tvar API, bez záznamu / nájdený, kontrola tvrdení).");
+
+  // 2b) Úvod bez AI (prelude): server sám vyplní IČO a odošle – model dostane výsledok a rozhodne bez jediného kroku
+  {
+    const llm = mockLlm("31322832", startUrl);
+    await new Promise<void>((r) => llm.listen(0, "127.0.0.1", r));
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+    const cfg = { provider: "anthropic" as const, model: "m", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env" as const };
+    const r = await runBrowserAgent(cfg, { user: "Over IČO 31322832.", allowedHosts: ["127.0.0.1"], timeoutMs: 60000, prelude: { url: startUrl, ico: "31322832" } });
+    assert.ok(r.searched, "prelude odoslal formulár");
+    assert.equal(r.steps, 0, `model nepotreboval žiadny krok (${r.steps})`);
+    assert.ok(r.text.includes('"result":"clean"'));
+    assert.ok(r.log.some((l) => l.action.startsWith("fill")) && r.log.some((l) => l.action.startsWith("click")), "záznam obsahuje vyplnenie a odoslanie serverom");
+    llm.close();
+    console.log("OK – úvod bez AI (server vyplnil a odoslal formulár, model len prečítal výsledok).");
+  }
 
   // 3) Zapojenie do aiCheck (VšZP spec s prehliadačom) – doména testovacieho registra sa dočasne povolí
   const llm = mockLlm("12345678", startUrl);

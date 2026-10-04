@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
 import { judge } from "../lib/sources/public";
-import { judgeUnion } from "../lib/browser/flows";
+import { judgeOv, judgeUnion } from "../lib/browser/flows";
 import type { Ctx } from "../lib/types";
 
 async function main() {
@@ -99,4 +99,17 @@ main().catch((e) => { console.error(e); process.exit(1); });
   const initial = judgeUnion({ ...snapBase, text: "Zadajte priezvisko, IČO … 1–10 z 81934", tables: [[head, ["GUMAN KRISTIÁN", "", "408.91", "Neodkladná", "Sačurov", "Námietka"]]] }, "31322832");
   assert.equal(initial.verdict, "unknown");
   console.log("OK – Union cez prehliadač (skript).");
+
+  // Obchodný vestník cez prehliadač: tabuľka zverejnených formulárov → triedenie oznámení
+  const ovHead = ["#", "Typ podania", "Dátum", "Kapitola", "Subjekt", "Číslo OV"];
+  const ovBase = { url: "https://obchodnyvestnik.justice.gov.sk/x", title: "OV", elements: [], truncated: false, text: "Dátum zverejnenia: od 04.10.2023 do 04.10.2026; IČO: 31322832" };
+  const ovClean = judgeOv({ ...ovBase, tables: [[ovHead, ["1", "Podanie Obchodného registra", "13.07.2026", "Obchodný register", "SLOVNAFT, a.s.", "133/2026"], ["2", "Účtovná závierka", "24.06.2024", "Účtovné závierky", "SLOVNAFT, a.s.", "121/2024"]]] }, "31322832");
+  assert.equal(ovClean.verdict, "clean");
+  const ovFound = judgeOv({ ...ovBase, tables: [[ovHead, ["1", "Oznámenie o vstupe do likvidácie", "01.02.2025", "Likvidácie", "Firma s.r.o.", "22/2025"], ["2", "Podanie Obchodného registra", "13.07.2026", "Obchodný register", "Firma s.r.o.", "133/2026"]]] }, "11111111");
+  assert.equal(ovFound.verdict, "found");
+  assert.ok(ovFound.rows[0].startsWith("likvidácia:"));
+  const ovEmpty = judgeOv({ ...ovBase, text: "IČO: 31322832 – Neboli nájdené žiadne záznamy.", tables: [] }, "31322832");
+  assert.equal(ovEmpty.verdict, "clean");
+  assert.equal(judgeOv({ ...ovBase, text: "úvodná stránka", tables: [] }, "31322832").verdict, "unknown");
+  console.log("OK – Obchodný vestník cez prehliadač (triedenie oznámení).");
 }

@@ -22,6 +22,7 @@ const SOURCES = [
   { id: "cre", label: "CRE – dostupnosť" },
   { id: "dovera", label: "Dôvera – dostupnosť (len informatívne)" },
   { id: "browser", label: "Prehliadač na serveri (agent AI) – spustenie a vstupné stránky registrov" },
+  { id: "ov-browser", label: "Obchodný vestník cez prehliadač (skript bez AI)" },
 ];
 
 /**

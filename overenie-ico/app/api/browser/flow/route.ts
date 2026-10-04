@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { unionFlow } from "@/lib/browser/flows";
+import { ovFlow, unionFlow } from "@/lib/browser/flows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const ico = String(body.ico || "").replace(/\D/g, "");
   if (!/^\d{6,8}$/.test(ico)) return NextResponse.json({ error: "bad ico" }, { status: 400 });
-  if (body.source !== "union") return NextResponse.json({ error: "unknown source" }, { status: 400 });
-  const r = await unionFlow(ico, { diag: Boolean(body.diag) });
+  if (body.source !== "union" && body.source !== "ov") return NextResponse.json({ error: "unknown source" }, { status: 400 });
+  const r = body.source === "ov" ? await ovFlow(ico, { diag: Boolean(body.diag) }) : await unionFlow(ico, { diag: Boolean(body.diag) });
   return NextResponse.json(r);
 }

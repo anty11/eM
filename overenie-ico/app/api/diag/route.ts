@@ -94,6 +94,12 @@ export const GET = handler(async (req) => {
       }
       return NextResponse.json({ ...result, ms: Date.now() - t0 });
     }
+    // 0b) Obchodný vestník cez prehliadač (skript): vyplnenie IČO + dátum od, odoslanie, roztriedenie tabuľky
+    if (source === "ov-browser") {
+      const { ovFlow } = await import("@/lib/browser/flows");
+      const r = await ovFlow(ico, { diag: true });
+      return NextResponse.json({ ...result, browserFlow: r, ms: Date.now() - t0 });
+    }
     // 1) registre bez API – všetky pokusy s formulármi, skriptmi a surovým HTML
     if ((PUBLIC_QUERY_IDS as readonly string[]).includes(source)) {
       const ctx: Ctx = { ico, profile: { ico, statutory: names.map((n) => ({ name: n, role: "štatutár" })) } as any };

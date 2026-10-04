@@ -350,7 +350,7 @@ export default function Page() {
           </div>
         )}
         {c.ai.trace && c.ai.trace.length > 0 && (
-          <details className="ai-trace no-print">
+          <details className="ai-trace no-print" open={c.status === "manual"}>
             <summary>Kroky agenta v registri</summary>
             <ol>{c.ai.trace.map((t, i) => <li key={i}>{t}</li>)}</ol>
           </details>

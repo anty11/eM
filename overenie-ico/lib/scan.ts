@@ -5,7 +5,7 @@ import { checkIds, checkIncomeTax, checkTaxDebtors, checkVat } from "./sources/f
 import { checkInsolvency } from "./sources/insolvency";
 import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
-import { PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
+import { checkOvViaBrowser, PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
 import { kv } from "./auth/kv";
 import { checkNews } from "./sources/news";
 import { checkRpo } from "./sources/rpo";
@@ -15,7 +15,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.3.1";
+export const APP_VERSION = "2.4.0";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -196,7 +196,16 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
         }
         let auto: CheckResult | null = null;
         if (m.id === "diskv" || m.id === "uvo") await ctx.rpoDone; // mená štatutárov (diskvalifikácie), obchodné meno (ÚVO)
-        if (m.id === "ov") auto = await checkOv(ctx);
+        if (m.id === "ov") {
+          auto = await checkOv(ctx);
+          if (!auto) {
+            try {
+              auto = await checkOvViaBrowser(ctx);
+            } catch (e) {
+              m.data = { ...(m.data || {}), autoNote: `prehliadač: ${(e as Error).message.slice(0, 200)}` };
+            }
+          }
+        }
         else if ((PUBLIC_QUERY_IDS as readonly string[]).includes(m.id)) {
           const r = await queryPublicRegister(m.id, ctx);
           auto = r.check;
