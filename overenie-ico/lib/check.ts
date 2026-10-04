@@ -27,6 +27,7 @@ export async function runCheck(meta: CheckMeta, fn: () => Promise<CheckBody>): P
       status: "error",
       summary: `Zdroj sa nepodarilo overiť: ${(e as Error).message}. Overte manuálne.`,
       findings: [{ severity: "warning", text: `${meta.name}: overenie zlyhalo – potrebné manuálne overenie`, penalty: 0 }],
+      verifyUrl: meta.sourceUrl,
       checkedAt,
       durationMs: Date.now() - t0,
     };

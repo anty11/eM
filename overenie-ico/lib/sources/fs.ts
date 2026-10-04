@@ -23,6 +23,24 @@ const hdr = () => ({ key: key() as string });
  * Zistí dostupné zoznamy. Podľa špecifikácie API vracia /lists OBJEKT { slug: { name, slug, url, update_date, searchable[] } }.
  * Ak API zmení slugy, vyberieme zoznamy podľa názvu.
  */
+/**
+ * Prehľadávateľné stĺpce zo záznamu zoznamu – API ich uvádza pod rôznymi kľúčmi (searchable, searchable_columns, columns[].searchable…).
+ */
+function searchableOf(x: any): string[] {
+  if (!x || typeof x !== "object") return [];
+  for (const k of ["searchable", "searchable_columns", "searchableColumns", "search_columns", "searchColumns"]) {
+    const v = x[k];
+    if (Array.isArray(v) && v.length) return v.map((c: any) => (typeof c === "string" ? c : String(c?.name || c?.column || c?.id || ""))).filter(Boolean);
+    if (v && typeof v === "object") return Object.keys(v).filter((c) => v[c]);
+  }
+  const cols = x.columns || x.fields || x.schema;
+  if (Array.isArray(cols)) {
+    const s = cols.filter((c: any) => c && typeof c === "object" && (c.searchable === true || c.searchable === "true" || c.search === true)).map((c: any) => String(c.name || c.column || c.id || ""));
+    if (s.length) return s.filter(Boolean);
+  }
+  return [];
+}
+
 async function lists(): Promise<Ds[]> {
   return cached("fs-lists", 6 * 3600e3, async () => {
     const raw = await getJson<any>(`${API}/lists`, { headers: hdr() });
@@ -31,7 +49,7 @@ async function lists(): Promise<Ds[]> {
       .map((x) => ({
         slug: String(x.slug || x.id || ""),
         name: String(x.name || x.title || x.description || x.slug || ""),
-        searchable: Array.isArray(x.searchable) ? x.searchable.map(String) : [],
+        searchable: searchableOf(x),
       }))
       .filter((x) => x.slug);
   });
@@ -78,9 +96,9 @@ function rowsOf(raw: any): any[] | null {
 async function listDetail(slug: string): Promise<Ds | null> {
   return cached(`fs-list-${slug}`, 6 * 3600e3, async () => {
     const x = await getJson<any>(`${API}/lists/${slug}`, { headers: hdr() }).catch(() => null);
-    const d = x?.[slug] && typeof x[slug] === "object" ? x[slug] : x;
+    const d = x?.[slug] && typeof x[slug] === "object" ? x[slug] : x?.data && typeof x.data === "object" && !Array.isArray(x.data) ? x.data : x;
     if (!d) return null;
-    return { slug, name: String(d.name || slug), searchable: Array.isArray(d.searchable) ? d.searchable.map(String) : [] };
+    return { slug, name: String(d.name || slug), searchable: searchableOf(d), keys: Object.keys(d).slice(0, 20) } as Ds & { keys?: string[] };
   });
 }
 
@@ -115,8 +133,8 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
     tries.sort((x, y) => order.indexOf(x[2]) - order.indexOf(y[2]));
   }
   if (!tries.length) {
-    // bez informácie o stĺpcoch: bežné názvy stĺpcov v OpenData FS (napr. ico, dic, nazov_subjektu)
-    const guess: [string, string][] = [["ico", "ico"], ["dic", "dic"], ["ic_dph", "ic_dph"], ["nazov_subjektu", "name"], ["nazov", "name"]];
+    // bez informácie o stĺpcoch: bežné názvy stĺpcov v OpenData FS (rôzne zoznamy používajú rôzne varianty)
+    const guess: [string, string][] = [["ico", "ico"], ["ICO", "ico"], ["ico_subjektu", "ico"], ["dic", "dic"], ["DIC", "dic"], ["ic_dph", "ic_dph"], ["icdph", "ic_dph"], ["IC_DPH", "ic_dph"], ["nazov_subjektu", "name"], ["nazov", "name"], ["obchodne_meno", "name"]];
     tries = guess.filter(([, k]) => values[k]).map(([c, k]) => [c, values[k]!, k]);
   }
 
@@ -153,10 +171,12 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
       errors.push(`${col}: ${(e as Error).message}`);
     }
   }
-  if (!answered)
+  if (!answered) {
+    const keys = (ds as any)?.keys as string[] | undefined;
     throw new Error(
-      `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : " (API neuviedlo prehľadávateľné stĺpce)"} – ${errors.join(" | ") || "neznámy formát"}`,
+      `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : ` (API neuviedlo prehľadávateľné stĺpce${keys?.length ? `; detail zoznamu obsahuje polia: ${keys.join(", ")}` : ""})`} – ${errors.slice(0, 3).join(" | ") || "neznámy formát"}`,
     );
+  }
   return [];
 }
 

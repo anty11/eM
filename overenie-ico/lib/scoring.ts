@@ -31,10 +31,22 @@ export function applyManual(checks: CheckResult[], answers: ManualAnswers): Chec
  * @param opts.ignore ID kontrol, ktoré sa nezapočítavajú do „čakajúcich“ (vo verzii Firma sa neverejné registre
  * len odporúčajú, verdikt pre ne neostáva predbežný).
  */
+/** Strop pre súčet upozornení – samotné upozornenia (bez kritického nálezu) nikdy nedajú „Neodporúčame“, najviac „S výhradou“. */
+export const WARNING_CAP = 40;
+/** Strop pre pozitívne body (bonus najviac +10). */
+export const POSITIVE_CAP = 10;
+
+/**
+ * Skóre = 100 − kritické nálezy − upozornenia (spolu najviac WARNING_CAP) + pozitíva (najviac POSITIVE_CAP).
+ * Kritický nález (daňový dlžník, dlh v SP, konkurz / likvidácia / zrušenie, záporné imanie, chýbajúce závierky za 2+ obdobia,
+ * dôvody na zrušenie registrácie DPH) znamená „Neodporúčame“ vždy; upozornenia bez kritického nálezu najviac „S výhradou“.
+ */
 export function computeVerdict(checks: CheckResult[], opts: { ignore?: string[] } = {}): Verdict {
   const findings = checks.flatMap((c) => c.findings);
-  const penalty = findings.reduce((s, f) => s + f.penalty, 0);
-  const score = Math.max(0, Math.min(100, Math.round(100 - penalty)));
+  const critical = findings.filter((f) => f.severity === "critical").reduce((s, f) => s + Math.max(0, f.penalty), 0);
+  const warnings = Math.min(WARNING_CAP, findings.filter((f) => f.severity === "warning").reduce((s, f) => s + Math.max(0, f.penalty), 0));
+  const bonus = Math.min(POSITIVE_CAP, findings.filter((f) => f.severity === "positive").reduce((s, f) => s + Math.max(0, -f.penalty), 0));
+  const score = Math.max(0, Math.min(100, Math.round(100 - critical - warnings + bonus)));
   const hasCritical = findings.some((f) => f.severity === "critical");
   const pendingManual = checks.filter((c) => (c.status === "manual" || c.status === "error") && !opts.ignore?.includes(c.id)).length;
 

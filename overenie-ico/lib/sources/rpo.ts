@@ -11,6 +11,31 @@ const current = <T extends Valid>(arr?: T[]): T[] => (arr || []).filter((x) => !
 const validAt = <T extends Valid>(arr: T[] | undefined, day: string): T[] => (arr || []).filter((x) => (!x.validFrom || x.validFrom <= day) && (!x.validTo || x.validTo > day));
 const yearsSince = (d?: string) => (d ? (Date.now() - new Date(d).getTime()) / (365.25 * 864e5) : NaN);
 
+/**
+ * Zaradenie právnej skutočnosti z registra.
+ *  - dissolution: zrušenie / výmaz / likvidácia samotnej spoločnosti (kritické)
+ *  - merger: zlúčenie, splynutie, rozdelenie – spoločnosť je právny nástupca; zápis spomína zrušenie ZANIKAJÚCEJ spoločnosti bez likvidácie,
+ *    čo pre nástupcu nie je riziko (bežné pri veľkých a. s.) – len informácia
+ *  - proceeding: konkurz, exekúcia, reštrukturalizácia v zápise (upozornenie)
+ *  - pledge: záložné právo na podiel / akcie – bežný spôsob financovania, len informácia
+ */
+export function classifyLegalFact(text: string): "dissolution" | "merger" | "proceeding" | "pledge" | null {
+  const t = fold(text);
+  if (/zrusuje sa .*(prokur|konate)|zanik .*(prokur|funkci)/.test(t)) return null;
+  const merger = /zluc|splynut|rozdelen|nastupnic|preber[aá] .*iman|prevzat.* iman|zanikajuc|zmluv[ay] o zluceni|projekt zlucenia|projekt rozdelenia/.test(t);
+  const selfDissolution = /spolocnost (sa )?zrusuje|zrusen[ia]e? spolocnosti|rozhodnut\S* o zruseni|vstup\S* do likvidacie|v likvidacii|vstupuje do likvidacie|likvidator|likvidacia spolocnosti|sud .*zrus|konani\S* o zruseni|zacat\S* konani\S* o zruseni|vymaz\S* (z obchodneho registra|spolocnosti)|navrh na vymaz|zrusena bez pravneho nastupcu/.test(t);
+  if (selfDissolution && !merger) return "dissolution";
+  if (merger) {
+    // zlúčenie, pri ktorom je táto spoločnosť zanikajúca: „spoločnosť zaniká zlúčením“ / „bola zrušená ... a zanikla“
+    if (/(tato |spolocnost )?zanik[aá] zlucenim|zanikla zlucenim|zanikla splynutim|zanikla rozdelenim|zanikla bez likvidacie/.test(t) && !/nastupnic\S* spolocnost\S* [^.]*(preber|prevz)/.test(t)) return "dissolution";
+    return "merger";
+  }
+  if (selfDissolution) return "dissolution";
+  if (/zalozn/.test(t)) return "pledge";
+  if (/konkurz|exek[uú]|restrukt/.test(t)) return "proceeding";
+  return null;
+}
+
 function fmtAddress(a: any): string {
   if (!a) return "";
   const street = [a.street, [a.regNumber || null, a.buildingNumber].filter(Boolean).join("/")].filter(Boolean).join(" ");
@@ -34,7 +59,10 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       sourceUrl: "https://rpo.statistics.sk",
     },
     async () => {
-      const search = await getJson<{ results?: any[] }>(`${BASE}/search?identifier=${ctx.ico}`);
+      // RPO občas odpovedá pomaly – jeden opakovaný pokus s kratším limitom
+      const search = await getJson<{ results?: any[] }>(`${BASE}/search?identifier=${ctx.ico}`, { timeoutMs: 11000 }).catch(() =>
+        getJson<{ results?: any[] }>(`${BASE}/search?identifier=${ctx.ico}`, { timeoutMs: 11000 }),
+      );
       const hit = search.results?.[0];
       if (!hit) {
         ctx.profile.notFound = true;
@@ -116,13 +144,17 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       if (lname.includes("v konkurze")) f.push({ severity: "critical", text: "Spoločnosť je v konkurze", penalty: 90 });
       if (lname.includes("v restrukturalizacii")) f.push({ severity: "critical", text: "Spoločnosť je v reštrukturalizácii", penalty: 50 });
 
-      // Právne skutočnosti (napr. zrušenie, výzva súdu, exekúcia na obchodný podiel)
+      // Právne skutočnosti (zrušenie, výzva súdu, exekúcia na obchodný podiel, zlúčenia, záložné práva)
       const facts: string[] = (e.otherLegalFacts || []).filter((x: any) => !x.validTo).map((x: any) => String(x.value || ""));
-      const dissolution = facts.filter((t) => /zru[sš]en|v[yý]maz|likvid/i.test(t) && !/zru[sš]uje sa .*(prokur|konate)/i.test(t));
-      for (const t of dissolution.slice(0, 2))
-        f.push({ severity: "critical", text: `Konanie o zrušení / výmaze / likvidácii – zápis v registri: ${t.slice(0, 220)}`, penalty: 60 });
-      const otherHits = facts.filter((t) => !dissolution.includes(t) && /konkurz|exek[uú]|z[aá]lo[zž]n|re[sš]trukt/i.test(t));
-      for (const t of otherHits.slice(0, 3)) f.push({ severity: "warning", text: `Právna skutočnosť v registri: ${t.slice(0, 220)}`, penalty: 10 });
+      const byKind = (k: ReturnType<typeof classifyLegalFact>) => facts.filter((t) => classifyLegalFact(t) === k);
+      const dissolution = byKind("dissolution");
+      // kritický postih len raz – ďalšie zápisy o tom istom sa nesčítavajú
+      dissolution.slice(0, 2).forEach((t, i) => f.push({ severity: "critical", text: `Konanie o zrušení / výmaze / likvidácii – zápis v registri: ${t.slice(0, 220)}`, penalty: i === 0 ? 60 : 0 }));
+      const mergers = byKind("merger");
+      if (mergers.length) f.push({ severity: "info", text: `Zlúčenie / splynutie / rozdelenie v registri (${mergers.length}×) – spoločnosť je právnym nástupcom: ${mergers[0].slice(0, 160)}…`, penalty: 0 });
+      byKind("proceeding").slice(0, 2).forEach((t, i) => f.push({ severity: "warning", text: `Právna skutočnosť v registri: ${t.slice(0, 220)}`, penalty: i === 0 ? 10 : 5 }));
+      const pledges = byKind("pledge");
+      if (pledges.length) f.push({ severity: "info", text: `Záložné právo na obchodný podiel / akcie v registri (${pledges.length}×) – bežné pri financovaní, overte pri významnom obchode`, penalty: 0 });
 
       const age = yearsSince(e.establishment);
       if (age < 1) f.push({ severity: "warning", text: `Veľmi krátka história – subjekt vznikol ${e.establishment} (menej ako 1 rok)`, penalty: 15 });
@@ -135,15 +167,17 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       if (seatChanges >= 3) f.push({ severity: "warning", text: `Časté zmeny sídla – ${seatChanges}× za posledné 3 roky`, penalty: 10 });
       const nameChanges = recent(e.fullNames, 3);
       if (nameChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny obchodného mena – ${nameChanges}× za posledné 3 roky`, penalty: 6 });
+      // Pri veľkých orgánoch (predstavenstvo a. s.) sú jednotlivé zmeny členov bežné – hodnotí sa až výmena väčšiny orgánu
       const statChanges = recent(e.statutoryBodies, 2);
-      if (statChanges >= 3) f.push({ severity: "warning", text: `Časté zmeny štatutárov – ${statChanges} zmien za posledné 2 roky`, penalty: 8 });
+      if (statChanges >= Math.max(3, Math.ceil(statutory.length * 0.6))) f.push({ severity: "warning", text: `Časté zmeny štatutárov – ${statChanges} zmien za posledné 2 roky`, penalty: 8 });
       // Indikátor (iv) SKDP 03/2024: časté zmeny vlastníkov a zmena vlastníka alebo štatutára tesne pred obchodom
       const ownerChanges = recent(ownerRows, 2);
       if (ownerChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny spoločníkov – ${ownerChanges} zmien za posledné 2 roky (indikátor iv)`, penalty: 8 });
       const daysAgo = (d?: string) => (d ? Math.floor((Date.now() - +new Date(d)) / 86400000) : Infinity);
       const recentOwner = Math.min(...ownerRows.filter((x: any) => x.validFrom !== e.establishment).flatMap((x: any) => [daysAgo(x.validFrom), daysAgo(x.validTo)]));
       const recentStat = Math.min(...(e.statutoryBodies || []).filter((x: any) => x.validFrom !== e.establishment).flatMap((x: any) => [daysAgo(x.validFrom), daysAgo(x.validTo)]));
-      const recentChange = Math.min(recentOwner, recentStat);
+      // zmena jedného člena z väčšieho orgánu nie je indikátor – pri orgáne nad 3 členov sa sleduje len zmena vlastníka
+      const recentChange = statutory.length > 3 ? recentOwner : Math.min(recentOwner, recentStat);
       if (recentChange <= 180 && age >= 1)
         f.push({
           severity: "warning",

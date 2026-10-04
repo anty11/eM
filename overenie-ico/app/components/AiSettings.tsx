@@ -75,6 +75,12 @@ export default function AiSettings() {
         Keď register nie je dostupný cez API (výpadok, zmena formátu) alebo API vôbec nemá, AI ho vyhľadá priamo na oficiálnej stránke registra.
         Každý výsledok AI musí mať odkaz na oficiálny zdroj, inak ostane na manuálne overenie. Výsledky sú v protokole označené „Overené AI“.
       </p>
+      <p className="hint" style={{ marginTop: 0 }}>
+        <b>Obmedzenie:</b> väčšina slovenských registrov sú vyhľadávacie formuláre, ktoré vyhľadávače neindexujú. AI preto musí stránku s výsledkom pre dané IČO
+        otvoriť priamo – to vie Claude (nástroj na otvorenie stránky), OpenAI má len webové vyhľadávanie a pri týchto registroch zväčša skončí „nevedela overiť“.
+        Pre registre bez verejného výsledku podľa IČO (RPO v novom rozhraní, REPLIK, zoznamy Finančnej správy) je spoľahlivejšie priame API; AI berte ako poslednú možnosť.
+        Jedno overenie trvá 30 – 90 s.
+      </p>
       <p>
         Stav:{" "}
         {st.configured ? (

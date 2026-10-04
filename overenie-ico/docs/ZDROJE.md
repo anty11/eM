@@ -448,3 +448,19 @@ blok „Stav k rozhodnému dátumu“ uvádza, čo bolo z registrov zistiteľné
 | REPLIK | čiastočne (rok zo spisovej značky) | konania začaté pred rokom dátumu / v tom roku (overiť) / po ňom |
 | Médiá | áno (dátum článku) | počet článkov a negatívnych správ pred dátumom |
 | FS, SP | nie | výslovne „k dátumu neoveriteľné – dnešný stav“ |
+
+
+## Hodnotenie – stropy (v2.0.1)
+
+Skóre = 100 − kritické nálezy − upozornenia (spolu najviac **40**) + pozitíva (najviac **+10**). Kritický nález (daňový dlžník, dlh v SP,
+konkurz / likvidácia / zrušenie, záporné imanie, chýbajúce závierky za 2+ obdobia, dôvody na zrušenie registrácie DPH) = „Neodporúčame“ vždy;
+upozornenia bez kritického nálezu dajú najviac „S výhradou“. Dôvod: pri veľkých a. s. sa sčítavali rutinné upozornenia (zmeny členov predstavenstva,
+záložné práva, zlúčenia) na skóre 0.
+
+Právne skutočnosti z RPO (`classifyLegalFact`): **zrušenie / výmaz / likvidácia samotnej spoločnosti** = kritické (−60, počíta sa raz);
+**zlúčenie / splynutie / rozdelenie**, pri ktorom je spoločnosť právnym nástupcom (zápis spomína zrušenie *zanikajúcej* spoločnosti bez likvidácie),
+= len informácia; **konkurz / exekúcia / reštrukturalizácia** v zápise = upozornenie (−10, druhé −5); **záložné právo** na podiel / akcie = informácia.
+Zmeny štatutárov: pri orgáne nad 3 členov sa jednotlivé zmeny nehodnotia (až výmena väčšiny orgánu); indikátor „zmena tesne pred obchodom“ sleduje pri
+veľkom orgáne len zmenu vlastníka.
+
+Živý test proti registrom (mimo `npm test`, vyžaduje sieť): `npx tsx test/_live.ts <IČO>`.

@@ -182,3 +182,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Pri čistej inštalácii sa nič nevytvára. Správcovia platformy ostávajú bez firmy.
 - Kód: `lib/orgs.ts`, `lib/auth/{users,guard}.ts`, `lib/{companies,contacts,audit,seal}.ts`, `app/api/admin/orgs`, `app/api/admin/users`,
   `app/components/{OrgsPanel,org,Header}.tsx`, `app/admin/page.tsx`. Testy: `test/orgs.test.ts` (oddelenie a prechod), aktualizované auth/companies/seal.
+- **v2.0.1** – hodnotenie: strop upozornení 40 a bonusu +10 (upozornenia bez kritického nálezu = najviac „S výhradou“); právne skutočnosti z RPO
+  sa zaraďujú (`classifyLegalFact`) – zlúčenia / splynutia, kde je spoločnosť nástupcom, už nie sú „konanie o zrušení“ (príčina skóre 0 pri veľkých a. s.,
+  napr. Slovnaft), kritický postih za zrušenie sa počíta raz, záložné práva sú informácia; zmeny členov veľkých orgánov sa nehodnotia jednotlivo.
+  RPO: jeden opakovaný pokus pri pomalej odpovedi. Chybné zdroje majú odkaz „Otvoriť“ na register aj v zozname manuálnych overení. FS OpenData: širšie
+  rozpoznanie prehľadávateľných stĺpcov a diagnostika v chybovej správe. AI: poznámka o obmedzení (OpenAI bez otvárania stránok), kratší limit. Test `test/scoring.test.ts`.

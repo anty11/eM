@@ -92,7 +92,7 @@ async function openai(cfg: AiConfig, req: LlmRequest): Promise<LlmResponse> {
     `${OPENAI_URL}/v1/responses`,
     { authorization: `Bearer ${cfg.key}` },
     { model: cfg.model, instructions: req.system, input: req.user, tools: [tool] },
-    req.timeoutMs ?? 90000,
+    req.timeoutMs ?? 75000,
   );
   const visited = new Set<string>();
   collectUrls(j.output, visited);
