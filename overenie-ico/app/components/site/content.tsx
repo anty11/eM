@@ -28,7 +28,7 @@ export interface Feature {
 export const FEATURES: Feature[] = [
   { name: "Všetkých 10 automatických zdrojov", note: "obchodný register, Finančná správa (dlžníci, DPH, index spoľahlivosti, daň z príjmov), Sociálna poisťovňa, závierky, konkurzy a likvidácie, RPVS, médiá", ext: true, std: true, key: true },
   { name: "Výsledok, skóre a 9 kľúčových otázok k partnerovi", note: "vrátane chýbajúcich závierok za 2+ období ako dôvodu na zrušenie súdom", ext: true, std: true },
-  { name: "Údaje o obchode a indikátory rizika podľa Bulletinu SKDP 03/2024", note: "predmet obchodu vs. predmet podnikania, overenie IBAN v zozname účtov Finančnej správy, posúdenie indikátorov povereným zamestnancom", ext: true, std: true, key: true },
+  { name: "Indikátory rizika", note: "podľa Bulletinu SKDP 03/2024: predmet obchodu vs. predmet podnikania, overenie IBAN v zozname účtov Finančnej správy, posúdenie indikátorov povereným zamestnancom", ext: true, std: true, key: true },
   { name: "Dvojstranový PDF protokol s pečaťou", note: "čas preverenia, meno povereného zamestnanca, odtlačok SHA-256 a verejná overovacia stránka s kódom z protokolu", ext: true, std: true, key: true },
   { name: "Databáza preverených spoločností s pripomienkou po 180 dňoch", note: "zdieľaná v rámci firmy, opakované preverenie jedným klikom", ext: true, std: true, key: true },
   { name: "Karta kontaktu", note: "s kým u partnera komunikujete, kto od vás, overenie oprávnenia konať", ext: true, std: true },

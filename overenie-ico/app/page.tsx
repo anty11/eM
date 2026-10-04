@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
-import { FEATURES, REGISTERS } from "./components/site/content";
+import { CompareTable } from "./components/site/content";
 import { Firms, Hero } from "./components/site/Hero";
 
 export const metadata: Metadata = {
@@ -14,55 +14,56 @@ export default function Home() {
   return (
     <div className="site">
       <SiteHeader active="home" />
-
       <Hero />
 
       <section className="s-band" id="preco">
         <div className="s-wrap">
-          <div className="s-law">
+          <div className="s-head">
+            <span className="s-eyebrow">Prečo overovať</span>
+            <h2>Náležitá starostlivosť je súčasťou podnikania. A dá sa preukázať.</h2>
+            <p>
+              Právo na odpočet DPH je chránené u podnikateľa, ktorý koná v dobrej viere a prijme opatrenia, ktoré od neho možno rozumne požadovať.
+              Kto o problémoch partnera <b>vedel alebo vedieť mal</b>, ochranu stráca – a podľa § 69 ods. 14 zákona o DPH môže <b>ručiť za daň, ktorú dodávateľ nezaplatil</b>.
+            </p>
+          </div>
+          <div className="s-why">
+            <blockquote className="s-quote">
+              „… hospodárskym subjektom, ktoré prijmú všetky opatrenia, ktoré od nich možno rozumne požadovať, aby sa uistili, že ich plnenia nie
+              sú súčasťou podvodu, musí byť umožnené spoľahnúť sa na zákonnosť týchto plnení.“
+              <small>Súdny dvor EÚ, Kittel a Recolta Recycling, C‑439/04 a C‑440/04</small>
+            </blockquote>
             <div>
-              <span className="s-eyebrow">Prečo overovať</span>
-              <h2>Náležitá starostlivosť je súčasťou podnikania. A dá sa preukázať.</h2>
-              <p style={{ marginTop: 14 }}>
-                Podľa ustálenej judikatúry Súdneho dvora EÚ je právo na odpočet DPH chránené u podnikateľa, ktorý koná v dobrej viere a prijme
-                opatrenia, ktoré od neho možno rozumne požadovať. Kto o problémoch svojho partnera <b>vedel alebo vedieť mal</b>, túto ochranu stráca.
-                Slovenský zákon o DPH na to nadväzuje v § 69 ods. 14: odberateľ môže <b>ručiť za daň, ktorú dodávateľ nezaplatil</b>, ak dôvody
-                na opatrnosť boli zistiteľné – napríklad z verejných zoznamov Finančnej správy.
+              <p style={{ marginTop: 0 }}>
+                Správca dane aj súdy sa pýtajú rovnako: <b>čo ste urobili pre to, aby ste svojho partnera poznali – a viete to preukázať?</b>{" "}
+                {PRODUCT} odpovedá na obe časti: overením v registroch k presnému času a protokolom, ktorý si založíte k zmluve alebo faktúre.
               </p>
-              <blockquote className="s-quote">
-                „… hospodárskym subjektom, ktoré prijmú všetky opatrenia, ktoré od nich možno rozumne požadovať, aby sa uistili, že ich plnenia nie
-                sú súčasťou podvodu, musí byť umožnené spoľahnúť sa na zákonnosť týchto plnení bez toho, aby riskovali stratu svojho práva na odpočet.“
-                <small>Súdny dvor EÚ, Kittel a Recolta Recycling, C‑439/04 a C‑440/04; potvrdené v Mahagében a Dávid, C‑80/11 a C‑142/11</small>
-              </blockquote>
-              <p>
-                Správca dane aj slovenské súdy sa pri kontrole pýtajú rovnako: <b>čo ste urobili pre to, aby ste svojho partnera poznali, a viete to
-                preukázať?</b> Aplikácia {PRODUCT} odpovedá na obe časti – overením v registroch k presnému času a protokolom, ktorý si založíte k zmluve alebo faktúre.
-              </p>
-              <a className="s-btn ghost" href="/pravny-zaklad">Právny základ podrobne →</a>
+              <a className="s-btn ghost" href="/pravny-zaklad">Právny základ a rozhodnutia súdov →</a>
             </div>
-            <ul className="s-cases">
-              <li><b>Kittel a Recolta Recycling (C‑439/04, C‑440/04)</b><span>Odpočet možno odoprieť, ak platiteľ vedel alebo mal vedieť, že sa plnením zúčastňuje na podvode.</span></li>
-              <li><b>Mahagében a Dávid (C‑80/11, C‑142/11)</b><span>Dôkazné bremeno nesie správca dane; od podnikateľa sa očakáva obozretnosť primeraná okolnostiam.</span></li>
-              <li><b>PPUH Stehcemp (C‑277/14), Vikingo (C‑610/19), Ferimet (C‑281/20)</b><span>Formálne nedostatky dodávateľa samy osebe neprekážajú – rozhoduje, čo odberateľ vedel a mohol zistiť.</span></li>
-              <li><b>Aquila Part Prod Com (C‑512/21)</b><span>Náležitú starostlivosť nemožno preniesť na iného; platiteľ má vedieť preukázať vlastné overenie partnera.</span></li>
-              <li><b>§ 69 ods. 14 a 15 zákona č. 222/2004 Z. z. o DPH</b><span>Ručenie odberateľa za nezaplatenú daň, ak „vedel alebo vedieť mal a mohol“ – napr. pri partnerovi zo zverejneného zoznamu Finančnej správy.</span></li>
-            </ul>
           </div>
         </div>
       </section>
 
-      <section className="s-band dark">
+      <section className="s-band alt">
         <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Pre koho</span>
-            <h2>Pre každú firmu, ktorá nakupuje alebo predáva.</h2>
-            <p>Od prvej objednávky u nového dodávateľa po pravidelnú kontrolu stálych partnerov.</p>
-          </div>
-          <div className="s-grid four">
-            <div className="s-card"><div className="num">1</div><h3>Nový dodávateľ</h3><p>Pred prvou objednávkou alebo zmluvou. Protokol založíte k zmluve ako doklad náležitej starostlivosti.</p></div>
-            <div className="s-card"><div className="num">2</div><h3>Odberateľ na faktúru</h3><p>Pred dodaním tovaru alebo služby s odloženou splatnosťou – nedoplatky, konkurz a záporné imanie uvidíte vopred.</p></div>
-            <div className="s-card"><div className="num">3</div><h3>Pravidelná kontrola</h3><p>Databáza preverených spoločností pripomenie, komu sa blíži 180 dní od posledného overenia. Jedným klikom preveríte znova.</p></div>
-            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia, menom zamestnanca a pečaťou, ktorú si kontrolór overí na verejnej stránke. Pri existujúcej spolupráci aj spätné preverenie k dátumu jej začiatku.</p></div>
+          <div className="s-grid">
+            <a className="s-card s-teaser" href="/co-overujeme">
+              <span className="s-eyebrow">Čo overujeme</span>
+              <h3>Sedemnásť registrov a zdrojov</h3>
+              <p>Obchodný register, Finančná správa (dlžníci, DPH, index spoľahlivosti, bankové účty), Sociálna poisťovňa, závierky, konkurzy, RPVS, médiá. Výsledok, skóre a indikátory rizika podľa SKDP.</p>
+              <span className="more">Podrobne →</span>
+            </a>
+            <a className="s-card s-teaser" href="/ako-to-funguje">
+              <span className="s-eyebrow">Ako to funguje</span>
+              <h3>Štyri kroky, pol minúty</h3>
+              <p>Zadáte IČO, registre odpovedajú priebežne, dostanete prehľadný výsledok a uložíte zapečatený protokol. Overenie vykonajú vaši poverení zamestnanci.</p>
+              <span className="more">Podrobne →</span>
+            </a>
+            <a className="s-card s-teaser" href="/pre-koho">
+              <span className="s-eyebrow">Pre koho</span>
+              <h3>Štyri situácie z praxe</h3>
+              <p>Nový dodávateľ, odberateľ na faktúru, pravidelná kontrola stálych partnerov a deň, keď príde daňová kontrola s otázkou, čo ste o partnerovi vedeli.</p>
+              <span className="more">Podrobne →</span>
+            </a>
           </div>
         </div>
       </section>
@@ -74,79 +75,15 @@ export default function Home() {
             <h2>Dve verzie podľa potrieb vašej firmy.</h2>
             <p>Cena závisí od počtu poverených zamestnancov. Po odoslaní objednávky vám do jedného pracovného dňa pošleme ponuku, zmluvu a prístupy do klientskej sekcie.</p>
           </div>
-          <div className="s-compare-wrap">
-            <table className="s-compare">
-              <thead>
-                <tr>
-                  <th className="feat"><span>Čo je súčasťou</span></th>
-                  <th className="plan hi">
-                    <span className="pn">Rozšírené</span>
-                    <span className="pd">pre väčšie obchody a regulované odvetvia</span>
-                    <a className="s-btn gold" href="/objednavka?plan=rozsirene">Objednať Rozšírené</a>
-                  </th>
-                  <th className="plan">
-                    <span className="pn">Štandard</span>
-                    <span className="pd">pre bežný obchodný styk</span>
-                    <a className="s-btn ghost" href="/objednavka?plan=standard">Objednať Štandard</a>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {FEATURES.map((f) => (
-                  <tr key={f.name}>
-                    <td className="feat">{f.name}{f.note && <small>{f.note}</small>}</td>
-                    <td className="plan hi">{f.ext ? <span className="yes">✓</span> : <span className="no">–</span>}</td>
-                    <td className="plan">{f.std ? <span className="yes">✓</span> : <span className="no">–</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CompareTable compact moreHref="/objednavka#porovnanie" />
         </div>
       </section>
 
-      <section className="s-band alt" id="co">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Čo overujeme</span>
-            <h2>Sedemnásť registrov a zdrojov, jeden prehľadný výsledok.</h2>
-            <p>Všetky údaje pochádzajú z oficiálnych verejných registrov Slovenskej republiky a EÚ. Každý nález má odkaz na zdroj, kde si ho môžete overiť. Ak IČO v registri neexistuje, preverenie sa zastaví – bez identifikácie subjektu sa ďalej nepokračuje. Prioritou je priamy dodávateľ a odberateľ.</p>
-          </div>
-          <ul className="s-regs">
-            {REGISTERS.map((r) => (
-              <li key={r.name}>
-                <span>
-                  {r.name}
-                  <small>{r.src}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="s-band">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Ako to funguje</span>
-            <h2>Overenie vykoná vaša spoločnosť sama. Trvá pol minúty.</h2>
-            <p>Nie je potrebný externý poradca – overenie vykonajú vaši poverení zamestnanci priamo v klientskej sekcii. Každé preverenie je zaznamenané: kto, kedy a s akým výsledkom.</p>
-          </div>
-          <div className="s-steps">
-            <div className="s-step"><h3>Zadáte IČO</h3><p>Dodávateľa, odberateľa alebo iného partnera. Stačí IČO – názov, DIČ a IČ DPH si aplikácia doplní z registrov.</p></div>
-            <div className="s-step"><h3>Registre odpovedajú priebežne</h3><p>Výsledky sa zobrazujú, ako jednotlivé registre odpovedajú. Celé preverenie trvá zvyčajne 10 – 30 sekúnd.</p></div>
-            <div className="s-step"><h3>Dostanete prehľadný výsledok</h3><p>Odporúčame · S výhradou · Neodporúčame, so skóre a odpoveďami na kľúčové otázky: podaná závierka, likvidácia, nedoplatky, spoľahlivý platiteľ DPH, zmeny vlastníkov. Doplníte predmet obchodu a IBAN partnera a posúdite indikátory rizika podľa SKDP.</p></div>
-            <div className="s-step"><h3>Uložíte protokol</h3><p>Dvojstranový PDF protokol s časom preverenia, menom zamestnanca, odkazmi na zdroje a pečaťou – odtlačkom, ktorý si ktokoľvek overí na verejnej stránke s kódom z protokolu. Spoločnosť sa uloží do databázy preverení s pripomienkou po 180 dňoch.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="s-band warm" id="zastita">
+      <section className="s-band" id="zastita">
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">O projekte</span>
             <h2>Samostatný projekt s odbornou záštitou dvoch advokátskych kancelárií.</h2>
-            <p>Rozsah overenia a hodnotenie rizika vychádzajú zo skúseností z daňových kontrol a súdnych konaní, v ktorých sa rozhodovalo práve o tom, či si podnikateľ svojho partnera preveril.</p>
           </div>
           <Firms />
         </div>

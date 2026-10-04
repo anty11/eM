@@ -153,3 +153,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   (len refaktor – zdieľané texty). Po odsúhlasení sa obsah `/nahlad` presunie do `app/page.tsx` a `/nahlad` sa zruší.
 - Kód: `app/components/site/content.tsx` (REGISTERS, FEATURES s príznakom `key`, CASES, STEPS, AUDIENCES, `CompareTable`), `app/components/site/Hero.tsx`
   (`Hero`, `Firms`), `SiteShell.tsx` (`NavKey`, menu „Viac“), `app/site.css` (`.s-more`, `.s-why`, `.s-teaser`, kotvy pod hlavičkou), `proxy.ts` (PUBLIC).
+- **v1.8.1** – skrátená úvodná strana nasadená na `/` (náhľad `/nahlad` zrušený); riadok tabuľky „Údaje o obchode a indikátory rizika podľa
+  Bulletinu SKDP 03/2024“ premenovaný na „Indikátory rizika“ (odkaz na SKDP ostáva v poznámke úplnej tabuľky). Podtitul loga v jednom riadku.

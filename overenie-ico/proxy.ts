@@ -6,7 +6,7 @@ import { COOKIE, verifySession } from "./lib/auth/session";
  * a všetky API sú za prihlásením. Proxy overí podpis relácie; úplné overenie účtu
  * (zablokovanie, zmena hesla, rola) robí každý API endpoint voči databáze.
  */
-const PUBLIC = ["/", "/nahlad", "/objednavka", "/pravny-zaklad", "/co-overujeme", "/ako-to-funguje", "/pre-koho", "/login", "/api/auth/login", "/api/auth/setup", "/api/auth/logout", "/api/order", "/api/cron/socpoist"];
+const PUBLIC = ["/", "/objednavka", "/pravny-zaklad", "/co-overujeme", "/ako-to-funguje", "/pre-koho", "/login", "/api/auth/login", "/api/auth/setup", "/api/auth/logout", "/api/order", "/api/cron/socpoist"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
