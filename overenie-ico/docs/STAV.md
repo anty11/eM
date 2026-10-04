@@ -253,3 +253,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Union: API `/ehip-server/rest/debtors` vracia 401 pre priame volania (token aplikácie) → rieši agent s prehliadačom.
 - Testy: `test/agent.test.ts` – skutočné Chromium proti lokálnemu registru, simulované API Claude aj OpenAI, kontrola tvrdení, zapojenie do aiCheck.
 - **v2.2.1** – Vercel: do funkcií sa pribaľuje celý `playwright-core` (chýbal `browsers.json`) a celý `@sparticuz/chromium`.
+- **v2.2.2** – Chromium na Verceli potvrdené (153.0.8010.0; portál Union sa načítal: pole „Zadajte priezvisko, IČO, obchodný názov, obec“,
+  tlačidlo Hľadať, tabuľka s IČO a pohľadávkou, „1–10 z 81934“). Každé sedenie má vlastný prehliadač – zdieľaná inštancia po zavretí
+  kontextu padala (`Target page … has been closed`, ERR_INSUFFICIENT_RESOURCES). **Union automaticky bez AI:** skriptovaný dopyt cez prehliadač
+  (`lib/browser/flows.ts` – vyplní IČO, Hľadať, prečíta tabuľku; „bez záznamu“ len po skutočnom hľadaní, nie z úvodného zoznamu) ako záloha
+  po API (401). Diagnostika: strop 25 s na stránku, klient čaká najviac 150 s a hlási prekročenie limitu.

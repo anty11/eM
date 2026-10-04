@@ -411,7 +411,17 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
   const { attempts, needles } = attemptsFor(id, ctx);
   if (!def || !attempts.length) return { check: null, outcome: { result: "unknown", rows: [], attempts: [] } };
   const t0 = Date.now();
-  const outcome = await probe(attempts.map((a) => ({ ...a, source: id })), needles);
+  const outcome = await probe(attempts.map((a) => ({ ...a, source: id })), needles, undefined, opts);
+  // Union: API portálu vyžaduje token aplikácie (401) → skriptovaný dopyt cez prehliadač na serveri (bez AI)
+  if (outcome.result === "unknown" && id === "union" && process.env.BROWSER_DISABLED !== "1") {
+    const { unionFlow } = await import("../browser/flows");
+    const r = await unionFlow(ctx.ico, { diag: opts.diag });
+    outcome.attempts.push({ url: r.url, ms: r.ms, error: r.error, excerpt: (r.rendered || "").slice(0, opts.diag ? 6000 : 400), verdict: r.verdict, evidence: r.evidence, info: "prehliadač na serveri (skript)" });
+    if (r.verdict !== "unknown") {
+      outcome.result = r.verdict;
+      outcome.rows = r.rows;
+    }
+  }
   if (outcome.result === "unknown") return { check: null, outcome };
   const now = new Date().toISOString();
   const used = outcome.attempts.find((a) => a.verdict !== "unknown");

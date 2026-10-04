@@ -35,8 +35,11 @@ const MAX_TEXT = 7000;
 const MAX_ELEMENTS = 80;
 const NAV_TIMEOUT = 25000;
 
-let browserPromise: Promise<Browser> | null = null;
-
+/**
+ * Spustenie prehliadača. Každé sedenie má vlastnú inštanciu: Chromium pre serverless (@sparticuz, režim --single-process) po zavretí
+ * kontextu padá („Target page, context or browser has been closed“, ERR_INSUFFICIENT_RESOURCES), takže zdieľanie medzi sedeniami nie je bezpečné.
+ * Binárka sa rozbalí do /tmp len raz, ďalšie spustenia trvajú ~1 s.
+ */
 async function launch(): Promise<Browser> {
   const pw = await import("playwright-core");
   if (process.env.BROWSER_WS_ENDPOINT) return pw.chromium.connectOverCDP(process.env.BROWSER_WS_ENDPOINT, { timeout: 20000 });
@@ -49,29 +52,15 @@ async function launch(): Promise<Browser> {
   return pw.chromium.launch({ headless: true });
 }
 
-/** Zdieľaná inštancia prehliadača v rámci jedného procesu (serverless funkcia ju použije pre viac dopytov). */
-export async function getBrowser(): Promise<Browser> {
-  if (!browserPromise) {
-    browserPromise = launch().catch((e) => {
-      browserPromise = null;
-      throw e;
-    });
-  }
-  const b = await browserPromise;
-  if (!b.isConnected()) {
-    browserPromise = null;
-    return getBrowser();
-  }
-  return b;
-}
-
 /** Je prehliadač k dispozícii? (vyskúša spustenie; výsledok sa použije v nastavení AI a diagnostike) */
 export async function browserAvailable(): Promise<{ ok: boolean; mode: string; error?: string; version?: string }> {
   const mode = process.env.BROWSER_WS_ENDPOINT ? "vzdialený (CDP)" : process.env.CHROMIUM_PATH ? "lokálny (CHROMIUM_PATH)" : process.env.VERCEL ? "Vercel (@sparticuz/chromium)" : "Playwright";
   if (process.env.BROWSER_DISABLED === "1") return { ok: false, mode, error: "vypnuté (BROWSER_DISABLED=1)" };
   try {
-    const b = await getBrowser();
-    return { ok: true, mode, version: b.version() };
+    const b = await launch();
+    const version = b.version();
+    await b.close().catch(() => {});
+    return { ok: true, mode, version };
   } catch (e) {
     return { ok: false, mode, error: (e as Error).message.split("\n")[0].slice(0, 300) };
   }
@@ -154,9 +143,12 @@ export class BrowserSession {
 
   constructor(private allowedHosts: string[]) {}
 
+  private browser!: Browser;
+
   static async open(allowedHosts: string[]): Promise<BrowserSession> {
     const s = new BrowserSession(allowedHosts);
-    const b = await getBrowser();
+    const b = await launch();
+    s.browser = b;
     s.ctx = await b.newContext({
       locale: "sk-SK",
       timezoneId: "Europe/Bratislava",
@@ -300,6 +292,7 @@ export class BrowserSession {
 
   async close() {
     await this.ctx?.close().catch(() => {});
+    await this.browser?.close().catch(() => {});
   }
 }
 

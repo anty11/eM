@@ -75,13 +75,19 @@ export const GET = handler(async (req) => {
           const t1 = Date.now();
           let s: BrowserSession | null = null;
           try {
-            s = await BrowserSession.open([...hosts]);
-            const snap = await s.open(url);
+            // každá stránka má pevný strop 25 s, aby diagnostika nikdy neprekročila limit funkcie
+            const snap = await Promise.race([
+              (async () => {
+                s = await BrowserSession.open([...hosts]);
+                return s.open(url);
+              })(),
+              new Promise<never>((_, rej) => setTimeout(() => rej(new Error("časový limit 25 s")), 25000)),
+            ]);
             snaps[id] = { ms: Date.now() - t1, url: snap.url, title: snap.title, elements: snap.elements.length, tables: snap.tables.length, rendered: renderSnapshot(snap).slice(0, 6000) };
           } catch (e) {
             snaps[id] = { ms: Date.now() - t1, error: (e as Error).message.split("\n")[0] };
           } finally {
-            await s?.close();
+            await (s as BrowserSession | null)?.close();
           }
         }
         result.pages = snaps;
@@ -93,6 +99,13 @@ export const GET = handler(async (req) => {
       const ctx: Ctx = { ico, profile: { ico, statutory: names.map((n) => ({ name: n, role: "štatutár" })) } as any };
       const { attempts, needles } = attemptsFor(source, ctx);
       const outcome = await probe(attempts, needles, 15000, { diag: true });
+      // Union: po API aj skriptovaný dopyt cez prehliadač (rovnako ako pri skutočnom preverení)
+      if (source === "union" && process.env.BROWSER_DISABLED !== "1") {
+        const { unionFlow } = await import("@/lib/browser/flows");
+        const r = await unionFlow(ico, { diag: true });
+        result.browserFlow = r;
+        if (outcome.result === "unknown" && r.verdict !== "unknown") Object.assign(outcome, { result: r.verdict, rows: r.rows });
+      }
       Object.assign(result, { needles, result: outcome.result, rows: outcome.rows, attempts: outcome.attempts });
       return NextResponse.json(result);
     }

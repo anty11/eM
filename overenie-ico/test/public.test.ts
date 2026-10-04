@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
 import { judge } from "../lib/sources/public";
+import { judgeUnion } from "../lib/browser/flows";
 import type { Ctx } from "../lib/types";
 
 async function main() {
@@ -85,4 +86,17 @@ main().catch((e) => { console.error(e); process.exit(1); });
   assert.equal(judgeFor("uvo", uvoPage(`<p>1 záznamov</p><div>Zlá firma s.r.o. Osoba so zákazom IČO 31322832 Zákaz účasti do 12.05.2027</div>`), ["31322832"]).verdict, "found");
   assert.equal(judgeFor("uvo", uvoPage(`<p>3 záznamov</p><div>SLOVNAFT, a.s. Hospodársky subjekt IČO 31322832 Platnosť zápisu</div>`), ["31322832"]).verdict, "unknown", "zápis v inom registri nie je zákaz");
   console.log("OK – Union API a ÚVO.");
+
+  // Union cez prehliadač (skript): vyhodnotenie snímky portálu podľa tabuľky s IČO
+  const head = ["Priezvisko a meno / Názov", "IČO", "Pohľadávka", "Nárok na ZS", "Adresa", "Námietka"];
+  const snapBase = { url: "https://portal.unionzp.sk/pub/dlznici", title: "Union", elements: [], truncated: false };
+  const found = judgeUnion({ ...snapBase, text: "… 1–1 z 1", tables: [[head, ["Dlžník s.r.o.", "12345678", "3881.68", "Neodkladná", "Trnava", "Námietka"]]] }, "12345678");
+  assert.equal(found.verdict, "found");
+  assert.ok(found.rows[0].includes("3881.68"));
+  const clean = judgeUnion({ ...snapBase, text: "Zoznam dlžníkov … Žiadne záznamy 0 z 0", tables: [[head]] }, "31322832");
+  assert.equal(clean.verdict, "clean");
+  // nezmenený úvodný zoznam (81934 záznamov) sa za „bez záznamu“ nepovažuje
+  const initial = judgeUnion({ ...snapBase, text: "Zadajte priezvisko, IČO … 1–10 z 81934", tables: [[head, ["GUMAN KRISTIÁN", "", "408.91", "Neodkladná", "Sačurov", "Námietka"]]] }, "31322832");
+  assert.equal(initial.verdict, "unknown");
+  console.log("OK – Union cez prehliadač (skript).");
 }

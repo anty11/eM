@@ -39,7 +39,17 @@ export default function DiagPanel() {
   const [progress, setProgress] = useState("");
 
   async function fetchText(url: string) {
-    const r = await fetch(url);
+    // serverová funkcia má limit 120 s – klient čaká najviac 150 s a potom zrozumiteľne skončí
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 150000);
+    let r: Response;
+    try {
+      r = await fetch(url, { signal: ctrl.signal });
+    } catch (e) {
+      throw new Error((e as Error).name === "AbortError" ? "Server neodpovedal do 150 s (limit funkcie je 120 s) – skúste zdroj samostatne." : (e as Error).message);
+    } finally {
+      clearTimeout(t);
+    }
     const txt = await r.text();
     try {
       return JSON.parse(txt);
