@@ -15,7 +15,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.3.0";
+export const APP_VERSION = "2.3.1";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -25,13 +25,16 @@ const MANUAL_DEADLINE_MS = 55000;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
- * Vyrovnávacia pamäť výsledkov podľa zdroja a IČO (Redis, TTL). Registre sa aktualizujú nanajvýš raz denne, takže opakované
- * preverenie toho istého IČO (iný používateľ, návrat k firme, obnovenie stránky) nezaťažuje registre ani limity ich API a je okamžité.
- * Ukladajú sa len úspešné výsledky (ok / warning / critical), nie chyby ani manuálne kontroly. „Preveriť znova“ (fresh) pamäť obíde
- * a obnoví ju; spätné preverenie k dátumu (asOf) pamäť nepoužíva. Spolu s výsledkom sa uložia aj údaje profilu, ktoré zdroj doplnil
- * (RPO: identifikácia, RÚZ: DIČ …), aby ďalšie kontroly fungovali rovnako ako pri živom dopyte.
+ * Vyrovnávacia pamäť výsledkov podľa zdroja a IČO – PREDVOLENE VYPNUTÁ: zmyslom preverenia je aktuálny stav registrov v čase dopytu,
+ * takže každé preverenie sa pýta registrov nanovo. Zapína sa len vedome premennou CHECK_CACHE_MIN (minúty), napr. 10 – 15 min ako ochrana
+ * pred opakovaným načítaním tej istej firmy v krátkom čase pri veľkej prevádzke (limity API registrov). Ukladajú sa len úspešné výsledky,
+ * výsledok z pamäte je označený časom uloženia, „Preveriť znova“ (fresh) pamäť vždy obíde a spätné preverenie k dátumu ju nepoužíva.
  */
-const CACHE_TTL_SEC: Record<string, number> = { default: 6 * 3600, news: 2 * 3600, socpoist: 12 * 3600 };
+const cacheTtlSec = (id: string): number => {
+  const min = Number(process.env.CHECK_CACHE_MIN || 0);
+  if (!min || min <= 0) return 0;
+  return Math.round(Math.min(min, id === "news" ? Math.min(min, 120) : min) * 60);
+};
 const CACHE_VERSION = "1";
 const cacheKey = (id: string, ico: string) => `cache:check:${CACHE_VERSION}:${id}:${ico}`;
 interface CachedCheck {
@@ -42,6 +45,8 @@ interface CachedCheck {
 
 async function cachedRun(ctx: Ctx, id: string, fn: () => Promise<CheckResult>, fresh: boolean): Promise<CheckResult> {
   const key = cacheKey(id, ctx.ico);
+  const ttl = cacheTtlSec(id);
+  if (!ttl) return fn();
   if (!fresh && !ctx.asOf) {
     const hit = await kv().get<CachedCheck>(key).catch(() => null);
     if (hit?.check) {
@@ -57,7 +62,7 @@ async function cachedRun(ctx: Ctx, id: string, fn: () => Promise<CheckResult>, f
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(ctx.profile)) if (JSON.stringify(v) !== JSON.stringify(prev[k])) patch[k] = v;
     await kv()
-      .set(key, { check, profile: patch, at: new Date().toISOString() } satisfies CachedCheck, CACHE_TTL_SEC[id] || CACHE_TTL_SEC.default)
+      .set(key, { check, profile: patch, at: new Date().toISOString() } satisfies CachedCheck, ttl)
       .catch(() => undefined);
   }
   return check;
@@ -180,7 +185,8 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
   return Promise.all(
     base.map(async (m) => {
       try {
-        if (!fresh && !ctx.asOf) {
+        const ttl = cacheTtlSec(m.id);
+        if (ttl && !fresh && !ctx.asOf) {
           const hit = await kv().get<CachedCheck>(cacheKey(m.id, ctx.ico)).catch(() => null);
           if (hit?.check) {
             const c = { ...hit.check, cachedAt: hit.at };
@@ -201,8 +207,8 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
           }
         }
         if (auto) {
-          if (!ctx.asOf && ["ok", "warning", "critical"].includes(auto.status))
-            await kv().set(cacheKey(m.id, ctx.ico), { check: auto, profile: {}, at: new Date().toISOString() } satisfies CachedCheck, CACHE_TTL_SEC[m.id] || CACHE_TTL_SEC.default).catch(() => undefined);
+          if (ttl && !ctx.asOf && ["ok", "warning", "critical"].includes(auto.status))
+            await kv().set(cacheKey(m.id, ctx.ico), { check: auto, profile: {}, at: new Date().toISOString() } satisfies CachedCheck, ttl).catch(() => undefined);
           onProgress?.(auto);
           return auto;
         }

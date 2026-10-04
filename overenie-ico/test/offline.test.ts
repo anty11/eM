@@ -115,7 +115,14 @@ async function main() {
   const v2 = computeVerdict(applyManual(r.checks, { cre: "found" }));
   assert.equal(v2.level, "not_recommended");
 
-  // 5) Vyrovnávacia pamäť: opakované preverenie toho istého IČO nevolá registre (okrem chýb/manuálnych), „fresh“ ju obíde
+  // 5) Vyrovnávacia pamäť je predvolene vypnutá – každé preverenie sa pýta registrov nanovo
+  const before0 = calls.length;
+  const r0 = await scan(GOOD);
+  assert.ok(!r0.checks.find((c) => c.id === "rpo")!.cachedAt, "bez CHECK_CACHE_MIN sa nič neukladá");
+  assert.ok(calls.length - before0 > 5, "každé preverenie volá registre");
+  // zapnutá (CHECK_CACHE_MIN): opakované preverenie toho istého IČO nevolá registre (okrem chýb/manuálnych), „fresh“ ju obíde
+  process.env.CHECK_CACHE_MIN = "10";
+  await scan(GOOD);
   const before = calls.length;
   const r3 = await scan(GOOD);
   assert.ok(r3.checks.find((c) => c.id === "rpo")!.cachedAt, "RPO z pamäte");
@@ -125,6 +132,7 @@ async function main() {
   const r4 = await scan(GOOD, undefined, { fresh: true });
   assert.ok(!r4.checks.find((c) => c.id === "rpo")!.cachedAt, "fresh obíde pamäť");
   assert.ok(apiCalls(before).length > 5, "fresh volá registre");
+  delete process.env.CHECK_CACHE_MIN;
 
   console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
 

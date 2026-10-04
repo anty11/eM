@@ -271,3 +271,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Registre bez API majú vlastný limit 55 s (prehliadač + hľadanie), ÚVO/diskvalifikácie čakajú na RPO, ostatné sa spúšťajú hneď; funkcia
   preverenia 120 s. Pri neúspechu automatického dopytu sa pri manuálnej kontrole zobrazí dôvod („Automatický pokus: …“).
 - Finančná správa: zrozumiteľná chyba, keď sa zoznam prehľadáva len podľa názvu (ds_dsdd) a názov nie je známy (identifikácia v RPO zlyhala).
+- **v2.3.1** – Vyrovnávacia pamäť výsledkov je **predvolene vypnutá** (zmyslom preverenia je aktuálny stav registrov); zapína sa len vedome
+  `CHECK_CACHE_MIN` (minúty) ako ochrana pred opakovaným načítaním tej istej firmy pri veľkej prevádzke. Oprava balenia Chromia: globálne
+  vylúčenie zo stopovania odstránilo aj závislosti (`tar-fs` → „Cannot find package 'tar-fs'“); namiesto toho funkcia preverenia kód
+  prehliadača vôbec neimportuje (volá `/api/browser/flow` cez HTTP, lokálne `SELF_ORIGIN`) a Chromium so závislosťami sa stopuje len
+  do troch funkcií prehliadača (overené v stope zostavenia).

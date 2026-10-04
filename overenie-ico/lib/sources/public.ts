@@ -54,14 +54,12 @@ async function browserFlow(source: "union", ico: string, diag?: boolean): Promis
   const origin = selfOrigin();
   const t0 = Date.now();
   try {
-    if (origin) {
-      const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: 50000 });
-      const j = await r.json().catch(() => null);
-      if (!j || !j.verdict) throw new Error(`prehliadač: ${j?.error || `HTTP ${r.status}`}`);
-      return j;
-    }
-    const { unionFlow } = await import("../browser/flows");
-    return await unionFlow(ico, { diag });
+    // Zámerne bez priameho importu lib/browser – inak by sa Chromium pribalilo aj k funkcii preverenia. Lokálne nastavte SELF_ORIGIN.
+    if (!origin) throw new Error("adresa nasadenia nie je známa (SELF_ORIGIN / VERCEL_URL) – prehliadač sa volá cez /api/browser/flow");
+    const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: 50000 });
+    const j = await r.json().catch(() => null);
+    if (!j || !j.verdict) throw new Error(`prehliadač: ${j?.error || `HTTP ${r.status}`}`);
+    return j;
   } catch (e) {
     return { verdict: "unknown", rows: [], url: "", ms: Date.now() - t0, error: (e as Error).message.slice(0, 300) };
   }
