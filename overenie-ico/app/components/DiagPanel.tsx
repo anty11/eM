@@ -21,6 +21,7 @@ const SOURCES = [
   { id: "ov", label: "Obchodný vestník (index + stránka)" },
   { id: "cre", label: "CRE – dostupnosť" },
   { id: "dovera", label: "Dôvera – dostupnosť (len informatívne)" },
+  { id: "browser", label: "Prehliadač na serveri (agent AI) – spustenie a vstupné stránky registrov" },
 ];
 
 /**

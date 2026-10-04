@@ -8,12 +8,14 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/offline.test.ts && tsx test/auth.test.ts && tsx test/ai.test.ts && tsx test/companies.test.ts && tsx test/orders.test.ts && tsx test/deal.test.ts && tsx test/seal.test.ts && tsx test/retro.test.ts && tsx test/orgs.test.ts && tsx test/scoring.test.ts && tsx test/public.test.ts"
+    "test": "tsx test/offline.test.ts && tsx test/auth.test.ts && tsx test/ai.test.ts && tsx test/companies.test.ts && tsx test/orders.test.ts && tsx test/deal.test.ts && tsx test/seal.test.ts && tsx test/retro.test.ts && tsx test/orgs.test.ts && tsx test/scoring.test.ts && tsx test/public.test.ts && tsx test/agent.test.ts"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^153.0.0",
     "@upstash/redis": "^1.39.0",
     "fflate": "^0.8.3",
     "next": "16.3.6",
+    "playwright-core": "^1.63.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "xlsx": "0.18.5"

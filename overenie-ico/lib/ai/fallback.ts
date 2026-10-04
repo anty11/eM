@@ -1,7 +1,9 @@
 import { statusFromFindings } from "../check";
 import type { CheckResult, CompanyProfile, Finding, Severity } from "../types";
 import type { AiConfig } from "./config";
-import { callLlm } from "./llm";
+import { browserAvailable } from "../browser/session";
+import { runBrowserAgent, serverQuote, verifyAgentClaims, type AgentResult } from "./agent";
+import { callLlm, type LlmResponse } from "./llm";
 import { AI_SPECS } from "./specs";
 
 /**
@@ -94,11 +96,53 @@ Dnešný dátum: ${new Date().toISOString().slice(0, 10)}.
 
 ${FORMAT(spec.dataPoints)}`;
 
-  const res = await callLlm(cfg, { system: SYSTEM, user, allowedDomains: [...new Set(spec.domains.map((d) => d.replace(/^www\./, "")))], maxSearches: 6 });
+  // Registre za formulárom / aplikáciou: agent s prehliadačom na serveri (vyplní pole, odošle, prečíta výsledok).
+  // Ak prehliadač nie je k dispozícii, použije sa webové vyhľadávanie a výsledok to uvedie.
+  let res: LlmResponse;
+  let agent: AgentResult | undefined;
+  let note: string | undefined;
+  let mode: "browser" | "web" = "web";
+  if (spec.browser && process.env.BROWSER_DISABLED !== "1") {
+    const b = await browserAvailable();
+    if (b.ok) {
+      mode = "browser";
+      const agentUser = `${spec.task(ico, profile)}
+${spec.browserHint ? `\nPostup v registri: ${spec.browserHint(ico, profile)}` : ""}
+
+Začni týmto odkazom (oficiálny zdroj):
+${urls.map((u) => `- ${u}`).join("\n")}
+
+Povolené domény: ${spec.domains.join(", ")}.
+Dnešný dátum: ${new Date().toISOString().slice(0, 10)}.
+
+${FORMAT(spec.dataPoints)}`;
+      agent = await runBrowserAgent(cfg, { user: agentUser, allowedHosts: spec.domains, timeoutMs: 240000 });
+      res = agent;
+    } else {
+      note = `Prehliadač na serveri nie je k dispozícii (${b.error || b.mode}) – použité len webové vyhľadávanie.`;
+      res = await callLlm(cfg, { system: SYSTEM, user, allowedDomains: [...new Set(spec.domains.map((d) => d.replace(/^www\./, "")))], maxSearches: 6 });
+    }
+  } else {
+    res = await callLlm(cfg, { system: SYSTEM, user, allowedDomains: [...new Set(spec.domains.map((d) => d.replace(/^www\./, "")))], maxSearches: 6 });
+  }
   const out = parseAiJson(res.text);
 
   // Dôkazy: oficiálna doména + URL, ktorú model reálne otvoril/citoval (ak API poskytlo zoznam)
-  const evidence = (out.evidence || []).filter((e) => hostOk(e.url, spec.domains) && (!res.visited.length || res.visited.some((v) => sameUrl(v, e.url))));
+  let evidence = (out.evidence || []).filter((e) => hostOk(e.url, spec.domains) && (!res.visited.length || res.visited.some((v) => sameUrl(v, e.url))));
+  let rejected: string | undefined;
+  if (agent) {
+    // nezávislá kontrola tvrdení podľa textov stránok, ktoré server naozaj videl
+    const bad = verifyAgentClaims(agent, out.result, ico, profile.name);
+    if (bad) {
+      rejected = bad;
+      out.result = "unknown";
+    }
+    // serverový dôkaz zo stránky s výsledkom (ak model žiadny použiteľný neuviedol)
+    const q = serverQuote(agent, ico);
+    if (!evidence.length && agent.lastUrl && hostOk(agent.lastUrl, spec.domains) && agent.searched) evidence = [{ url: agent.lastUrl, quote: q }];
+    else if (evidence.length && q && !evidence[0].quote) evidence[0] = { ...evidence[0], quote: q };
+  }
+  if (out.result !== "unknown" && !evidence.length) rejected = rejected || "AI neuviedla overiteľný dôkaz z oficiálneho registra";
   const verified = out.result !== "unknown" && evidence.length > 0;
   const aiMeta = {
     provider: cfg.provider,
@@ -106,8 +150,12 @@ ${FORMAT(spec.dataPoints)}`;
     at: new Date().toISOString(),
     evidence,
     rawResult: out.result,
-    rejected: out.result !== "unknown" && !evidence.length ? "AI neuviedla overiteľný dôkaz z oficiálneho registra" : undefined,
+    rejected,
     usage: res.usage,
+    mode,
+    steps: agent?.steps,
+    trace: agent?.log.map((l) => `${l.ok ? "✓" : "✗"} ${l.action}${l.note ? ` – ${l.note}` : ""}`).slice(0, 30),
+    note,
   };
   const label = cfg.provider === "openai" ? "AI (OpenAI)" : "AI (Claude)";
   const verifyUrl = evidence[0]?.url || original.verifyUrl;

@@ -41,6 +41,12 @@ export interface CheckResult {
     rawResult?: string;
     rejected?: string;
     usage?: unknown;
+    /** browser = agent s prehliadačom na serveri (vyplnil formulár), web = webové vyhľadávanie/načítanie stránok */
+    mode?: "browser" | "web";
+    /** Počet krokov agenta a stručný záznam akcií (otvoriť / vyplniť / kliknúť) */
+    steps?: number;
+    trace?: string[];
+    note?: string;
   };
   /** Vyplnené, ak výsledok určil poverený zamestnanec manuálne (s prípadnou poznámkou, čo zistil). */
   manual?: { answer: "clean" | "found"; note?: string };

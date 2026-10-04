@@ -325,7 +325,7 @@ export default function Page() {
     if (!offer) return null;
     return (
       <button className="mbtn ai no-print" disabled={aiBusy[c.id]} onClick={() => profile && runAi(orig, report, profile)}>
-        {aiBusy[c.id] ? `AI prehľadáva register… ${Math.round((Date.now() - (aiSince[c.id] || Date.now())) / 1000)} s (zvyčajne 30–90 s)` : aiResults[c.id] ? "Overiť cez AI znova" : "Overiť cez AI"}
+        {aiBusy[c.id] ? `AI prehľadáva register… ${Math.round((Date.now() - (aiSince[c.id] || Date.now())) / 1000)} s (zvyčajne 30–120 s)` : aiResults[c.id] ? "Overiť cez AI znova" : "Overiť cez AI"}
       </button>
     );
   };
@@ -334,12 +334,26 @@ export default function Page() {
     c.ai ? (
       <div className="ai-note">
         <span className={`pill ${c.status === "manual" ? "s-manual" : "s-ai"}`}>{c.status === "manual" ? "AI nevedela overiť" : "Overené AI"}</span>{" "}
-        <span className="src">{c.ai.provider === "openai" ? "OpenAI" : "Claude"} · {c.ai.model} · {new Date(c.ai.at).toLocaleTimeString("sk-SK")}{c.ai.rejected ? ` · ${c.ai.rejected}` : ""}</span>
+        <span className="src">
+          {c.ai.provider === "openai" ? "OpenAI" : "Claude"} · {c.ai.model} · {c.ai.mode === "browser" ? `agent s prehliadačom (${c.ai.steps ?? 0} krokov)` : "webové vyhľadávanie"} · {new Date(c.ai.at).toLocaleTimeString("sk-SK")}
+          {c.ai.rejected ? ` · ${c.ai.rejected}` : ""}
+        </span>
+        {c.ai.note && <div className="src">{c.ai.note}</div>}
         {c.status === "manual" && (
           <div className="src">
-            {c.ai.evidence?.length ? "AI otvorila len tieto stránky – k výsledku vyhľadávania pre dané IČO sa nedostala, preto nič nepotvrdila. " : "AI sa k výsledku vyhľadávania nedostala a nič nepotvrdila. "}
+            {c.ai.mode === "browser"
+              ? "Agent prešiel registrom, no výsledok nevedel potvrdiť (pozri zhrnutie a kroky). "
+              : c.ai.evidence?.length
+                ? "AI otvorila len tieto stránky – k výsledku vyhľadávania pre dané IČO sa nedostala, preto nič nepotvrdila. "
+                : "AI sa k výsledku vyhľadávania nedostala a nič nepotvrdila. "}
             Výsledok označte manuálne.
           </div>
+        )}
+        {c.ai.trace && c.ai.trace.length > 0 && (
+          <details className="ai-trace no-print">
+            <summary>Kroky agenta v registri</summary>
+            <ol>{c.ai.trace.map((t, i) => <li key={i}>{t}</li>)}</ol>
+          </details>
         )}
         {c.ai.evidence?.length > 0 && (
           <ul className="evidence">

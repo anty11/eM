@@ -7,11 +7,12 @@ import { aiStatus, getAiConfig } from "@/lib/ai/config";
 import { pingLlm } from "@/lib/ai/llm";
 import { attemptsFor, probe, PUBLIC_QUERY_IDS } from "@/lib/sources/public";
 import { ovMeta } from "@/lib/sources/ov";
+import { BrowserSession, browserAvailable, renderSnapshot } from "@/lib/browser/session";
 import type { Ctx } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /** Diagnostika po nasadení: overí dostupnosť každého zdroja zo servera. */
 const TARGETS: Record<string, string> = {
@@ -58,6 +59,35 @@ export const GET = handler(async (req) => {
     const names = (p.get("name") || "").split(";").map((n) => n.trim()).filter(Boolean);
     const t0 = Date.now();
     const result: Record<string, unknown> = { source, ico, at: new Date().toISOString() };
+    // 0) prehliadač na serveri (agent AI): spustenie Chromia a snímky vstupných stránok registrov za formulárom
+    if (source === "browser") {
+      const avail = await browserAvailable();
+      result.browser = avail;
+      if (avail.ok) {
+        const pages = [
+          ["union", "https://portal.unionzp.sk/pub/dlznici", ["unionzp.sk"]],
+          ["vszp", "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html", ["vszp.sk"]],
+          ["ov", "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx", ["justice.gov.sk"]],
+          ["diskv", `https://www.justice.gov.sk/registre/registerDiskvalifikacii/?ico=${ico}&pageNum=1&size=50`, ["justice.gov.sk"]],
+        ] as const;
+        const snaps: Record<string, unknown> = {};
+        for (const [id, url, hosts] of pages) {
+          const t1 = Date.now();
+          let s: BrowserSession | null = null;
+          try {
+            s = await BrowserSession.open([...hosts]);
+            const snap = await s.open(url);
+            snaps[id] = { ms: Date.now() - t1, url: snap.url, title: snap.title, elements: snap.elements.length, tables: snap.tables.length, rendered: renderSnapshot(snap).slice(0, 6000) };
+          } catch (e) {
+            snaps[id] = { ms: Date.now() - t1, error: (e as Error).message.split("\n")[0] };
+          } finally {
+            await s?.close();
+          }
+        }
+        result.pages = snaps;
+      }
+      return NextResponse.json({ ...result, ms: Date.now() - t0 });
+    }
     // 1) registre bez API – všetky pokusy s formulármi, skriptmi a surovým HTML
     if ((PUBLIC_QUERY_IDS as readonly string[]).includes(source)) {
       const ctx: Ctx = { ico, profile: { ico, statutory: names.map((n) => ({ name: n, role: "štatutár" })) } as any };

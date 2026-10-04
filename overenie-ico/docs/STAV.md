@@ -236,3 +236,19 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.1.10** – Claude web_search bez `user_location` (API hlásilo „Country code SK is not supported“); prvé živé AI overenie s Claude.
 - **v2.1.11** – Výsledok AI „unknown“ je v rozhraní zreteľný: štítok „AI nevedela overiť“, vysvetlenie, že AI otvorila len uvedené stránky
   a k výsledku vyhľadávania sa nedostala (nič nepotvrdila), v okne manuálneho overenia sa ukazuje zhrnutie AI namiesto pôvodného textu.
+
+## v2.2.0 – 4. 10. 2026 – AI agent s prehliadačom na serveri
+
+- **Agent s prehliadačom** (`lib/browser/session.ts`, `lib/ai/agent.ts`): pre registre za formulárom alebo aplikáciou (VšZP, Union, Obchodný
+  vestník, Register diskvalifikácií, ÚVO) dostane model – Claude alebo OpenAI, podľa aktívneho poskytovateľa – nástroje `open_page`, `fill`,
+  `click`, `press_enter`, `select_option`, `wait`, `read_page`. Headless Chromium beží na serveri (Vercel: `@sparticuz/chromium`; lokálne
+  `CHROMIUM_PATH`; vzdialený prehliadač `BROWSER_WS_ENDPOINT` cez CDP – aj so slovenskou IP adresou pre justice.gov.sk). Model vidí kompaktnú
+  snímku stránky (očíslované polia, tlačidlá, výbery, odkazy, tabuľky, text) a smie otvárať len oficiálne domény zdroja; obrázky/fonty sa nenačítavajú.
+- **Nezávislá kontrola tvrdení** (`verifyAgentClaims`): „bez záznamu“ platí len po skutočnom odoslaní formulára a bez IČO pri údajoch o zázname
+  na stránke s výsledkom; „nájdený“ len ak IČO alebo názov server naozaj videl. Dôkaz zo stránky s výsledkom dopĺňa server (`serverQuote`).
+  Zamietnuté tvrdenie → „AI nevedela overiť“ s dôvodom. V rozhraní: režim (agent / webové vyhľadávanie), počet krokov, rozbaľovací záznam akcií.
+- Ak prehliadač nie je k dispozícii, použije sa webové vyhľadávanie s poznámkou. `BROWSER_DISABLED=1` agenta vypne. Limit funkcie AI 300 s.
+- Diagnostika: zdroj „Prehliadač na serveri“ – spustenie Chromia a snímky vstupných stránok Union / VšZP / OV / diskvalifikácií.
+- ÚVO potvrdené naživo („Zadaný výraz nebol nájdený.“ pre Slovnaft, searchType=OSZ); pridaný dopyt podľa obchodného mena pred IČO.
+  Union: API `/ehip-server/rest/debtors` vracia 401 pre priame volania (token aplikácie) → rieši agent s prehliadačom.
+- Testy: `test/agent.test.ts` – skutočné Chromium proti lokálnemu registru, simulované API Claude aj OpenAI, kontrola tvrdení, zapojenie do aiCheck.

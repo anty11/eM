@@ -353,7 +353,9 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       const base = "https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom";
       return {
         attempts: [
-          // globálne vyhľadávanie ÚVO, výber searchType=OSZ („Osoba so zákazom“); výsledok „N záznamov“ + bloky s IČO
+          // globálne vyhľadávanie ÚVO, výber searchType=OSZ („Osoba so zákazom“); výsledok „N záznamov“ / „Zadaný výraz nebol nájdený.“ + bloky s IČO.
+          // Najprv podľa obchodného mena (register môže indexovať len názov; nález sa potvrdí IČO v zázname), potom podľa IČO.
+          ...(ctx.profile.name ? [{ url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${enc(ctx.profile.name)}&searchType=OSZ`, label: "podľa názvu" }] : []),
           { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=OSZ` },
           { url: base, info: "stránka registra" },
         ],

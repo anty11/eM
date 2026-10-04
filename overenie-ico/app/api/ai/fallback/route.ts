@@ -9,7 +9,7 @@ import type { CheckResult, CompanyProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /** { ico, check, profile } → { check, profilePatch } – AI overenie jedného zdroja. */
 export const POST = handler(async (req) => {
