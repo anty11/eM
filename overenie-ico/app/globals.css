@@ -197,6 +197,12 @@ textarea { width: 100%; min-height: 80px; }
 .mlist li.done { opacity: .6; }
 .mlist .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; }
 
+/* --- Druh spolupráce (Rozšírené) --- */
+.coop { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-top: 10px; font-size: 14px; }
+.coop input[type="date"] { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.coop input[type="date"]:disabled { opacity: 0.5; }
+.coop .hint { flex-basis: 100%; }
+
 /* --- Údaje o obchode a indikátory rizika --- */
 .indicators { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
 .indicators li { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -231,7 +237,7 @@ textarea { width: 100%; min-height: 80px; }
 @media print {
   :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #c8c8c8; --brand: #1f3a5f; --gold: #444; --ok: #1e7a4c; --warn: #8a5200; --crit: #b3261e; --info: #3b5b85; --manual: #5f4596; --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; --serif: "Georgia", "Times New Roman", serif; }
   @page { size: A4; margin: 11mm 12mm 12mm; }
-  html, body { font-size: 9.6px; line-height: 1.3; background: #fff; color: #000; }
+  html, body { font-size: 9.4px; line-height: 1.28; background: #fff; color: #000; }
   .no-print, .top, .hero { display: none !important; }
   .print-only { display: block; }
   .pref { display: inline; font-size: 7.5px; color: #444; margin-left: 2px; }
@@ -245,9 +251,11 @@ textarea { width: 100%; min-height: 80px; }
   .ph-brand { font-family: var(--font); font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #444; margin-left: 10px; vertical-align: middle; }
   .ph-co { font-weight: 600; font-size: 11px; text-align: right; }
   .ph-meta { font-size: 8.5px; color: #444; margin-top: 2px; }
+  .ph-retro { font-size: 9.5px; font-weight: 700; color: #000; margin-top: 3px; border: 1px solid #000; display: inline-block; padding: 1px 6px; }
+  .retro .hint { display: none; }
 
   /* karty – bez tieňov, tenké čiary, povolené zalomenie vnútri dlhých kariet */
-  .card { padding: 5px 0 4px; margin-top: 6px; border: 0; border-top: 1px solid #000; border-radius: 0; break-inside: auto; }
+  .card { padding: 4px 0 3px; margin-top: 4px; border: 0; border-top: 1px solid #000; border-radius: 0; break-inside: auto; }
   .card h2 { font-size: 8.5px; letter-spacing: 0.06em; margin: 0 0 3px; color: #000; break-after: avoid; }
   .brand { display: none; }
 
@@ -265,7 +273,7 @@ textarea { width: 100%; min-height: 80px; }
   .hint { font-size: 8px; margin-top: 3px; }
 
   /* kľúčové otázky */
-  .fact { grid-template-columns: 16px minmax(150px, 32%) 1fr; gap: 2px 8px; padding: 2px 0; border-top: 1px solid #ddd; break-inside: avoid; }
+  .fact { grid-template-columns: 16px minmax(150px, 32%) 1fr; gap: 2px 8px; padding: 1.5px 0; border-top: 1px solid #ddd; break-inside: avoid; }
   .ficon { width: 12px; height: 12px; font-size: 8px; background: none !important; border: 1px solid currentColor; }
   .fact dd .src { font-size: 8px; }
 
@@ -289,9 +297,9 @@ textarea { width: 100%; min-height: 80px; }
   .card table th, .card table td { padding: 1px 0 !important; }
 
   /* kontroly – jeden kompaktný záznam namiesto karty */
-  .cat { margin-top: 6px; }
+  .cat { margin-top: 4px; }
   .cat > h3 { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #000; margin: 0 0 2px; padding-top: 4px; border-top: 1px solid #000; break-after: avoid; }
-  .check { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; padding: 2px 0 3px; margin: 0; border: 0; border-top: 1px solid #ddd; border-radius: 0; break-inside: avoid; }
+  .check { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; padding: 1.5px 0 2px; margin: 0; border: 0; border-top: 1px solid #ddd; border-radius: 0; break-inside: avoid; }
   .check .head { flex: 1 1 0; min-width: 0; }
   .check .sum, .check ul, .check .actions, .check .ai-note { flex: 1 1 100%; }
   .check .name { display: inline; font-size: 10px; }
@@ -323,10 +331,10 @@ textarea { width: 100%; min-height: 80px; }
   .seal-print .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7.5px; word-break: break-all; }
   .sign { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; break-inside: avoid; }
   .sign div { border-top: 1px solid #000; padding-top: 3px; font-size: 8.5px; }
-  .refs { font-size: 8px; color: #333; margin-top: 8px; border-top: 1px solid #000; padding-top: 4px; }
+  .refs { font-size: 7.8px; color: #333; margin-top: 6px; border-top: 1px solid #000; padding-top: 3px; line-height: 1.25; }
   .refs h2 { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 3px; color: #000; font-weight: 600; }
   .refs ol { margin: 0; padding-left: 16px; columns: 2; column-gap: 16px; }
   .refs li { break-inside: avoid; margin: 0; }
   .refs .url { word-break: break-all; }
-  .disclaimer { font-size: 7.8px; margin-top: 8px; }
+  .disclaimer { font-size: 7.5px; margin-top: 6px; line-height: 1.25; }
 }

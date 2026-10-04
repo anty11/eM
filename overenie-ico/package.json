@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/offline.test.ts && tsx test/auth.test.ts && tsx test/ai.test.ts && tsx test/companies.test.ts && tsx test/orders.test.ts && tsx test/deal.test.ts && tsx test/seal.test.ts"
+    "test": "tsx test/offline.test.ts && tsx test/auth.test.ts && tsx test/ai.test.ts && tsx test/companies.test.ts && tsx test/orders.test.ts && tsx test/deal.test.ts && tsx test/seal.test.ts && tsx test/retro.test.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.39.0",

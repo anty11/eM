@@ -12,7 +12,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "1.6.1";
+export const APP_VERSION = "1.7.0";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -21,10 +21,10 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export type Progress = (c: CheckResult, profile: Ctx["profile"]) => void;
 
-export async function scan(ico: string, onProgress?: Progress): Promise<ScanReport> {
+export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: string } = {}): Promise<ScanReport> {
   const t0 = Date.now();
   const scannedAt = new Date().toISOString();
-  const ctx: Ctx = { ico, profile: { ico } };
+  const ctx: Ctx = { ico, profile: { ico }, asOf: opts.asOf };
   let resolveDic!: () => void;
   ctx.dicReady = new Promise<void>((r) => (resolveDic = r));
   ctx.resolveDic = resolveDic;
@@ -114,6 +114,7 @@ export async function scan(ico: string, onProgress?: Progress): Promise<ScanRepo
     verdict: computeVerdict(checks),
     keyFacts: keyFacts(ctx.profile, checks),
     appVersion: APP_VERSION,
+    asOf: ctx.asOf,
   };
 }
 

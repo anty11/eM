@@ -120,6 +120,8 @@ export interface ScanReport {
   keyFacts: KeyFact[];
   /** IČO nebolo nájdené v registri – preverenie sa skončilo pri obchodnom registri. */
   notFound?: boolean;
+  /** Spätné preverenie: rozhodný dátum začiatku spolupráce (protokol je vyhotovený dnes, k tomuto dátumu uvádza, čo bolo zistiteľné). */
+  asOf?: string;
   /** Kto preverenie spustil – len meno povereného zamestnanca, bez e-mailu (doplní API; e-mail ostáva v audite). */
   scannedBy?: string;
   /** Dostupnosť záložného AI vyhľadávania (doplní API). */
@@ -136,4 +138,6 @@ export interface Ctx {
   dicReady?: Promise<unknown>;
   /** Interné: vyriešenie dicReady. */
   resolveDic?: () => void;
+  /** Rozhodný dátum existujúcej spolupráce (YYYY-MM-DD) – zdroje doplnia, čo bolo k tomuto dňu zistiteľné (spätné preverenie, len verzia Rozšírené). */
+  asOf?: string;
 }

@@ -127,3 +127,15 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v1.6.1** – overovacia stránka vyžaduje **náhodný overovací kód** (10 znakov, vytlačený v riadku „Pečať protokolu“ a v adrese
   `/overit/<číslo>/<kód>`). Číslo protokolu je z IČO a času uhádnuteľné, kód nie – bez neho stránka neukáže nič, ani existenciu protokolu
   (informácie o obchodných vzťahoch klientov nie sú odhaliteľné hádaním). 20 pokusov za hodinu z jednej adresy. `/overit/<číslo>` bez kódu zobrazí len formulár na jeho zadanie.
+
+## v1.7.0 – 4. 10. 2026 – existujúca spolupráca a spätné preverenie (len Rozšírené)
+
+- Nad vyhľadávaním (len verzia Rozšírené) prepínač **Nová spolupráca / Existujúca spolupráca od <dátum>**. Pri existujúcej sa preverenie vykoná
+  normálne k dnešku a navyše každý zdroj doplní, čo bolo k rozhodnému dátumu zistiteľné: obchodný register (názov, sídlo, štatutári, spoločníci,
+  zápisy o zrušení, vek, zmeny po dátume), register závierok (uložené k dátumu podľa dátumu podania, chýbajúce splatné obdobia vtedy), register úpadcov
+  (konania pred / v roku / po rozhodnom dátume podľa spisovej značky), médiá (články pred dátumom). Zoznamy FS a SP: výslovne „k dátumu neoveriteľné“.
+- Protokol: zvýraznený rámček „Spätné preverenie vyhotovené <dnes> k rozhodnému dátumu začiatku spolupráce <dátum>“ a blok „Stav k rozhodnému dátumu“.
+  Verdikt a skóre vždy vyjadrujú dnešný stav; dátum vyhotovenia sa nikdy nemení (antedatovanie nie je možné). Pečať aj overovacia stránka nesú oba dátumy.
+- API `/api/check?asOf=YYYY-MM-DD` – len pre používateľov Rozšírené, dátum v minulosti (≥ 1993). Databáza preverení ukladá dnešný dátum.
+- Kód: `lib/retro.ts`, `lib/sources/{rpo,ruz,insolvency,news}.ts` (pole `data.asOf`), `app/app/page.tsx`, `lib/seal.ts` (`asOf` v odtlačku). Test `test/retro.test.ts`.
+- Tlač zhustená (prázdne údaje o obchode = jeden riadok), všetky varianty protokolu na 2 stranách.

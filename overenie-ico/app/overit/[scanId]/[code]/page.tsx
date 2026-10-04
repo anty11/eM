@@ -45,7 +45,8 @@ export default async function VerifyPage({ params }: { params: Promise<{ scanId:
               <>
                 <p className="s-lead" style={{ marginTop: 14 }}>
                   Preverenie spoločnosti <b>{first.company || "–"}</b> (IČO {first.ico}) prebehlo v aplikácii {PRODUCT} <b>{fmt(first.scannedAt)}</b>.
-                  Protokol bol zapečatený {seals.length === 1 ? "raz" : `${seals.length}×`}; porovnajte odtlačok vytlačený v PDF s odtlačkom nižšie –
+                  {first.asOf && <> Ide o <b>spätné preverenie</b> k rozhodnému dátumu začiatku spolupráce {new Date(first.asOf).toLocaleDateString("sk-SK")} – protokol bol vyhotovený až v uvedenom čase preverenia.</>}
+                  {" "}Protokol bol zapečatený {seals.length === 1 ? "raz" : `${seals.length}×`}; porovnajte odtlačok vytlačený v PDF s odtlačkom nižšie –
                   zhoda potvrdzuje, že obsah protokolu je od času pečate nezmenený.
                 </p>
                 <div className="s-compare-wrap" style={{ marginTop: 24 }}>

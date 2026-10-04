@@ -153,6 +153,9 @@ export default function DealCard({
       </div>
 
       {/* tlač – kompaktný prehľad (nálezy sú v riadku kontroly „Údaje o obchode a indikátory rizika“) */}
+      {!deal.subject.trim() && !iban && answered === 0 ? (
+        <div className="print-only deal-print"><span className="wide">Údaje o obchode a indikátory rizika SKDP 03/2024 neboli pri tomto preverení vyplnené.</span></div>
+      ) : (
       <div className="print-only deal-print">
         <span><b>Smer:</b> {deal.direction === "buy" ? "nakupujeme (dodávateľ)" : "dodávame (odberateľ)"}</span>
         <span><b>Predmet obchodu:</b> {deal.subject.trim() || "–"}</span>
@@ -170,6 +173,7 @@ export default function DealCard({
           })}
         </span>
       </div>
+      )}
     </section>
   );
 }

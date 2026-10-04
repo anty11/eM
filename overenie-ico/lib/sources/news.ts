@@ -349,6 +349,14 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
         f.push({ severity: "warning", text: `${recentNeg.length} relevantné správy s negatívnym obsahom za 2 roky – preverte`, penalty: 10 });
       else if (recentNeg.length > 0)
         f.push({ severity: "warning", text: `${recentNeg.length === 1 ? "1 relevantná správa" : `${recentNeg.length} relevantné správy`} s negatívnym obsahom – preverte kontext`, penalty: 3 });
+      const asOf = ctx.asOf
+        ? {
+            date: ctx.asOf,
+            before: articles.filter((a) => a.date && a.date.slice(0, 10) <= ctx.asOf!).map((a) => ({ title: a.title, date: a.date, negative: a.negative, source: a.source })),
+            negativeBefore: articles.filter((a) => a.negative.length && a.date && a.date.slice(0, 10) <= ctx.asOf!).length,
+            undated: articles.filter((a) => !a.date).length,
+          }
+        : undefined;
       const latest = articles[0]?.date ? new Date(articles[0].date).toLocaleDateString("sk-SK") : undefined;
       const aboutFirm = articles.filter((a) => a.about === "firma").length;
       const aboutPeople = articles.length - aboutFirm;
@@ -361,7 +369,7 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
             : "Vyhľadávače správ nevrátili žiadne výsledky – mohli zablokovať požiadavku zo servera. Použite odkazy nižšie.",
         findings: f,
         verifyUrl: links.google,
-        data: { query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), rejected: rejected.slice(0, 30), scanned: raw.length, sources: [
+        data: { asOf, query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), rejected: rejected.slice(0, 30), scanned: raw.length, sources: [
             ...outlets.ok.map((n) => ({ provider: "outlet", name: n, ok: true, items: outlets.found.filter((f) => f.source === n).length })),
             ...outlets.failed.map((n) => ({ provider: "outlet", name: n, ok: false, items: 0 })),
             { provider: "ddg", ok: ddg.length > 0, items: ddg.length },

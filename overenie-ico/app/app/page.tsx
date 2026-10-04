@@ -9,6 +9,7 @@ import KeyFacts from "../components/KeyFacts";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
 import { buildDealCheck, type BankAccountResult, type DealInput } from "@/lib/deal";
 import { shortHash, type Seal } from "@/lib/seal";
+import { retroLines } from "@/lib/retro";
 import { DOMAIN } from "../components/site/SiteShell";
 import { MANUAL } from "@/lib/sources/manual";
 import { AUTO_ORDER, pendingCheck } from "@/lib/sources/meta";
@@ -73,6 +74,9 @@ export default function Page() {
   const [bank, setBank] = useState<BankAccountResult | null>(null);
   // Pečať protokolu (odtlačok + čas zápisu na serveri) – vytvorí sa pri uložení PDF
   const [seal, setSeal] = useState<Seal | null>(null);
+  // Druh spolupráce: nová, alebo existujúca od rozhodného dátumu (spätné preverenie – len Rozšírené)
+  const [coop, setCoop] = useState<"new" | "existing">("new");
+  const [coopDate, setCoopDate] = useState("");
   const [sealing, setSealing] = useState(false);
   const [sealErr, setSealErr] = useState("");
   const [contactSnap, setContactSnap] = useState<Record<string, unknown> | null>(null);
@@ -120,7 +124,13 @@ export default function Page() {
     setAiBusy({});
     setAiErr({});
     try {
-      const r = await fetch(`/api/check?ico=${v}&stream=1`);
+      const asOf = lawyer && coop === "existing" && coopDate ? `&asOf=${coopDate}` : "";
+      if (lawyer && coop === "existing" && !coopDate) {
+        setError("Zadajte dátum začiatku existujúcej spolupráce, alebo zvoľte novú spoluprácu.");
+        setLoading(false);
+        return;
+      }
+      const r = await fetch(`/api/check?ico=${v}&stream=1${asOf}`);
       if (r.status === 401) {
         location.href = `/login?next=${encodeURIComponent(`/app?ico=${v}`)}`;
         return;
@@ -240,7 +250,7 @@ export default function Page() {
       const r = await fetch("/api/protocol/seal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanId: report.scanId, ico: report.ico, scannedAt: report.scannedAt, profile, checks, verdict, keyFacts: facts, deal, contact: contactSnap, note, author, appVersion: report.appVersion }),
+        body: JSON.stringify({ scanId: report.scanId, ico: report.ico, scannedAt: report.scannedAt, asOf: report.asOf, profile, checks, verdict, keyFacts: facts, deal, contact: contactSnap, note, author, appVersion: report.appVersion }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `Chyba ${r.status}`);
@@ -380,6 +390,17 @@ export default function Page() {
             <input inputMode="numeric" placeholder="IČO, napr. 47244895" value={ico} onChange={(e) => setIco(e.target.value)} aria-label="IČO" autoFocus />
             <button className="btn" disabled={loading}>{loading ? "Preverujem…" : "Preveriť"}</button>
           </form>
+          {lawyer && (
+            <div className="coop">
+              <label className="check-row"><input type="radio" name="coop" checked={coop === "new"} onChange={() => setCoop("new")} /><span>Nová spolupráca</span></label>
+              <label className="check-row">
+                <input type="radio" name="coop" checked={coop === "existing"} onChange={() => setCoop("existing")} />
+                <span>Existujúca spolupráca od</span>
+              </label>
+              <input type="date" value={coopDate} max={new Date().toISOString().slice(0, 10)} min="1993-01-01" onChange={(e) => { setCoopDate(e.target.value); if (e.target.value) setCoop("existing"); }} aria-label="Rozhodný dátum začiatku spolupráce" disabled={coop !== "existing"} />
+              <span className="hint" style={{ margin: 0 }}>Pri existujúcej spolupráci protokol doplní, čo bolo k rozhodnému dátumu zistiteľné z registrov (spätné preverenie).</span>
+            </div>
+          )}
           {recent.length > 0 && (
             <div className="recent">
               {recent.map((r) => (
@@ -428,6 +449,7 @@ export default function Page() {
                 <h1>Protokol o preverení obchodného partnera <span className="ph-brand">obozretne.sk</span></h1>
                 <div className="ph-co">{p.name || "Neznámy subjekt"} · IČO {p.ico}</div>
               </div>
+              {report.asOf && <div className="ph-retro">Spätné preverenie vyhotovené {fmtDate(report.scannedAt)} k rozhodnému dátumu začiatku spolupráce {new Date(report.asOf).toLocaleDateString("sk-SK")}</div>}
               <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.scannedBy ? ` · Preveril ${report.scannedBy}` : ""} · {lawyer ? "rozšírené overenie" : "štandardné overenie"}</div>
             </div>
 
@@ -484,6 +506,25 @@ export default function Page() {
               );
             })()}
             <KeyFacts facts={facts} />
+
+            {report.asOf && (
+              <section className="card retro">
+                <h2>Stav k rozhodnému dátumu {new Date(report.asOf).toLocaleDateString("sk-SK")} – spätné preverenie</h2>
+                <p className="hint" style={{ marginTop: 0 }}>
+                  Spolupráca začala pred týmto preverením. Protokol je vyhotovený dnes ({new Date(report.scannedAt).toLocaleDateString("sk-SK")}); tu je uvedené, čo bolo z verejných registrov
+                  zistiteľné k dátumu začiatku spolupráce, a výslovne aj to, čo k tomu dňu overiť nemožno. Verdikt a skóre vyššie vyjadrujú dnešný stav.
+                </p>
+                <dl className="facts">
+                  {retroLines(report.asOf, p, checks).map((l, i) => (
+                    <div key={i} className={`fact t-${l.tone}`}>
+                      <span className="ficon" aria-hidden>{{ good: "✓", bad: "✕", warn: "!", neutral: "•", unknown: "?" }[l.tone]}</span>
+                      <dt>{l.source}</dt>
+                      <dd>{l.text}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
 
             <ContactCard ico={report.ico} profile={p} meEmail={me?.email} onChange={setContactSnap} />
 

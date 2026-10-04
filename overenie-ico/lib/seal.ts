@@ -16,6 +16,8 @@ export interface Seal {
   ico: string;
   company?: string;
   scannedAt: string;
+  /** Spätné preverenie – rozhodný dátum začiatku spolupráce */
+  asOf?: string;
   sealedAt: string;
   hash: string;
   verdict: string;
@@ -66,11 +68,12 @@ export function sha256(s: string): string {
 }
 
 /** Z obsahu protokolu vyberie len to, čo sa tlačí a hodnotí – bez prechodných polí (pending, ai metadáta nemenia obsah). */
-export function protocolDigestInput(p: { scanId: string; ico: string; scannedAt: string; profile: unknown; checks: unknown; verdict: unknown; keyFacts?: unknown; deal?: unknown; contact?: unknown; note?: string; author?: string; appVersion?: string }) {
+export function protocolDigestInput(p: { scanId: string; ico: string; scannedAt: string; asOf?: string; profile: unknown; checks: unknown; verdict: unknown; keyFacts?: unknown; deal?: unknown; contact?: unknown; note?: string; author?: string; appVersion?: string }) {
   return {
     scanId: p.scanId,
     ico: p.ico,
     scannedAt: p.scannedAt,
+    asOf: p.asOf ?? null,
     profile: p.profile,
     checks: p.checks,
     verdict: p.verdict,
@@ -98,6 +101,7 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
     ico: input.ico,
     company: input.company,
     scannedAt: input.scannedAt,
+    asOf: input.asOf,
     sealedAt: new Date().toISOString(),
     hash,
     verdict: input.verdictLevel,

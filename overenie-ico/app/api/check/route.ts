@@ -16,6 +16,15 @@ export const GET = handler(async (req) => {
   if (!ico) return NextResponse.json({ error: "Zadajte platné IČO (6–8 číslic)." }, { status: 400 });
   // Do výsledku a protokolu ide len meno povereného zamestnanca – e-mail sa v zdieľaných výstupoch neuvádza (ostáva v audite).
   const scannedBy = me.name || "poverený zamestnanec";
+  // Spätné preverenie k rozhodnému dátumu – len verzia Rozšírené; dátum musí byť v minulosti (nie starší ako 1. 1. 1993)
+  const asOfRaw = new URL(req.url).searchParams.get("asOf") || "";
+  let asOf: string | undefined;
+  if (asOfRaw) {
+    if (me.mode !== "advokat") return NextResponse.json({ error: "Spätné preverenie k rozhodnému dátumu je dostupné len vo verzii Rozšírené." }, { status: 403 });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) || isNaN(+new Date(asOfRaw)) || asOfRaw > new Date().toISOString().slice(0, 10) || asOfRaw < "1993-01-01")
+      return NextResponse.json({ error: "Rozhodný dátum musí byť platný dátum v minulosti." }, { status: 400 });
+    asOf = asOfRaw;
+  }
   const ai = await getAiConfig().catch(() => null);
   const aiInfo = ai ? { available: true, auto: ai.auto, noApiSources: ai.noApiSources, provider: ai.provider } : { available: false };
 
@@ -27,7 +36,7 @@ export const GET = handler(async (req) => {
         const send = (o: unknown) => controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
         send({ type: "start", ico, scannedBy, ai: aiInfo });
         try {
-          const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }));
+          const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }), { asOf });
           if (!report.notFound) await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
           await audit({ type: "scan", by: me.email, ico, company: report.profile.name || (report.notFound ? "IČO nenájdené" : undefined), verdict: report.notFound ? "not_found" : report.verdict.level, score: report.verdict.score, scanId: report.scanId });
           send({ type: "done", report: { ...report, scannedBy, ai: aiInfo } });
@@ -40,7 +49,7 @@ export const GET = handler(async (req) => {
     return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" } });
   }
 
-  const report = await scan(ico);
+  const report = await scan(ico, undefined, { asOf });
   if (!report.notFound) await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
   await audit({
     type: "scan",

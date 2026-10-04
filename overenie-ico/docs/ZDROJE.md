@@ -434,3 +434,17 @@ Zobrazuje sa na začiatku výsledku a v PDF (`lib/keyfacts.ts`).
 | (xiv) tlak na čas | posúdi poverený zamestnanec | −6 |
 
 Posúdenie zamestnanca má tri stavy (neposúdené / bez indikácie / indikácia potvrdená) a všetky sa zapíšu do protokolu s menom a časom. Neposúdené a neoverené položky (napr. účet bez kľúča FS) nie sú nikdy v neprospech partnera.
+
+
+## Spätné preverenie k rozhodnému dátumu (verzia Rozšírené)
+
+Pri existujúcej spolupráci zadá poverený zamestnanec dátum jej začiatku. Protokol je vždy vyhotovený k dnešnému dňu (čas preverenia a pečať sa nemenia);
+blok „Stav k rozhodnému dátumu“ uvádza, čo bolo z registrov zistiteľné vtedy (`lib/retro.ts`):
+
+| Zdroj | Historické údaje | Čo sa uvádza k rozhodnému dátumu |
+|---|---|---|
+| RPO | áno (`validFrom`/`validTo` pri názvoch, sídlach, štatutároch, spoločníkoch, právnych skutočnostiach) | názov, sídlo, štatutári, spoločníci, zápisy o zrušení, vek, existencia/zánik, počet zmien po dátume |
+| RÚZ | áno (`datumPodania` závierok) | závierky uložené k dátumu, očakávané obdobie vtedy, chýbajúce splatné obdobia |
+| REPLIK | čiastočne (rok zo spisovej značky) | konania začaté pred rokom dátumu / v tom roku (overiť) / po ňom |
+| Médiá | áno (dátum článku) | počet článkov a negatívnych správ pred dátumom |
+| FS, SP | nie | výslovne „k dátumu neoveriteľné – dnešný stav“ |

@@ -77,6 +77,18 @@ export async function checkInsolvency(ctx: Ctx): Promise<CheckResult> {
         let crit = false;
         for (const x of f) if (x.severity === "critical") { if (crit) x.penalty = 0; crit = true; }
         const liq = ongoing.find(isLiq);
+        const asOf = ctx.asOf
+          ? (() => {
+              const y = Number(ctx.asOf!.slice(0, 4));
+              const yearOf = (n: string) => Number((n.match(/\/(\d{4})\b/) || [])[1] || 0);
+              return {
+                date: ctx.asOf,
+                startedBefore: proceedings.filter((p) => yearOf(p.number) && yearOf(p.number) < y).map((p) => `${p.kind} č. ${p.number}`),
+                startedSameYear: proceedings.filter((p) => yearOf(p.number) === y).map((p) => `${p.kind} č. ${p.number}`),
+                startedAfter: proceedings.filter((p) => yearOf(p.number) > y).map((p) => `${p.kind} č. ${p.number}`),
+              };
+            })()
+          : undefined;
         return {
           status: ongoing.length ? "critical" : "warning",
           summary: ongoing.length
@@ -85,6 +97,7 @@ export async function checkInsolvency(ctx: Ctx): Promise<CheckResult> {
           findings: f,
           verifyUrl,
           data: {
+            asOf,
             proceedings,
             insolvent: ongoing.some((p) => !isLiq(p)),
             dissolution: Boolean(liq),
@@ -93,7 +106,7 @@ export async function checkInsolvency(ctx: Ctx): Promise<CheckResult> {
         };
       }
       if (noResults)
-        return { status: "ok", summary: "V registri úpadcov a likvidácií nie je žiadne konanie voči subjektu.", findings: [], verifyUrl, data: { proceedings: [] } };
+        return { status: "ok", summary: "V registri úpadcov a likvidácií nie je žiadne konanie voči subjektu.", findings: [], verifyUrl, data: { proceedings: [], asOf: ctx.asOf ? { date: ctx.asOf, startedBefore: [], startedSameYear: [], startedAfter: [] } : undefined } };
       return {
         status: "manual",
         summary: "Register úpadcov nevrátil jednoznačný výsledok (dynamická stránka). Otvorte odkaz a potvrďte manuálne.",

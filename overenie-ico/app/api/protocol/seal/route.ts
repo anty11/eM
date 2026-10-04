@@ -19,6 +19,7 @@ export const POST = handler(async (req) => {
       scanId: b.scanId,
       ico: b.ico,
       scannedAt: b.scannedAt,
+      asOf: typeof b.asOf === "string" ? b.asOf : undefined,
       profile: b.profile ?? null,
       checks: b.checks,
       verdict: b.verdict,

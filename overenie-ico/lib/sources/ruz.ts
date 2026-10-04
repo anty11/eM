@@ -220,6 +220,17 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
           lastFiledYear: latest || undefined,
           lastFiledOn: full[0]?.datumPodania,
           filedExpected: latest >= expected,
+          asOf: ctx.asOf
+            ? (() => {
+                const d = ctx.asOf!;
+                const filedBy = full.filter((z) => z.datumPodania && z.datumPodania <= d);
+                const yearsBy = [...new Set(filedBy.map((z) => String(z.datumZostaveniaK).slice(0, 4)))].sort().reverse();
+                const dt = new Date(d);
+                const expectedThen = dt.getFullYear() - (dt.getMonth() >= 9 ? 1 : 2);
+                const st = filingStatus({ expected: expectedThen, latest: Number(yearsBy[0] || 0), established: ctx.profile.established });
+                return { date: d, filedYears: yearsBy, lastFiledOn: filedBy[0]?.datumPodania, expectedThen, missingThen: st.missing, duePeriodsThen: st.duePeriods };
+              })()
+            : undefined,
           duePeriods: fs.duePeriods,
           firstDuePeriod: fs.firstDue,
           missingPeriods: fs.missing,

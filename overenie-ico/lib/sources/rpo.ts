@@ -7,6 +7,8 @@ const BASE = "https://api.statistics.sk/rpo/v1";
 
 type Valid = { validFrom?: string; validTo?: string; [k: string]: any };
 const current = <T extends Valid>(arr?: T[]): T[] => (arr || []).filter((x) => !x.validTo);
+/** Položky platné k danému dňu (validFrom ≤ deň < validTo). */
+const validAt = <T extends Valid>(arr: T[] | undefined, day: string): T[] => (arr || []).filter((x) => (!x.validFrom || x.validFrom <= day) && (!x.validTo || x.validTo > day));
 const yearsSince = (d?: string) => (d ? (Date.now() - new Date(d).getTime()) / (365.25 * 864e5) : NaN);
 
 function fmtAddress(a: any): string {
@@ -156,6 +158,28 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       if (!e.termination && statutory.length === 0 && /spolo[cč]nos[tť]|dru[zž]stvo/i.test(legalForm || ""))
         f.push({ severity: "warning", text: "V registri nie je uvedený žiadny aktuálny štatutárny orgán", penalty: 8 });
 
+      // Spätné preverenie: čo bolo v registri zistiteľné k rozhodnému dátumu
+      let asOf: Record<string, unknown> | undefined;
+      if (ctx.asOf) {
+        const d = ctx.asOf;
+        const existedThen = !e.establishment || e.establishment <= d;
+        asOf = {
+          date: d,
+          existed: existedThen,
+          name: validAt(names, d)[0]?.value,
+          address: fmtAddress(validAt(e.addresses, d)[0]),
+          statutory: validAt(e.statutoryBodies, d).map((s: any) => personName(s)),
+          owners: validAt(ownerRows, d).map((s: any) => personName(s)),
+          dissolutionFacts: (e.otherLegalFacts || []).filter((x: any) => (!x.validFrom || x.validFrom <= d) && (!x.validTo || x.validTo > d)).map((x: any) => String(x.value || "")).filter((t: string) => /zru[sš]en|v[yý]maz|likvid|konkurz/i.test(t)),
+          terminatedBefore: Boolean(e.termination && e.termination <= d),
+          ageYearsThen: e.establishment ? Math.max(0, (+new Date(d) - +new Date(e.establishment)) / 31557600000) : undefined,
+          changesAfter: {
+            statutory: (e.statutoryBodies || []).filter((x: any) => x.validFrom && x.validFrom > d).length,
+            owners: ownerRows.filter((x: any) => x.validFrom && x.validFrom > d).length,
+          },
+        };
+      }
+
       const status = statusFromFindings(f);
       return {
         status,
@@ -165,6 +189,7 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
         findings: f,
         verifyUrl: `https://www.orsr.sk/hladaj_ico.asp?ICO=${ctx.ico}&SID=0`,
         data: {
+          asOf,
           rpoId: hit.id,
           seatChanges,
           nameChanges,
