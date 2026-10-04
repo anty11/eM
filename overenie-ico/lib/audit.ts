@@ -18,7 +18,8 @@ export type AuditType =
   | "ai_check"
   | "company_removed"
   | "order"
-  | "order_status";
+  | "order_status"
+  | "protocol_sealed";
 
 export interface AuditEvent {
   at: string;
