@@ -68,7 +68,7 @@ export default function LawPage() {
             </p>
 
             <h2>4. Čo z toho vyplýva pre prax</h2>
-            <p>Náležitá starostlivosť má v praxi tri zložky, ktoré {PRODUCT} pokrýva:</p>
+            <p>Náležitá starostlivosť má v praxi tri zložky, ktoré aplikácia {PRODUCT} pokrýva:</p>
             <ul>
               <li><b>Overenie v registroch pred obchodom</b> – obchodný register, registrácia pre DPH a zoznamy Finančnej správy (dlžníci, dôvody na zrušenie registrácie, index spoľahlivosti), Sociálna poisťovňa, konkurzy a likvidácie, účtovné závierky, register partnerov verejného sektora, médiá.</li>
               <li><b>Vyhodnotenie indícií</b> – záporné vlastné imanie, nepodaná závierka, čerstvá zmena konateľa či vlastníka, veľmi mladá spoločnosť, negatívne správy v médiách o spoločnosti alebo jej štatutároch.</li>

@@ -1,4 +1,4 @@
-/* Klientska sekcia – rovnaká paleta ako verejný web (preverto.sk): indigovo-fialová ako hlavná farba, zlatá ako akcent.
+/* Klientska sekcia – rovnaká paleta ako verejný web (obozretne.sk): indigovo-fialová ako hlavná farba, zlatá ako akcent.
    Tlačový výstup (PDF protokol) má vlastné farby a písma v bloku @media print a touto paletou sa nemení. */
 :root {
   --bg: #faf9fc;

@@ -1,17 +1,17 @@
 import "../../site.css";
 import { Wordmark } from "../Logo";
 
-export const PRODUCT = "Preverto";
-export const DOMAIN = "preverto.sk";
+export const PRODUCT = "Obozretne";
+export const DOMAIN = "obozretne.sk";
 
 /**
  * Prevádzkovateľ produktu – samostatná spoločnosť (nie advokátska kancelária).
  * Názov, IČO a kontakt doplňte po založení / rozhodnutí; zobrazujú sa v päte, na stránke objednávky a v súhlase so spracovaním údajov.
  */
 export const OPERATOR = {
-  name: "Preverto s.r.o.",
+  name: "Obozretne s.r.o.",
   nameNote: "pracovný názov – doplní sa po zápise spoločnosti",
-  email: "info@preverto.sk",
+  email: "info@obozretne.sk",
   phone: "",
   address: "",
 };
@@ -44,7 +44,7 @@ export function SiteHeader({ active }: { active?: "home" | "law" | "order" }) {
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" />
       <div className="s-wrap">
-        <a className="s-brand" href="/" aria-label="Preverto – úvod">
+        <a className="s-brand" href="/" aria-label="Obozretne – úvod">
           <Wordmark size={26} sub="overenie obchodného partnera" />
         </a>
         <nav className="s-nav">

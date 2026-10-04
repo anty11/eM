@@ -1,4 +1,4 @@
-# Preverto – preverenie obchodného partnera podľa IČO (preverto.sk)
+# Obozretne – preverenie obchodného partnera podľa IČO (obozretne.sk)
 
 Produkt pre firmy zastrešený advokátskymi kanceláriami URBAN & PARTNERS a LEXNERA Legal: verejný web s prezentáciou a objednávkou (`/`) a klientska sekcia (`/app`) prístupná len prihláseným povereným zamestnancom. Zadáte IČO a aplikácia overí subjekt vo verejných registroch SR. Z výsledkov vypočíta skóre rizika (0–100) a dá odporúčanie: **ODPORÚČAME / S VÝHRADOU / NEODPORÚČAME**. Výsledok uložíte ako PDF protokol s časom preverenia.
 

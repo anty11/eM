@@ -392,7 +392,7 @@ export default function Page() {
           <>
             <div className="print-only print-head">
               <div className="ph-row">
-                <h1>Protokol o preverení obchodného partnera <span className="ph-brand">preverto.sk</span></h1>
+                <h1>Protokol o preverení obchodného partnera <span className="ph-brand">obozretne.sk</span></h1>
                 <div className="ph-co">{p.name || "Neznámy subjekt"} · IČO {p.ico}</div>
               </div>
               <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.scannedBy ? ` · Preveril ${report.scannedBy}` : ""} · {lawyer ? "rozšírené overenie" : "štandardné overenie"}</div>

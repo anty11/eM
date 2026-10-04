@@ -1,6 +1,6 @@
 /**
- * Logo Preverto.
- * - Wordmark (hlavné logo): „prever“ + „to“ v zlatej + indigová bodka – slovná hračka „prever to“.
+ * Logo Obozretne.
+ * - Wordmark (hlavné logo): „obozretne“ + zlatá bodka – číta sa ako výrok „Obozretne.“; prvé písmeno zvýraznené zlatou.
  * - Seal (symbol): dvojitý kruh so zlatou fajkou – používa sa tam, kde treba len znak (favicon, malé plochy).
  * Farby sa dedia z CSS premenných, kde sú k dispozícii; na tmavom pozadí použite `onDark`.
  */
@@ -21,7 +21,7 @@ export function Wordmark({ size = 26, onDark = false, sub }: { size?: number; on
           alignItems: "baseline",
         }}
       >
-        prever<span style={{ color: gold }}>to</span>
+        <span style={{ color: gold }}>o</span>bozretne
         <span aria-hidden style={{ display: "inline-block", width: size * 0.26, height: size * 0.26, borderRadius: "50%", background: dot, marginLeft: size * 0.14, transform: "translateY(-1px)" }} />
       </span>
       {sub && (

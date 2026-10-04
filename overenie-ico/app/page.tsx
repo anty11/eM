@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FIRMS, PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
 
 export const metadata: Metadata = {
-  title: "Preverto – overenie dodávateľa a odberateľa podľa IČO",
+  title: "Obozretne – overenie dodávateľa a odberateľa podľa IČO",
   description:
     "Overenie obchodného partnera vo verejných registroch SR za pol minúty: obchodný register, dane a DPH, poisťovne, konkurzy, závierky, médiá. Protokol o preverení ako doklad náležitej starostlivosti. S odbornou záštitou advokátskych kancelárií URBAN & PARTNERS a LEXNERA Legal.",
   alternates: { canonical: "/" },
@@ -48,7 +48,7 @@ export default function Home() {
         <div className="s-wrap">
           <div>
             <span className="s-eyebrow">Overenie obchodného partnera</span>
-            <h1>Prever to. Obchodného partnera preveríte rýchlo, spoľahlivo a s protokolom.</h1>
+            <h1>Obchodujte obozretne. Partnera preveríte rýchlo, spoľahlivo a s protokolom.</h1>
             <p className="s-lead">
               Zadáte IČO a do pol minúty máte prehľad o dodávateľovi alebo odberateľovi: obchodný register, dane a DPH, poisťovne, konkurzy,
               účtovné závierky aj médiá. Výsledkom je protokol s časom preverenia – doklad náležitej starostlivosti, akú od podnikateľov
@@ -106,7 +106,7 @@ export default function Home() {
               </blockquote>
               <p>
                 Správca dane aj slovenské súdy sa pri kontrole pýtajú rovnako: <b>čo ste urobili pre to, aby ste svojho partnera poznali, a viete to
-                preukázať?</b> {PRODUCT} odpovedá na obe časti – overením v registroch k presnému času a protokolom, ktorý si založíte k zmluve alebo faktúre.
+                preukázať?</b> Aplikácia {PRODUCT} odpovedá na obe časti – overením v registroch k presnému času a protokolom, ktorý si založíte k zmluve alebo faktúre.
               </p>
               <a className="s-btn ghost" href="/pravny-zaklad">Právny základ podrobne →</a>
             </div>

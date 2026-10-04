@@ -105,3 +105,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v1.4.1** – IČO, ktoré sa v Registri právnických osôb nenájde, preverenie zastaví: zobrazí sa len karta „IČO sa v registri nenašlo“ s postupom
   (kontrola IČO, zahraničný subjekt, výpis z OR), ostatné registre ani indikátory sa nevyhodnocujú, záznam sa nezapíše do databázy preverených spoločností
   (audit ho eviduje s verdiktom `not_found`). Výpadok RPO (chyba API) sa od „nenájdené“ odlišuje – vtedy preverenie pokračuje.
+
+## v1.5.0 – 4. 10. 2026 – názov Obozretne (obozretne.sk)
+
+- Produkt premenovaný z Preverto na **Obozretne** (doména obozretne.sk, prevádzkovateľ pracovne Obozretne s.r.o., e-mail info@obozretne.sk) – Preverto kolidovalo s konkurenciou.
+- Wordmark: „obozretne“ so zlatým prvým písmenom a zlatou bodkou (číta sa ako výrok „Obozretne.“); pečať s fajkou ostáva symbolom a faviconou.
+- Úvodný titulok: „Obchodujte obozretne. Partnera preveríte rýchlo, spoľahlivo a s protokolom.“ PDF protokol má v hlavičke obozretne.sk.

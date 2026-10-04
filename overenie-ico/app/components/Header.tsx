@@ -34,7 +34,7 @@ export default function Header({ me, active }: { me?: Me | null; active?: "check
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" />
       <div className="wrap">
-        <a className="brand" href="/app" style={{ textDecoration: "none", color: "inherit" }} aria-label="Preverto – klientska sekcia">
+        <a className="brand" href="/app" style={{ textDecoration: "none", color: "inherit" }} aria-label="Obozretne – klientska sekcia">
           <Wordmark size={22} sub="klientska sekcia" />
         </a>
         {me ? (
