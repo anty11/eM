@@ -20,21 +20,23 @@ const REGISTERS: { name: string; src: string }[] = [
   { name: "Register partnerov verejného sektora a koneční užívatelia výhod", src: "Ministerstvo spravodlivosti SR" },
   { name: "Médiá a internet – správy o spoločnosti a jej štatutároch", src: "slovenské spravodajské weby" },
   { name: "Vek spoločnosti, zmeny vlastníkov a štatutárov, predmet podnikania", src: "Obchodný register" },
-  { name: "Kontrolný zoznam neverejných registrov (exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie)", src: "na manuálne overenie" },
+  { name: "Zoznam bankových účtov platiteľov DPH – overenie IBAN z faktúry", src: "Finančná správa SR" },
+  { name: "Kontrolný zoznam neverejných registrov (exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie)", src: "na manuálne overenie – verzia Rozšírené" },
 ];
 
 const FEATURES: { name: string; note?: string; ext: boolean; std: boolean }[] = [
-  { name: "Všetkých 10 automatických zdrojov", note: "obchodný register, Finančná správa, Sociálna poisťovňa, závierky, konkurzy, RPVS, médiá", ext: true, std: true },
-  { name: "Výsledok, skóre a 9 kľúčových otázok k partnerovi", ext: true, std: true },
-  { name: "PDF protokol s časovou pečiatkou a menom zamestnanca", ext: true, std: true },
-  { name: "Databáza preverených spoločností s pripomienkou po 180 dňoch", ext: true, std: true },
-  { name: "Karta kontaktu", note: "s kým u partnera komunikujete a kto od vás", ext: true, std: true },
+  { name: "Všetkých 10 automatických zdrojov", note: "obchodný register, Finančná správa (dlžníci, DPH, index spoľahlivosti, daň z príjmov), Sociálna poisťovňa, závierky, konkurzy a likvidácie, RPVS, médiá", ext: true, std: true },
+  { name: "Výsledok, skóre a 9 kľúčových otázok k partnerovi", note: "vrátane chýbajúcich závierok za 2+ období ako dôvodu na zrušenie súdom", ext: true, std: true },
+  { name: "Údaje o obchode a indikátory rizika podľa Bulletinu SKDP 03/2024", note: "predmet obchodu vs. predmet podnikania, overenie IBAN v zozname účtov Finančnej správy, posúdenie indikátorov povereným zamestnancom", ext: true, std: true },
+  { name: "Dvojstranový PDF protokol s pečaťou", note: "čas preverenia, meno povereného zamestnanca, odtlačok SHA-256 a verejná overovacia stránka s kódom z protokolu", ext: true, std: true },
+  { name: "Databáza preverených spoločností s pripomienkou po 180 dňoch", note: "zdieľaná v rámci firmy, opakované preverenie jedným klikom", ext: true, std: true },
+  { name: "Karta kontaktu", note: "s kým u partnera komunikujete, kto od vás, overenie oprávnenia konať", ext: true, std: true },
   { name: "Neobmedzený počet preverení", ext: true, std: true },
-  { name: "Kontrolný zoznam neverejných registrov so zápisom výsledku do protokolu", note: "exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie, verejné obstarávanie", ext: true, std: false },
-  { name: "Prepočet výsledku po manuálnom overení povereným zamestnancom", ext: true, std: false },
+  { name: "Kontrolný zoznam neverejných registrov so zápisom výsledku do protokolu", note: "exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie, verejné obstarávanie – výsledok sa premietne do skóre", ext: true, std: false },
+  { name: "Spätné preverenie existujúcej spolupráce k rozhodnému dátumu", note: "čo bolo z registrov zistiteľné pri začiatku spolupráce; protokol je vždy vyhotovený k dnešku", ext: true, std: false },
   { name: "Voliteľné AI dohľadanie údajov v zdrojoch bez rozhrania", ext: true, std: false },
   { name: "Úvodné školenie poverených zamestnancov", ext: true, std: false },
-  { name: "Zvýhodnená konzultácia s advokátom pri rizikovom náleze", ext: true, std: false },
+  { name: "Komunikácia s advokátom obratom pri rizikovom náleze", note: "prednostný kontakt na advokátske kancelárie poskytujúce odbornú záštitu; právne služby nie sú v cene a účtujú sa osobitne", ext: true, std: false },
 ];
 
 export default function Home() {
@@ -132,7 +134,7 @@ export default function Home() {
             <div className="s-card"><div className="num">1</div><h3>Nový dodávateľ</h3><p>Pred prvou objednávkou alebo zmluvou. Protokol založíte k zmluve ako doklad náležitej starostlivosti.</p></div>
             <div className="s-card"><div className="num">2</div><h3>Odberateľ na faktúru</h3><p>Pred dodaním tovaru alebo služby s odloženou splatnosťou – nedoplatky, konkurz a záporné imanie uvidíte vopred.</p></div>
             <div className="s-card"><div className="num">3</div><h3>Pravidelná kontrola</h3><p>Databáza preverených spoločností pripomenie, komu sa blíži 180 dní od posledného overenia. Jedným klikom preveríte znova.</p></div>
-            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia a menom zamestnanca, ktorý ho vykonal.</p></div>
+            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia, menom zamestnanca a pečaťou, ktorú si kontrolór overí na verejnej stránke. Pri existujúcej spolupráci aj spätné preverenie k dátumu jej začiatku.</p></div>
           </div>
         </div>
       </section>
@@ -179,8 +181,8 @@ export default function Home() {
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">Čo overujeme</span>
-            <h2>Sedemnásť zdrojov, jeden prehľadný výsledok.</h2>
-            <p>Všetky údaje pochádzajú z oficiálnych verejných registrov Slovenskej republiky a EÚ. Každý nález má odkaz na zdroj, kde si ho môžete overiť. Prioritou je priamy dodávateľ a odberateľ.</p>
+            <h2>Sedemnásť registrov a zdrojov, jeden prehľadný výsledok.</h2>
+            <p>Všetky údaje pochádzajú z oficiálnych verejných registrov Slovenskej republiky a EÚ. Každý nález má odkaz na zdroj, kde si ho môžete overiť. Ak IČO v registri neexistuje, preverenie sa zastaví – bez identifikácie subjektu sa ďalej nepokračuje. Prioritou je priamy dodávateľ a odberateľ.</p>
           </div>
           <ul className="s-regs">
             {REGISTERS.map((r) => (
@@ -205,8 +207,8 @@ export default function Home() {
           <div className="s-steps">
             <div className="s-step"><h3>Zadáte IČO</h3><p>Dodávateľa, odberateľa alebo iného partnera. Stačí IČO – názov, DIČ a IČ DPH si aplikácia doplní z registrov.</p></div>
             <div className="s-step"><h3>Registre odpovedajú priebežne</h3><p>Výsledky sa zobrazujú, ako jednotlivé registre odpovedajú. Celé preverenie trvá zvyčajne 10 – 30 sekúnd.</p></div>
-            <div className="s-step"><h3>Dostanete prehľadný výsledok</h3><p>Odporúčame · S výhradou · Neodporúčame, so skóre a odpoveďami na kľúčové otázky: podaná závierka, likvidácia, nedoplatky, spoľahlivý platiteľ DPH, zmeny vlastníkov.</p></div>
-            <div className="s-step"><h3>Uložíte protokol</h3><p>Dvojstranový PDF protokol s časom preverenia, menom zamestnanca a odkazmi na zdroje. Spoločnosť sa uloží do databázy preverení s pripomienkou po 180 dňoch.</p></div>
+            <div className="s-step"><h3>Dostanete prehľadný výsledok</h3><p>Odporúčame · S výhradou · Neodporúčame, so skóre a odpoveďami na kľúčové otázky: podaná závierka, likvidácia, nedoplatky, spoľahlivý platiteľ DPH, zmeny vlastníkov. Doplníte predmet obchodu a IBAN partnera a posúdite indikátory rizika podľa SKDP.</p></div>
+            <div className="s-step"><h3>Uložíte protokol</h3><p>Dvojstranový PDF protokol s časom preverenia, menom zamestnanca, odkazmi na zdroje a pečaťou – odtlačkom, ktorý si ktokoľvek overí na verejnej stránke s kódom z protokolu. Spoločnosť sa uloží do databázy preverení s pripomienkou po 180 dňoch.</p></div>
           </div>
         </div>
       </section>

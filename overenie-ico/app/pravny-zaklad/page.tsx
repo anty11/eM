@@ -72,7 +72,8 @@ export default function LawPage() {
             <ul>
               <li><b>Overenie v registroch pred obchodom</b> – obchodný register, registrácia pre DPH a zoznamy Finančnej správy (dlžníci, dôvody na zrušenie registrácie, index spoľahlivosti), Sociálna poisťovňa, konkurzy a likvidácie, účtovné závierky, register partnerov verejného sektora, médiá.</li>
               <li><b>Vyhodnotenie indícií</b> – záporné vlastné imanie, nepodaná závierka, čerstvá zmena konateľa či vlastníka, veľmi mladá spoločnosť, negatívne správy v médiách o spoločnosti alebo jej štatutároch.</li>
-              <li><b>Preukázateľný záznam</b> – protokol s časom preverenia, menom povereného zamestnanca, výsledkami a odkazmi na zdroje; databáza preverení s pripomienkou po 180 dňoch.</li>
+              <li><b>Posúdenie indikátorov rizika obchodu</b> podľa Bulletinu Slovenskej komory daňových poradcov 03/2024 – cena, platby v hotovosti, preprava, sprostredkovatelia, tlak na čas, zapojenie ďalších osôb; overenie účtu partnera v zozname bankových účtov Finančnej správy (§ 69 ods. 14 písm. c) ZDPH).</li>
+              <li><b>Preukázateľný záznam</b> – protokol s časom preverenia, menom povereného zamestnanca, výsledkami a odkazmi na zdroje, zapečatený odtlačkom SHA-256 s verejnou overovacou stránkou; databáza preverení s pripomienkou po 180 dňoch. Pri existujúcej spolupráci spätné preverenie k dátumu jej začiatku – protokol vždy uvádza skutočný dátum vyhotovenia.</li>
             </ul>
             <p>
               Overenie vykonáva spoločnosť sama prostredníctvom poverených zamestnancov – tak, ako to judikatúra predpokladá: starostlivosť podnikateľa je jeho vlastná

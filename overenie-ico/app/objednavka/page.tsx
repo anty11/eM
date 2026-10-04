@@ -68,12 +68,12 @@ export default function OrderPage() {
                   <label className={plan === "rozsirene" ? "on" : ""}>
                     <input type="radio" name="plan" checked={plan === "rozsirene"} onChange={() => setPlan("rozsirene")} style={{ display: "none" }} />
                     <b>Rozšírené</b>
-                    <small>+ neverejné registre, školenie, konzultácia pri riziku</small>
+                    <small>+ neverejné registre, spätné preverenie existujúcej spolupráce, školenie, komunikácia s advokátom obratom</small>
                   </label>
                   <label className={plan === "standard" ? "on" : ""}>
                     <input type="radio" name="plan" checked={plan === "standard"} onChange={() => setPlan("standard")} style={{ display: "none" }} />
                     <b>Štandard</b>
-                    <small>verejné registre, protokol, databáza preverení</small>
+                    <small>verejné registre, indikátory rizika, protokol s pečaťou, databáza preverení</small>
                   </label>
                 </div>
               </div>
