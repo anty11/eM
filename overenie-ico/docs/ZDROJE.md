@@ -137,6 +137,7 @@ Stav k 28. 9. 2026, verzia aplikácie 1.0.0.
 Dáta výkazu sú plochý zoznam hodnôt. Počet stĺpcov na riadok udáva `pocetDatovychStlpcov` šablóny: aktíva majú 4 stĺpce (Brutto, Korekcia, Netto bežné, Netto predchádzajúce), ostatné tabuľky 2 (bežné, predchádzajúce).
 
 **Očakávaná závierka:** za rok N sa ukladá do 30. 6. roku N+1, pri predĺžení do 30. 9. Od októbra sa preto očakáva závierka za minulý rok, inak za predminulý.
+**Splatné obdobia:** posudzujú sa len obdobia, ktorých lehota už uplynula – od prvého účtovného obdobia (rok vzniku; pri vzniku v októbri až decembri sa v prospech spoločnosti ráta až nasledujúci rok podľa § 3 ods. 4 zákona o účtovníctve) po očakávaný rok. Spoločnosť, ktorá ešte nemusela podať žiadnu závierku, nedostane za závierky žiadnu zrážku – odpočíta sa len vek (kontrola obchodného registra).
 
 **Pravidlá hodnotenia:**
 
@@ -144,8 +145,8 @@ Dáta výkazu sú plochý zoznam hodnôt. Počet stĺpcov na riadok udáva `poce
 |---|---|---|
 | Obchodná spoločnosť staršia ako 2 roky nie je v RÚZ | upozornenie | −12 |
 | **Závierka chýba za 2 a viac po sebe idúcich období** (od poslednej uloženej, resp. od vzniku) – dôvod na zrušenie spoločnosti súdom podľa § 68b ods. 1 písm. c) ObZ | **kritické** | **−40** |
-| Staršia ako 2 roky a nemá žiadnu riadnu závierku (len 1 chýbajúce obdobie) | upozornenie | −15 |
-| Chýba len posledná očakávaná závierka | upozornenie | −12 |
+| Chýba práve jedna splatná závierka (posledná, alebo prvá u mladšej firmy) | upozornenie | −12 |
+| Žiadne splatné obdobie (mladá spoločnosť) | – | 0 |
 | **Záporné vlastné imanie** | kritická | −30 |
 | Spoločnosť v kríze podľa § 67a ObZ (vlastné imanie / záväzky < 0,08) | upozornenie | −18 |
 | Strata v poslednom roku | upozornenie | −5 |

@@ -40,12 +40,14 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
         tone: "bad",
       };
     else if (!rd.lastFiledYear) {
-      const young = monthsSince(p.established) < 24;
+      const young = rd.duePeriods === 0 || (rd.duePeriods === undefined && monthsSince(p.established) < 24);
       f = {
         id: "filed",
         question: "Podala účtovnú závierku / daňové priznanie?",
-        answer: young ? `Zatiaľ nie – spoločnosť vznikla ${d(p.established)}, prvá závierka ešte nemusela byť povinná.` : "NIE – v Registri účtovných závierok nie je žiadna závierka.",
-        tone: young ? "neutral" : "bad",
+        answer: young
+          ? `Zatiaľ nie – spoločnosť vznikla ${d(p.established)}, lehota na prvú závierku${rd.firstDuePeriod ? ` (za rok ${rd.firstDuePeriod})` : ""} ešte neuplynula.`
+          : `NIE – chýba prvá účtovná závierka${rd.firstDuePeriod ? ` za rok ${rd.firstDuePeriod}` : ""}.`,
+        tone: young ? "neutral" : "warn",
       };
     } else
       f = {

@@ -91,3 +91,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   (od poslednej uloženej alebo od vzniku spoločnosti) – nesplnenie povinnosti za 2+ období je dôvodom na zrušenie spoločnosti súdom (§ 68b ods. 1 písm. c) ObZ).
   Jedno chýbajúce obdobie ostáva upozornením (−12). Kľúčová otázka „Podala účtovnú závierku?“ to uvádza výslovne.
 - Kód: `lib/sources/ruz.ts` (`missingFilingPeriods`, data `missingPeriods`, `dissolutionRisk`), `lib/keyfacts.ts`; test v `test/offline.test.ts`.
+- **v1.3.7** – chýbajúce závierky sa posudzujú len za obdobia s uplynutou lehotou (`filingStatus` v `ruz.ts`): mladá spoločnosť, ktorá ešte nemusela podať,
+  nemá za závierky žiadnu zrážku (len za vek); vznik v októbri–decembri posúva prvé obdobie o rok (§ 3 ods. 4 ZoÚ); jedno chýbajúce = −12, dve a viac = kritické −40.

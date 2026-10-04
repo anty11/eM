@@ -7,7 +7,7 @@ import { BAD, GOOD, calls, installMock } from "./mock";
 import { scan } from "../lib/scan";
 import { applyManual, computeVerdict } from "../lib/scoring";
 import { icoChecksumValid, normalizeIco } from "../lib/ico";
-import { missingFilingPeriods } from "../lib/sources/ruz";
+import { filingStatus } from "../lib/sources/ruz";
 
 async function main() {
   installMock();
@@ -117,12 +117,16 @@ async function main() {
 
   console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
 
-  // Chýbajúce účtovné závierky – dve a viac období = dôvod na zrušenie súdom (§ 68b ods. 1 písm. c) ObZ)
-  assert.equal(missingFilingPeriods({ expected: 2025, latest: 2025, ageYears: 10 }), 0, "aktuálna závierka");
-  assert.equal(missingFilingPeriods({ expected: 2025, latest: 2024, ageYears: 10 }), 1, "chýba jedna – len upozornenie");
-  assert.equal(missingFilingPeriods({ expected: 2025, latest: 2023, ageYears: 10 }), 2, "dve po sebe – kritické");
-  assert.equal(missingFilingPeriods({ expected: 2025, latest: 0, firstPeriod: 2021, ageYears: 5 }), 5, "žiadna závierka od vzniku 2021");
-  assert.equal(missingFilingPeriods({ expected: 2025, latest: 0, firstPeriod: 2025, ageYears: 0.5 }), 1, "nová firma – jedno obdobie");
+  // Chýbajúce účtovné závierky – posudzujú sa len obdobia s uplynutou lehotou; mladá firma bez zrážky
+  const fsx = (latest: number, established?: string) => filingStatus({ expected: 2025, latest, established });
+  assert.deepEqual(fsx(2025, "2013-01-09"), { duePeriods: 13, firstDue: 2013, missing: 0 }, "všetko uložené");
+  assert.equal(fsx(2024, "2013-01-09").missing, 1, "chýba jedna – upozornenie");
+  assert.equal(fsx(2023, "2013-01-09").missing, 2, "dve po sebe – kritické");
+  assert.equal(fsx(0, "2021-05-01").missing, 5, "žiadna závierka od vzniku 2021");
+  assert.deepEqual(fsx(0, "2025-03-01"), { duePeriods: 1, firstDue: 2025, missing: 1 }, "vznik 2025, teraz sa čaká závierka za 2025 – len upozornenie");
+  assert.deepEqual(fsx(0, "2026-02-01"), { duePeriods: 0, firstDue: 2026, missing: 0 }, "vznik 2026 – ešte nemusela podať, bez zrážky");
+  assert.deepEqual(fsx(0, "2024-11-15"), { duePeriods: 1, firstDue: 2025, missing: 1 }, "vznik v novembri 2024 – prvé obdobie predĺžené do 2025, chýba len jedno");
+  assert.equal(fsx(0, "2023-11-15").missing, 2, "vznik v novembri 2023 – splatné 2024 a 2025, chýbajú dve");
 }
 
 main().catch((e) => {
