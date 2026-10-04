@@ -1,4 +1,5 @@
 import { runCheck, statusFromFindings } from "../check";
+import { riskJurisdiction } from "../deal";
 import { fold, getJson } from "../http";
 import type { CheckResult, Ctx, Finding } from "../types";
 
@@ -72,7 +73,12 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
         return /spolocnik|akcionar|clen druzstva|zriadovatel|zakladatel|vlastnik/.test(t) && !/dozor|kontrol/.test(t);
       };
       const ownerRows = (e.stakeholders || []).filter(isOwner);
-      const owners = current(ownerRows).map((s: any) => ({ name: personName(s), role: s.stakeholderType?.value || "spoločník", since: s.validFrom }));
+      const countryOf = (s: any): string | undefined => {
+        const a = s.address || (Array.isArray(s.addresses) ? current(s.addresses)[0] || s.addresses[0] : undefined);
+        const c = a?.country;
+        return c ? String(c.value || c.name || "") : undefined;
+      };
+      const owners = current(ownerRows).map((s: any) => ({ name: personName(s), role: s.stakeholderType?.value || "spoločník", since: s.validFrom, country: countryOf(s) }));
       const changeDates = (rows: any[]) =>
         rows
           .flatMap((x) => [x.validFrom, x.validTo])
@@ -127,6 +133,24 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       if (nameChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny obchodného mena – ${nameChanges}× za posledné 3 roky`, penalty: 6 });
       const statChanges = recent(e.statutoryBodies, 2);
       if (statChanges >= 3) f.push({ severity: "warning", text: `Časté zmeny štatutárov – ${statChanges} zmien za posledné 2 roky`, penalty: 8 });
+      // Indikátor (iv) SKDP 03/2024: časté zmeny vlastníkov a zmena vlastníka alebo štatutára tesne pred obchodom
+      const ownerChanges = recent(ownerRows, 2);
+      if (ownerChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny spoločníkov – ${ownerChanges} zmien za posledné 2 roky (indikátor iv)`, penalty: 8 });
+      const daysAgo = (d?: string) => (d ? Math.floor((Date.now() - +new Date(d)) / 86400000) : Infinity);
+      const recentOwner = Math.min(...ownerRows.filter((x: any) => x.validFrom !== e.establishment).flatMap((x: any) => [daysAgo(x.validFrom), daysAgo(x.validTo)]));
+      const recentStat = Math.min(...(e.statutoryBodies || []).filter((x: any) => x.validFrom !== e.establishment).flatMap((x: any) => [daysAgo(x.validFrom), daysAgo(x.validTo)]));
+      const recentChange = Math.min(recentOwner, recentStat);
+      if (recentChange <= 180 && age >= 1)
+        f.push({
+          severity: "warning",
+          text: `Zmena ${recentOwner <= recentStat ? "vlastníka" : "štatutárneho orgánu"} pred ${recentChange} dňami – zmena tesne pred obchodom je indikátor rizika (iv), overte dôvod a nových konateľov`,
+          penalty: 10,
+        });
+      // Indikátor (iii): spoločník so sídlom v jurisdikcii so zvýšeným daňovým rizikom
+      for (const o of owners) {
+        const j = riskJurisdiction(o.country);
+        if (j) f.push({ severity: "warning", text: `Spoločník ${o.name} so sídlom v jurisdikcii so zvýšeným daňovým rizikom (${j}) – indikátor iii`, penalty: 15 });
+      }
       if (!e.termination && statutory.length === 0 && /spolo[cč]nos[tť]|dru[zž]stvo/i.test(legalForm || ""))
         f.push({ severity: "warning", text: "V registri nie je uvedený žiadny aktuálny štatutárny orgán", penalty: 8 });
 

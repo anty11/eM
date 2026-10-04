@@ -11,13 +11,14 @@ interface Contact {
   email: string;
   isStatutory: boolean;
   identityVerified: boolean;
+  authorityVerified: boolean;
   owners: string[];
   note: string;
   updatedAt?: string;
   updatedBy?: string;
 }
 
-const EMPTY: Contact = { active: false, personName: "", personRole: "", phone: "", email: "", isStatutory: false, identityVerified: false, owners: [], note: "" };
+const EMPTY: Contact = { active: false, personName: "", personRole: "", phone: "", email: "", isStatutory: false, identityVerified: false, authorityVerified: false, owners: [], note: "" };
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\b(ing|mgr|judr|mudr|phdr|bc|doc|prof|phd|mba|csc)\.?/g, "").replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean).sort().join(" ");
 
 /**
@@ -78,6 +79,7 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
             <span><b>E-mail:</b> {c.email || "–"}</span>
             <span><b>Štatutár v OR:</b> {c.isStatutory ? "áno" : "nie"}{match ? ` (${match} je zapísaný ako štatutár)` : c.personName.trim().length > 3 && statutoryNames.length ? " – meno nezodpovedá štatutárovi, overte plnú moc" : ""}</span>
             <span><b>Totožnosť overená:</b> {c.identityVerified ? "áno" : "nie"}</span>
+            <span><b>Oprávnenie konať doložené:</b> {c.isStatutory || match ? "štatutár" : c.authorityVerified ? "áno (plná moc)" : "nie"}</span>
             <span><b>Od nás komunikuje:</b> {c.owners.map(label).join(", ") || "–"}</span>
             {c.note && <span className="wide"><b>Poznámka:</b> {c.note}</span>}
             {saved?.updatedAt && <span className="wide src">Naposledy upravil {label(saved.updatedBy || "")} · {new Date(saved.updatedAt).toLocaleString("sk-SK", { dateStyle: "short", timeStyle: "short" })}</span>}
@@ -119,14 +121,20 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
           <input type="checkbox" checked={c.identityVerified} onChange={(e) => set("identityVerified", e.target.checked)} />
           <span>Totožnosť kontaktnej osoby sme overili</span>
         </label>
+        <label className="check-row">
+          <input type="checkbox" checked={c.authorityVerified} onChange={(e) => set("authorityVerified", e.target.checked)} />
+          <span>Oprávnenie konať za spoločnosť je doložené (plná moc / poverenie)</span>
+        </label>
       </div>
       {c.personName.trim().length > 3 && (
         <p className={`hint ${match ? "f-positive" : "f-warning"}`} style={{ marginTop: 4 }}>
           {match
             ? `✓ ${match} je v obchodnom registri zapísaný ako štatutár.`
-            : statutoryNames.length
-              ? `Pozor: meno nezodpovedá štatutárovi v registri (${statutoryNames.join(", ")}). Overte oprávnenie konať za spoločnosť (plná moc).`
-              : "V registri nie je uvedený štatutár – oprávnenie konať overte."}
+            : c.authorityVerified
+              ? "Kontaktná osoba nie je štatutár, oprávnenie konať je doložené plnou mocou / poverením."
+              : statutoryNames.length
+                ? `Pozor: meno nezodpovedá štatutárovi v registri (${statutoryNames.join(", ")}). Komunikácia s osobou bez oprávnenia konať je indikátor rizika (v) – vyžiadajte plnú moc a zaškrtnite jej doloženie.`
+                : "V registri nie je uvedený štatutár – oprávnenie konať overte."}
         </p>
       )}
 

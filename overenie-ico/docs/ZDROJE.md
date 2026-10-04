@@ -410,3 +410,27 @@ Zobrazuje sa na začiatku výsledku a v PDF (`lib/keyfacts.ts`).
 - **Dôvera** výslovne zakazuje automatizované overovanie, preto ju aplikácia neoveruje ani cez AI. **CRE** vyžaduje prihlásenie a platbu a aplikácia k nemu nepristupuje.
 - Aplikácia neukladá údaje z registrov natrvalo. Ukladá len protokol činností (kto, kedy, IČO, verdikt) a kontaktné karty partnerov.
 - Hodnotenie je pomôcka a nenahrádza právne posúdenie. Údaje v registroch môžu byť oneskorené.
+
+
+## Indikátory rizikovosti obchodu (Bulletin SKDP 03/2024, s. 4 a nasl.)
+
+Štrnásť indikátorov daňového podvodu, ktoré správca dane skúma. Aplikácia ich pokrýva takto (kód: `lib/deal.ts`, `lib/sources/rpo.ts`, `lib/sources/ruz.ts`, `lib/sources/fs.ts`, `app/components/DealCard.tsx`, `ContactCard.tsx`):
+
+| Indikátor | Ako sa zisťuje | Nález |
+|---|---|---|
+| (i) nová / neetablovaná spoločnosť | vek z RPO; predmet obchodu zadaný zamestnancom vs. predmet podnikania a hlavná činnosť v registri | vek −15 / −6; nezhoda predmetu obchodu: upozornenie −8 |
+| (ii) neaktívna spoločnosť | tržby v poslednej závierke < 1 000 € pri aspoň 2 splatných obdobiach | upozornenie −12 |
+| (iii) daňový raj | štát sídla spoločníka (RPO) oproti zoznamu EÚ nespolupracujúcich jurisdikcií + offshore centrá (`RISK_JURISDICTIONS`); virtuálne sídlo sa nerieši | upozornenie −15 |
+| (iv) časté zmeny / zmena pred obchodom | zmeny spoločníkov (≥ 2 za 2 roky), štatutárov (≥ 3 za 2 roky); zmena vlastníka alebo štatutára za posledných 180 dní (okrem vzniku) | −8 · −8 · −10 |
+| (v) komunikácia s neoprávnenou osobou | karta kontaktu: meno vs. štatutári v registri; zaškrtnutie „oprávnenie konať doložené (plná moc)“ | varovný text, zápis do protokolu |
+| (vi) dokumentácia | posúdi poverený zamestnanec | −8 |
+| (vii) cenová politika | posúdi poverený zamestnanec | −10 |
+| (viii) porušovanie predpisov / nabádanie | posúdi poverený zamestnanec | **kritické −40** |
+| (ix) povolenie / zápis v registri | predmet obchodu vs. zoznam regulovaných činností (`REGULATED`): PHM, lieh, tabak, odpady, finančné služby, doprava, lieky, zbrane, SBS, agentúrne zamestnávanie, stavby, VTZ, potraviny, hazard | pripomienka s odkazom na register |
+| (x) nezvyčajné platby | IBAN partnera vs. zoznam bankových účtov platiteľov DPH (FS OpenData, `bankAccounts`); platby v hotovosti a iné metódy posúdi zamestnanec | neoznámený účet **kritické −35** (§ 69 ods. 14 písm. c) ZDPH); hotovosť −12; iné −10; neplatný IBAN −5 |
+| (xi) preprava | posúdi poverený zamestnanec | −6 |
+| (xii) umelé zapojenie osôb | posúdi poverený zamestnanec | **kritické −40** |
+| (xiii) referencie len od sprostredkovateľa | posúdi poverený zamestnanec | −8 |
+| (xiv) tlak na čas | posúdi poverený zamestnanec | −6 |
+
+Posúdenie zamestnanca má tri stavy (neposúdené / bez indikácie / indikácia potvrdená) a všetky sa zapíšu do protokolu s menom a časom. Neposúdené a neoverené položky (napr. účet bez kľúča FS) nie sú nikdy v neprospech partnera.

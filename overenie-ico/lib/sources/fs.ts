@@ -44,6 +44,8 @@ const DATASETS = {
   vatDeleted: { slugs: ["ds_dphv"], re: /vymazan\S* .*dph/i },
   ids: { slugs: ["ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
   incomeTax: { slugs: ["ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
+  /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 14 písm. c)). */
+  bankAccounts: { slugs: ["ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
 } as const;
 
 async function resolve(kind: keyof typeof DATASETS): Promise<string | null> {
@@ -354,4 +356,35 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
       data: { slug, filed: true, year: top.y || undefined, tax },
     };
   });
+}
+
+
+import { normalizeIban, type BankAccountResult } from "../deal";
+
+/**
+ * Overí, či je účet partnera v zozname bankových účtov platiteľov DPH oznámených Finančnej správe.
+ * Výsledok: listed / not_listed / not_vat_payer / unknown (zoznam nedostupný, bez kľúča FS…).
+ */
+export async function checkBankAccount(ctx: Ctx, ibanIn: string): Promise<BankAccountResult> {
+  const iban = normalizeIban(ibanIn);
+  const verifyUrl = ZOZNAMY;
+  if (!key()) return { status: "unknown", message: "Zoznam bankových účtov FS vyžaduje kľúč FS_API_KEY – overte manuálne.", verifyUrl };
+  try {
+    const slug = await resolve("bankAccounts");
+    if (!slug) return { status: "unknown", message: "API Finančnej správy zoznam bankových účtov neponúka – overte manuálne.", verifyUrl };
+    const rows = await search(slug, ctx);
+    if (!rows.length) {
+      // subjekt v zozname nie je: buď nie je platiteľ DPH, alebo neoznámil žiadny účet
+      const vatSlug = await resolve("vat").catch(() => null);
+      const isVat = vatSlug ? (await search(vatSlug, ctx).catch(() => [])).length > 0 : Boolean(ctx.profile.icDph);
+      return isVat
+        ? { status: "not_listed", message: "Platiteľ DPH nemá v zozname FS oznámený žiadny bankový účet.", verifyUrl }
+        : { status: "not_vat_payer", message: "Partner nie je v zozname platiteľov DPH – zoznam účtov sa naň nevzťahuje.", verifyUrl };
+    }
+    const accounts = rows.flatMap((r) => Object.values(r).map((v) => normalizeIban(String(v ?? "")))).filter((v) => /^[A-Z]{2}\d{2}[A-Z0-9]{8,}$/.test(v));
+    if (accounts.includes(iban)) return { status: "listed", message: `Účet je v zozname FS (oznámených účtov: ${accounts.length}).`, verifyUrl };
+    return { status: "not_listed", message: `Účet nie je medzi ${accounts.length} účtami, ktoré partner oznámil FS.`, verifyUrl };
+  } catch (e) {
+    return { status: "unknown", message: `Zoznam bankových účtov FS sa nepodarilo overiť: ${(e as Error).message}`, verifyUrl };
+  }
 }

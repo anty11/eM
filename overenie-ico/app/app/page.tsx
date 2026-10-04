@@ -6,6 +6,8 @@ import { CATEGORIES, type CategoryId, type CheckResult, type ScanReport } from "
 import Header, { useMe } from "../components/Header";
 import ContactCard from "../components/ContactCard";
 import KeyFacts from "../components/KeyFacts";
+import DealCard, { EMPTY_DEAL } from "../components/DealCard";
+import { buildDealCheck, type BankAccountResult, type DealInput } from "@/lib/deal";
 import { MANUAL } from "@/lib/sources/manual";
 import { AUTO_ORDER, pendingCheck } from "@/lib/sources/meta";
 import { AI_SPECS, aiCapable } from "@/lib/ai/specs";
@@ -64,6 +66,9 @@ export default function Page() {
   const [note, setNote] = useState("");
   const [recent, setRecent] = useState<{ ico: string; name?: string }[]>([]);
   const [showManual, setShowManual] = useState(false);
+  // Údaje o obchode a indikátory rizika (SKDP 03/2024) – zadáva poverený zamestnanec
+  const [deal, setDeal] = useState<DealInput>(EMPTY_DEAL);
+  const [bank, setBank] = useState<BankAccountResult | null>(null);
   // Výsledky AI záložného overenia (prepíšu pôvodnú kontrolu) a doplnenia profilu
   const [aiResults, setAiResults] = useState<Record<string, CheckResult>>({});
   const [profilePatch, setProfilePatch] = useState<Partial<CompanyProfile>>({});
@@ -158,6 +163,8 @@ export default function Page() {
       }
       const j = final || live;
       setReport(j);
+      setDeal(EMPTY_DEAL);
+      setBank(null);
       setShowManual(true);
       autoAi(j);
       const next = [{ ico: j.ico, name: j.profile?.name }, ...recent.filter((x) => x.ico !== j.ico)].slice(0, 8);
@@ -171,8 +178,12 @@ export default function Page() {
   }
 
   const baseChecks = useMemo(() => (report ? report.checks.map((c) => aiResults[c.id] || c) : []), [report, aiResults]);
-  const checks = useMemo(() => applyManual(baseChecks, answers), [baseChecks, answers]);
   const profile = useMemo(() => (report ? ({ ...report.profile, ...profilePatch } as CompanyProfile) : null), [report, profilePatch]);
+  const dealCheck = useMemo(() => (profile ? buildDealCheck(deal, profile, bank) : null), [deal, profile, bank]);
+  const checks = useMemo(() => {
+    const base = applyManual(baseChecks, answers);
+    return dealCheck ? [...base, dealCheck] : base;
+  }, [baseChecks, answers, dealCheck]);
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
   const pendingCount = checks.filter((c) => c.status === "pending").length;
   const totalAuto = checks.filter((c) => c.automated !== false && !NON_PUBLIC.includes(c.id)).length || 1;
@@ -418,6 +429,8 @@ export default function Page() {
 
             <ContactCard ico={report.ico} profile={p} meEmail={me?.email} />
 
+            <DealCard ico={report.ico} profile={p} deal={deal} onChange={setDeal} bank={bank} onBank={setBank} />
+
             <section className="card">
               <h2>Identifikácia subjektu</h2>
               <p className="company-name">{p.name || "Neznámy subjekt"}</p>
@@ -591,7 +604,7 @@ export default function Page() {
                 />
                 <button className="btn no-print" onClick={() => window.print()}>Uložiť PDF protokol</button>
                 <button className="btn ghost no-print" onClick={() => {
-                  const blob = new Blob([JSON.stringify({ ...report, profile, keyFacts: facts, checks, verdict, note, author }, null, 2)], { type: "application/json" });
+                  const blob = new Blob([JSON.stringify({ ...report, profile, keyFacts: facts, checks, verdict, deal, bank, note, author }, null, 2)], { type: "application/json" });
                   const a = document.createElement("a");
                   a.href = URL.createObjectURL(blob);
                   a.download = `${report.scanId}.json`;

@@ -196,6 +196,8 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
         }
         if (c.revenue !== undefined && p?.revenue && p.revenue > 0 && c.revenue < p.revenue * 0.5)
           f.push({ severity: "warning", text: `Pokles tržieb o ${Math.round((1 - c.revenue / p.revenue) * 100)} % medziročne`, penalty: 6 });
+        if (c.revenue !== undefined && c.revenue < 1000 && fs.duePeriods >= 2)
+          f.push({ severity: "warning", text: `Neaktívna spoločnosť – tržby ${eur(c.revenue)} za ${c.period} (indikátor ii SKDP 03/2024): overte, či partner skutočne vykonáva činnosť`, penalty: 12 });
         if ((c.profit ?? 0) > 0 && (c.equity ?? 0) > 0)
           f.push({ severity: "positive", text: `Zisk ${eur(c.profit)} a kladné vlastné imanie ${eur(c.equity)} (${c.period})`, penalty: -4 });
       }

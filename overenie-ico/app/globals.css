@@ -197,6 +197,15 @@ textarea { width: 100%; min-height: 80px; }
 .mlist li.done { opacity: .6; }
 .mlist .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; }
 
+/* --- Údaje o obchode a indikátory rizika --- */
+.indicators { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
+.indicators li { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.indicators li.found { border-color: var(--crit); background: var(--crit-bg); }
+.indicators li.clear { border-color: var(--ok); }
+.indicators li b { font-weight: 600; }
+.indicators li .src { margin-top: 2px; }
+@media (max-width: 700px) { .indicators li { grid-template-columns: 1fr; } }
+
 /* --- AI --- */
 .s-ai { background: var(--info-bg); color: var(--info); }
 .mbtn.ai { border-color: var(--info); color: var(--info); }
@@ -260,9 +269,10 @@ textarea { width: 100%; min-height: 80px; }
   .ficon { width: 12px; height: 12px; font-size: 8px; background: none !important; border: 1px solid currentColor; }
   .fact dd .src { font-size: 8px; }
 
-  /* kontakt */
-  .contact-print { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px 14px; }
-  .contact-print .wide { grid-column: 1 / -1; }
+  /* kontakt, obchod */
+  .contact-print, .deal-print { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px 14px; }
+  .contact-print .wide, .deal-print .wide { grid-column: 1 / -1; }
+  .deal-print .wide { font-size: 8.8px; }
 
   /* identifikácia – dvojica označenie: hodnota v jednom riadku, 3 stĺpce */
   .company-name { font-size: 12px; margin: 0 0 3px; }

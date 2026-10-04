@@ -51,7 +51,8 @@ export type CategoryId =
   | "insolvency"
   | "financials"
   | "public"
-  | "media";
+  | "media"
+  | "deal";
 
 export const CATEGORIES: Record<CategoryId, string> = {
   register: "Obchodný register a identifikácia",
@@ -61,6 +62,7 @@ export const CATEGORIES: Record<CategoryId, string> = {
   financials: "Účtovné závierky a hospodárenie",
   public: "Verejný sektor",
   media: "Médiá a internet",
+  deal: "Údaje o obchode a indikátory rizika",
 };
 
 export interface CompanyProfile {
@@ -79,7 +81,7 @@ export interface CompanyProfile {
   statutory?: { name: string; role: string; since?: string }[];
   equity?: number;
   activities?: string[];
-  owners?: { name: string; role: string; since?: string }[];
+  owners?: { name: string; role: string; since?: string; country?: string }[];
   lastOwnershipChange?: string;
   lastStatutoryChange?: string;
 }

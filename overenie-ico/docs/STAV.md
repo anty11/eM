@@ -93,3 +93,12 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Kód: `lib/sources/ruz.ts` (`missingFilingPeriods`, data `missingPeriods`, `dissolutionRisk`), `lib/keyfacts.ts`; test v `test/offline.test.ts`.
 - **v1.3.7** – chýbajúce závierky sa posudzujú len za obdobia s uplynutou lehotou (`filingStatus` v `ruz.ts`): mladá spoločnosť, ktorá ešte nemusela podať,
   nemá za závierky žiadnu zrážku (len za vek); vznik v októbri–decembri posúva prvé obdobie o rok (§ 3 ods. 4 ZoÚ); jedno chýbajúce = −12, dve a viac = kritické −40.
+
+## v1.4.0 – 4. 10. 2026 – indikátory rizika SKDP 03/2024
+
+- Nová karta **Údaje o obchode a indikátory rizika**: smer obchodu, predmet (porovnanie s predmetom podnikania + pripomienka povolení pri regulovaných činnostiach),
+  IBAN partnera (overenie v zozname bankových účtov platiteľov DPH FS – neoznámený účet = kritické, ručenie § 69 ods. 14 písm. c)), hodnota;
+  9 indikátorov na posúdenie zamestnancom (vrátane platieb v hotovosti), tri stavy, zápis do protokolu, vplyv na verdikt (`lib/deal.ts`, `DealCard.tsx`, `/api/check/iban`).
+- Automaticky: neaktívna spoločnosť (tržby < 1 000 €), spoločník v rizikovej jurisdikcii, časté zmeny spoločníkov, zmena vlastníka/štatutára za posledných 180 dní.
+- Karta kontaktu: „Oprávnenie konať za spoločnosť je doložené (plná moc / poverenie)“ – indikátor (v).
+- Virtuálne sídlo sa zámerne nerieši. Dokumentácia: `docs/ZDROJE.md` – sekcia Indikátory. Test `test/deal.test.ts`. PDF ostáva na 2 stranách.

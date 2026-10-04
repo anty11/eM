@@ -17,6 +17,8 @@ export interface Contact {
   isStatutory: boolean;
   /** Identita kontaktnej osoby bola overená (napr. osobne, podpisom, cez oficiálny e-mail). */
   identityVerified: boolean;
+  /** Oprávnenie konať za spoločnosť je doložené (plná moc / poverenie), ak kontaktná osoba nie je štatutár – indikátor (v) SKDP 03/2024. */
+  authorityVerified: boolean;
   /** Zodpovední zamestnanci (e-maily používateľov aplikácie). */
   owners: string[];
   note: string;
@@ -46,6 +48,7 @@ export async function saveContact(ico: string, input: Partial<Contact>, by: stri
     email,
     isStatutory: Boolean(input.isStatutory),
     identityVerified: Boolean(input.identityVerified),
+    authorityVerified: Boolean(input.authorityVerified),
     owners,
     note: str(input.note, 2000),
     updatedAt: new Date().toISOString(),
