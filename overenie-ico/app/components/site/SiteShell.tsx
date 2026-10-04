@@ -1,4 +1,5 @@
 import "../../site.css";
+import { Wordmark } from "../Logo";
 
 export const PRODUCT = "Preverto";
 export const DOMAIN = "preverto.sk";
@@ -43,12 +44,8 @@ export function SiteHeader({ active }: { active?: "home" | "law" | "order" }) {
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" />
       <div className="s-wrap">
-        <a className="s-brand" href="/">
-          <span className="mark">§</span>
-          <span>
-            {PRODUCT}
-            <small>prever to · overenie obchodného partnera</small>
-          </span>
+        <a className="s-brand" href="/" aria-label="Preverto – úvod">
+          <Wordmark size={26} sub="overenie obchodného partnera" />
         </a>
         <nav className="s-nav">
           <a href="/#preco" style={{ fontWeight: active === "home" ? 600 : 500 }}>Prečo overovať</a>
@@ -71,7 +68,7 @@ export function SiteFooter() {
       <div className="s-wrap">
         <div className="cols">
           <div>
-            <h4>{PRODUCT}</h4>
+            <div style={{ marginBottom: 10 }}><Wordmark size={22} onDark /></div>
             <p style={{ margin: 0 }}>
               Nástroj na overenie dodávateľa a odberateľa vo verejných registroch Slovenskej republiky s protokolom o preverení.
             </p>

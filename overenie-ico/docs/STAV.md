@@ -78,3 +78,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   (indigovo-fialová `#5b35c9`, zlaté nadpisy kariet, Montserrat + Playfair Display). Premenné v `app/globals.css` `:root` + tmavý režim.
 - **PDF protokol je nezmenený**: blok `@media print` v `globals.css` má vlastné farby aj písma (Inter/Georgia) a nezávisí od palety obrazovky.
 - Web: bez FAQ a karty prevádzkovateľa; verzie ako porovnávacia tabuľka (Rozšírené prvé); poradie sekcií Prečo → Pre koho → Objednávka → Čo → Ako → O projekte.
+
+## v1.3.5 – 4. 10. 2026 – logo
+
+- Hlavné logo je **wordmark** „prever·to“ (`Wordmark` v `app/components/Logo.tsx`): „prever“ v indigovo-čiernej, „to“ v zlatej, indigová bodka; variant `onDark` pre pätu.
+- **Symbol** (len kde treba znak): pečať – dvojitý kruh so zlatou fajkou (`Seal` tamtiež), favicon `app/icon.svg`. Paragraf § sa už nepoužíva – produkt nie je právna služba.
+- Použitie: hlavička webu (s podtitulom „overenie obchodného partnera“), päta, hlavička klientskej sekcie („klientska sekcia“). PDF protokol nezmenený.

@@ -1,42 +1,10 @@
 ▲ Next.js 16.3.6 (Turbopack)
 - Local:         http://localhost:3100
 - Network:       http://192.0.2.2:3100
-✓ Ready in 503ms
-✓ Running next.config.ts took 101ms
+✓ Ready in 453ms
+✓ Running next.config.ts took 89ms
 ⚠ DEMO_DATA=1 – registre vracajú TESTOVACIE údaje (IČO 47244895 = v poriadku, 31318177 = rizikový).
 
- GET / 200 in 504ms (next.js: 97ms, proxy.ts: 180ms, application-code: 227ms)
- GET / 200 in 268ms (next.js: 8ms, proxy.ts: 5ms, application-code: 255ms)
- POST /api/auth/login 401 in 369ms (next.js: 262ms, proxy.ts: 17ms, application-code: 91ms)
- GET /login 200 in 76ms (next.js: 21ms, proxy.ts: 6ms, application-code: 48ms)
- POST /api/auth/setup 200 in 111ms (next.js: 45ms, proxy.ts: 6ms, application-code: 60ms)
- GET /app 200 in 68ms (next.js: 15ms, proxy.ts: 6ms, application-code: 47ms)
- PATCH /api/admin/users 200 in 67ms (next.js: 46ms, proxy.ts: 4ms, application-code: 17ms)
- GET /api/auth/me 200 in 55ms (next.js: 40ms, proxy.ts: 7ms, application-code: 8ms)
- GET /app?ico=31318177 200 in 103ms (next.js: 13ms, proxy.ts: 48ms, application-code: 43ms)
- GET /api/auth/me 200 in 28ms (next.js: 6ms, proxy.ts: 18ms, application-code: 4ms)
- GET /api/auth/me 200 in 10ms (next.js: 2ms, proxy.ts: 3ms, application-code: 4ms)
- GET /api/auth/me 200 in 115ms (next.js: 2ms, proxy.ts: 108ms, application-code: 6ms)
- GET /api/contacts?ico=31318177 200 in 158ms (next.js: 65ms, proxy.ts: 14ms, application-code: 79ms)
- GET /api/directory 200 in 158ms (next.js: 127ms, proxy.ts: 12ms, application-code: 18ms)
- GET /api/contacts?ico=31318177 200 in 15ms (next.js: 3ms, proxy.ts: 8ms, application-code: 4ms)
- GET /api/directory 200 in 20ms (next.js: 8ms, proxy.ts: 8ms, application-code: 4ms)
- GET /api/check?ico=31318177&stream=1 200 in 6.1s (next.js: 59ms, proxy.ts: 3ms, application-code: 6.0s)
- GET /login 200 in 34ms (next.js: 3ms, proxy.ts: 3ms, application-code: 28ms)
- POST /api/auth/login 200 in 61ms (next.js: 4ms, proxy.ts: 4ms, application-code: 52ms)
- GET /app 200 in 40ms (next.js: 2ms, proxy.ts: 3ms, application-code: 34ms)
- GET /app?ico=31318177 200 in 52ms (next.js: 2ms, proxy.ts: 4ms, application-code: 45ms)
- GET /api/auth/me 200 in 14ms (next.js: 3ms, proxy.ts: 5ms, application-code: 6ms)
- GET /api/auth/me 200 in 10ms (next.js: 2.0ms, proxy.ts: 3ms, application-code: 5ms)
- GET /api/auth/me 200 in 20ms (next.js: 3ms, proxy.ts: 13ms, application-code: 4ms)
- GET /api/contacts?ico=31318177 200 in 14ms (next.js: 3ms, proxy.ts: 4ms, application-code: 7ms)
- GET /api/directory 200 in 15ms (next.js: 6ms, proxy.ts: 4ms, application-code: 4ms)
- GET /api/contacts?ico=31318177 200 in 10ms (next.js: 3ms, proxy.ts: 4ms, application-code: 3ms)
- GET /api/directory 200 in 13ms (next.js: 5ms, proxy.ts: 3ms, application-code: 4ms)
- GET /api/check?ico=31318177&stream=1 200 in 6.0s (next.js: 2ms, proxy.ts: 5ms, application-code: 6.0s)
- GET /account 200 in 70ms (next.js: 22ms, proxy.ts: 4ms, application-code: 44ms)
- GET /api/companies 200 in 66ms (next.js: 47ms, proxy.ts: 9ms, application-code: 10ms)
- GET /api/auth/me 200 in 66ms (next.js: 52ms, proxy.ts: 9ms, application-code: 5ms)
- GET /api/auth/me 200 in 23ms (next.js: 10ms, proxy.ts: 6ms, application-code: 7ms)
- GET /api/companies 200 in 29ms (next.js: 8ms, proxy.ts: 10ms, application-code: 11ms)
-[?25h
+ GET / 200 in 571ms (next.js: 100ms, proxy.ts: 186ms, application-code: 286ms)
+ GET /login 200 in 97ms (next.js: 37ms, proxy.ts: 7ms, application-code: 53ms)
+ GET / 200 in 88ms (next.js: 3ms, proxy.ts: 3ms, application-code: 81ms)
