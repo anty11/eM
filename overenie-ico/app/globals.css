@@ -1,44 +1,52 @@
+/* Klientska sekcia – rovnaká paleta ako verejný web (preverto.sk): indigovo-fialová ako hlavná farba, zlatá ako akcent.
+   Tlačový výstup (PDF protokol) má vlastné farby a písma v bloku @media print a touto paletou sa nemení. */
 :root {
-  --bg: #f5f4f0;
+  --bg: #faf9fc;
   --surface: #ffffff;
-  --ink: #1c1f24;
-  --muted: #5d636c;
-  --line: #e2e0d9;
-  --brand: #1f3a5f;
+  --ink: #1d1a2b;
+  --muted: #6b6680;
+  --line: #e7e3f0;
+  --brand: #5b35c9;
+  --brand-2: #4a2aa8;
+  --brand-deep: #2a1d5c;
   --brand-ink: #ffffff;
+  --gold: #b8893a;
   --ok: #1e7a4c;
   --ok-bg: #e7f4ec;
-  --warn: #9a5b00;
+  --warn: #8a5200;
   --warn-bg: #fdf2dc;
   --crit: #b3261e;
   --crit-bg: #fbe7e5;
-  --info: #3b5b85;
-  --info-bg: #e8eef7;
-  --manual: #6b4fa0;
-  --manual-bg: #efeaf8;
+  --info: #4a2aa8;
+  --info-bg: #ece6fb;
+  --manual: #9c7330;
+  --manual-bg: #f6efe0;
   --radius: 10px;
-  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --serif: "Georgia", "Times New Roman", serif;
+  --font: "Montserrat", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --serif: "Playfair Display", "Georgia", "Times New Roman", serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14171b;
-    --surface: #1d2127;
-    --ink: #e8e6e1;
-    --muted: #a0a6ae;
-    --line: #30353d;
-    --brand: #8fb3e3;
-    --brand-ink: #10151c;
+    --bg: #12101a;
+    --surface: #1b1826;
+    --ink: #ece8f3;
+    --muted: #a9a3bd;
+    --line: #2e2940;
+    --brand: #a98df0;
+    --brand-2: #c0abf7;
+    --brand-deep: #d9ccff;
+    --brand-ink: #14101f;
+    --gold: #d9b56a;
     --ok: #6fd3a0;
     --ok-bg: #16301f;
     --warn: #f1bd5c;
     --warn-bg: #33270f;
     --crit: #ff8a80;
     --crit-bg: #3a1a18;
-    --info: #9dbbe6;
-    --info-bg: #1b2636;
-    --manual: #c3a8f0;
-    --manual-bg: #28203a;
+    --info: #c0abf7;
+    --info-bg: #261e3d;
+    --manual: #d9b56a;
+    --manual-bg: #2e2515;
   }
 }
 * { box-sizing: border-box; }
@@ -50,16 +58,18 @@ button { font: inherit; cursor: pointer; }
 .top { border-bottom: 1px solid var(--line); background: var(--surface); }
 .top .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 19px; font-weight: 600; }
-.brand .mark { width: 30px; height: 30px; border-radius: 7px; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; font-family: var(--font); font-size: 14px; font-weight: 700; }
+.brand .mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%); color: #fff; display: grid; place-items: center; font-family: var(--font); font-size: 15px; font-weight: 700; }
+.brand small { display: block; font-family: var(--font); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); font-weight: 600; line-height: 1; margin-top: 3px; }
 .top small { color: var(--muted); }
 
 .hero { padding: 36px 0 20px; }
-.hero h1 { font-family: var(--serif); font-weight: 600; font-size: 30px; margin: 0 0 6px; letter-spacing: -0.01em; }
+.hero h1 { font-family: var(--serif); font-weight: 600; font-size: 30px; margin: 0 0 6px; letter-spacing: -0.005em; }
 .hero p { margin: 0 0 20px; color: var(--muted); max-width: 680px; }
 .search { display: flex; gap: 10px; flex-wrap: wrap; }
 .search input { flex: 1 1 240px; font-size: 20px; letter-spacing: 0.08em; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-variant-numeric: tabular-nums; }
 .search input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
-.btn { border: 0; border-radius: var(--radius); padding: 12px 22px; background: var(--brand); color: var(--brand-ink); font-weight: 600; }
+.btn { border: 0; border-radius: 6px; padding: 12px 22px; background: var(--brand); color: var(--brand-ink); font-weight: 600; transition: background 0.15s, box-shadow 0.15s; }
+.btn:hover:not(:disabled) { background: var(--brand-2); box-shadow: 0 8px 20px rgba(91, 53, 201, 0.2); }
 .btn:disabled { opacity: .6; cursor: progress; }
 .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--line); }
 .hint { font-size: 13px; color: var(--muted); margin-top: 8px; }
@@ -68,7 +78,7 @@ button { font: inherit; cursor: pointer; }
 .chip { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-top: 16px; }
-.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--gold); margin: 0 0 12px; font-weight: 600; }
 
 .verdict { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; border-left: 6px solid var(--c); }
 .verdict.recommended { --c: var(--ok); --cb: var(--ok-bg); }
@@ -211,7 +221,7 @@ textarea { width: 100%; min-height: 80px; }
 
 /* --- Tlač / PDF protokol: hustý, čiernobielo čitateľný, bez závislosti od tlače pozadia --- */
 @media print {
-  :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #c8c8c8; --ok: #1e7a4c; --warn: #8a5200; --crit: #b3261e; --info: #3b5b85; --manual: #5f4596; }
+  :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #c8c8c8; --brand: #1f3a5f; --gold: #444; --ok: #1e7a4c; --warn: #8a5200; --crit: #b3261e; --info: #3b5b85; --manual: #5f4596; --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; --serif: "Georgia", "Times New Roman", serif; }
   @page { size: A4; margin: 11mm 12mm 12mm; }
   html, body { font-size: 9.6px; line-height: 1.3; background: #fff; color: #000; }
   .no-print, .top, .hero { display: none !important; }
@@ -231,6 +241,7 @@ textarea { width: 100%; min-height: 80px; }
   /* karty – bez tieňov, tenké čiary, povolené zalomenie vnútri dlhých kariet */
   .card { padding: 5px 0 4px; margin-top: 6px; border: 0; border-top: 1px solid #000; border-radius: 0; break-inside: auto; }
   .card h2 { font-size: 8.5px; letter-spacing: 0.06em; margin: 0 0 3px; color: #000; break-after: avoid; }
+  .brand small { display: none; }
 
   /* verdikt */
   .verdict { grid-template-columns: auto 1fr; gap: 10px; align-items: start; border-left: 0; break-inside: avoid; }
