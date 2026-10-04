@@ -470,10 +470,10 @@ veľkom orgáne len zmenu vlastníka.
 
 | Register | Spôsob | Stav |
 |---|---|---|
-| Register diskvalifikácií (justice.gov.sk) | GET dopyt podľa IČO a mien štatutárov, parsovanie tabuľky | adresy/parametre sa dolaďujú podľa `/api/diag?source=diskv&ico=…&name=…` |
-| Zákaz účasti vo VO (ÚVO) | GET dopyt podľa IČO | doladiť podľa `/api/diag?source=uvo` |
-| Dlžníci VšZP | GET/POST dopyt podľa IČO na stránke zoznamu | doladiť podľa `/api/diag?source=vszp` |
-| Dlžníci Union | JSON/HTML dopyt portálu | doladiť podľa `/api/diag?source=union` |
+| Register diskvalifikácií (justice.gov.sk) | GET dopyt – **justice.gov.sk vracia 403 pre adresy dátových centier (serverless aj Edge)** | z Vercelu nedostupný; ostáva manuálne / AI; riešením by bol proxy so slovenskou IP |
+| Zákaz účasti vo VO (ÚVO) | globálne vyhľadávanie `?globalSearch=<IČO>&searchType=OSZ`, „N záznamov“ + bloky s IČO | overené 10/2026 |
+| Dlžníci VšZP | POST formulára (typ=1, nazov=IČO, docid=227, proceed=true) po vypnutí ochrany formulára; tabuľka Obchodné meno · … · Pohľadávka, „Nenašli sa žiadne záznamy.“ | overené 10/2026 |
+| Dlžníci Union | `POST https://portal.unionzp.sk/ehip-server/rest/debtors` (JSON: order, count, start, hľadaný text) → data[rplNazov, rplIco, suma] | názov poľa textu sa overuje diagnostikou |
 | Dlžníci Dôvera | **nikdy automaticky** – Dôvera to výslovne zakazuje | ručne |
 | Obchodný vestník | import XML vydaní od MS SR (`/api/cron/ov`, ručné nahratie `POST /api/admin/ov`), index `ov:ico:<IČO>` | čaká na prístup (registrácia u MS SR) |
 | Centrálny register exekúcií | webová služba SKE (certifikát, 1,60 €/dopyt) | čaká na registráciu prevádzkovateľa; klient sa doplní podľa dokumentácie z profilu |

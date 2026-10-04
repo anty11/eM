@@ -25,6 +25,8 @@ export interface Attempt {
   pre?: { url: string; method?: "GET" | "POST"; body?: string };
   /** Len na diagnostiku – nie je to dopyt do registra (napr. hľadanie otvorených dát) */
   info?: string;
+  /** Popis pokusu (zobrazí sa v diagnostike; pokus sa normálne vyhodnocuje) */
+  label?: string;
 }
 
 /** Adresa vlastného nasadenia (Vercel) a token pre interné volanie Edge načítania. */
@@ -91,7 +93,37 @@ export function selectOptions(html: string): string[] {
  * preto sa pri dopyte podľa IČO počítajú dátové riadky tabuľky; „Nenašli sa žiadne záznamy.“ = bez záznamu.
  */
 export function judgeFor(source: string, html: string, needles: string[]): { verdict: "found" | "clean" | "unknown"; rows: string[]; evidence?: string } {
-  if (source === "vszp" || source === "union") {
+  const ico = needles[0] || "";
+  if (source === "union") {
+    try {
+      const j = JSON.parse(html);
+      const data: any[] = Array.isArray(j?.data) ? j.data : Array.isArray(j) ? j : [];
+      const total = typeof j?.totalRows === "number" ? j.totalRows : data.length;
+      const hit = data.filter((r) => String(r?.rplIco ?? r?.ico ?? "").replace(/\s/g, "") === ico);
+      if (hit.length) return { verdict: "found", rows: hit.slice(0, 5).map((r) => `${r.rplNazov || r.nazov || ""} · IČO ${ico} · pohľadávka ${r.suma ?? "?"} €${r.obec ? ` · ${r.obec}` : ""}`), evidence: JSON.stringify(hit[0]).slice(0, 300) };
+      if (total === 0) return { verdict: "clean", rows: [], evidence: "totalRows = 0" };
+      return { verdict: "unknown", rows: [] }; // filter zrejme nezabral (server vrátil iných dlžníkov)
+    } catch {
+      return { verdict: "unknown", rows: [] };
+    }
+  }
+  if (source === "uvo") {
+    const main = mainText(html);
+    const f = fold(main);
+    const echoed = fold(html).includes(ico);
+    const m = f.match(/(\d+)\s+zaznam/);
+    if (echoed && m) {
+      const n = Number(m[1]);
+      if (n === 0) return { verdict: "clean", rows: [], evidence: main.slice(Math.max(0, (m.index || 0) - 60), (m.index || 0) + 60) };
+      if (f.includes(`ico ${ico}`) || f.includes(ico)) {
+        const i = main.indexOf(ico);
+        const row = main.slice(Math.max(0, i - 220), i + 160);
+        if (/z[aá]kaz/i.test(row)) return { verdict: "found", rows: [row], evidence: row };
+      }
+    }
+    return { verdict: "unknown", rows: [] };
+  }
+  if (source === "vszp") {
     const text = stripHtml(html);
     const f = fold(text);
     const head = f.indexOf("obchodne meno");
@@ -245,7 +277,7 @@ export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 
       const ok = status >= 200 && status < 300;
       const j = ok && !a.info ? judgeFor(a.source || "", html, needles) : { verdict: "unknown" as const, rows: [] };
       const d = describePage(html);
-      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 3000 : 1500), verdict: j.verdict, evidence: j.evidence, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 3000 : 1500), contentType: contentType || undefined, info: (a.info || "") + (a.viaEdge ? " [cez Edge]" : "") || undefined };
+      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 3000 : 1500), verdict: j.verdict, evidence: j.evidence, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 3000 : 1500), contentType: contentType || undefined, info: [a.info, a.label, a.viaEdge ? "[cez Edge]" : ""].filter(Boolean).join(" ") || undefined };
       if (opts.diag) {
         rec.around = around(html, needles);
         rec.inlineScripts = inlineScripts(html);
@@ -321,12 +353,8 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       const base = "https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom";
       return {
         attempts: [
-          // globálne vyhľadávanie ÚVO má výber „Osoba so zákazom“ – hodnota sa doladí podľa diagnostiky (selects); zatiaľ bežné varianty
-          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=osoba-so-zakazom` },
-          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=banned` },
-          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=6` },
-          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}`, info: "všetky registre – na zistenie hodnôt výberu" },
-          { url: "https://www.uvo.gov.sk/dohlad/spravne-delikty/prehlad-rozhodnuti-o-ulozeni-pokuty-a-sankcie-zakazu-ucasti-vo-vo", info: "prehľad rozhodnutí o zákaze (strana 1)" },
+          // globálne vyhľadávanie ÚVO, výber searchType=OSZ („Osoba so zákazom“); výsledok „N záznamov“ + bloky s IČO
+          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=OSZ` },
           { url: base, info: "stránka registra" },
         ],
         needles: [ico],
@@ -348,13 +376,12 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       };
     }
     case "union": {
+      // Portál Union (Vue): POST /ehip-server/rest/debtors s JSON { order, count, start, <hľadaný text> } → { data: [{ rplNazov, rplIco, suma, typZs, … }], totalRows }
+      // názov poľa pre hľadaný text sa doladí podľa diagnostiky – skúšajú sa bežné varianty; nesprávne pole = server vráti všetkých (nikdy „bez záznamu“)
+      const api = "https://portal.unionzp.sk/ehip-server/rest/debtors";
+      const body = (key: string) => JSON.stringify({ order: { ascending: false, property: "dlznikId" }, count: 50, start: 0, [key]: ico });
       return {
-        attempts: [
-          { url: `https://portal.unionzp.sk/pub/api/dlznici?ico=${ico}` },
-          { url: `https://portal.unionzp.sk/pub/dlznici/api?ico=${ico}` },
-          { url: `https://portal.unionzp.sk/pub/dlznici?ico=${ico}` },
-          { url: `https://portal.unionzp.sk/api/pub/dlznici?ico=${ico}` },
-        ],
+        attempts: ["searchText", "text", "hladanyText", "search", "filter", "query", "ico", "rplIco"].map((k) => ({ url: api, method: "POST" as const, body: body(k), contentType: "application/json", label: `pole ${k}` })),
         needles: [ico],
       };
     }

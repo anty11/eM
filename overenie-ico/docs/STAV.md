@@ -221,3 +221,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   adresy dátových centier → pokus cez **Edge runtime** vlastného nasadenia (`/api/edgefetch`, interný token zo SESSION_SECRET, povolené domény).
   Union: v diagnostike sa načítajú lenivé časti aplikácie (Debtors-*.js) a vytiahnu volania API. ÚVO: varianty `searchType` globálneho
   vyhľadávania, hodnoty výberu (`selects`) a text hlavného obsahu (`mainText`) v diagnostike.
+- **v2.1.6** – Union: skutočné API portálu `POST /ehip-server/rest/debtors` (JSON; polia rplNazov, rplIco, suma) – skúšajú sa varianty názvu
+  poľa pre hľadaný text, „bez záznamu“ len pri totalRows = 0. ÚVO: globálne vyhľadávanie `searchType=OSZ` (Osoba so zákazom), vyhodnotenie
+  „N záznamov“ + blok s IČO a slovom zákaz. Register diskvalifikácií: justice.gov.sk vracia 403 aj cez Edge runtime → z Vercelu nedostupný
+  (ostáva manuálne / AI; možnosť: proxy so slovenskou adresou).
