@@ -30,6 +30,8 @@ function searchableOf(x: any): string[] {
   if (!x || typeof x !== "object") return [];
   for (const k of ["searchable", "searchable_columns", "searchableColumns", "search_columns", "searchColumns"]) {
     const v = x[k];
+    // skutočný tvar API (overené 10/2026): reťazec oddelený čiarkou, napr. "ic_dph,ico" alebo "nazov_subjektu"
+    if (typeof v === "string" && v.trim()) return v.split(",").map((c) => c.trim()).filter(Boolean);
     if (Array.isArray(v) && v.length) return v.map((c: any) => (typeof c === "string" ? c : String(c?.name || c?.column || c?.id || ""))).filter(Boolean);
     if (v && typeof v === "object") return Object.keys(v).filter((c) => v[c]);
   }
@@ -60,10 +62,10 @@ const DATASETS = {
   vat: { slugs: ["ds_dphs"], re: /registrovan\S* .*dph|platitel\S* dph$/i },
   vatRisk: { slugs: ["ds_dphz"], re: /d[oô]vod\S* na zru[sš]en/i },
   vatDeleted: { slugs: ["ds_dphv"], re: /vymazan\S* .*dph/i },
-  ids: { slugs: ["ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
-  incomeTax: { slugs: ["ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
+  ids: { slugs: ["ds_iz_ran", "ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
+  incomeTax: { slugs: ["ds_dppos", "ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
   /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 14 písm. c)). */
-  bankAccounts: { slugs: ["ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
+  bankAccounts: { slugs: ["ds_dph_iban", "ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
 } as const;
 
 async function resolve(kind: keyof typeof DATASETS): Promise<string | null> {

@@ -40,7 +40,7 @@ const RAW_URLS: Record<string, (ico: string) => string[]> = {
   "fs-dppo": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_dppo`],
   socpoist: () => ["https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov"],
   insolvency: (ico) => [`https://replik.justice.sk/ru-verejnost-web/pages/searchKonanie.xhtml?query=${ico}`],
-  rpvs: (ico) => [`https://rpvs.gov.sk/opendatav2/PartneriVerejnehoSektora?$filter=Ico eq '${ico}'&$top=1`],
+  rpvs: (ico) => [`https://rpvs.gov.sk/opendatav2/PartneriVerejnehoSektora?$filter=Ico eq '${ico}'`],
   news: (ico) => [`https://news.google.com/rss/search?q=%22${ico}%22&hl=sk&gl=SK&ceid=SK:sk`],
   ov: () => ["https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx"],
   cre: () => ["https://www.cre.sk/"],
@@ -62,7 +62,7 @@ export const GET = handler(async (req) => {
     if ((PUBLIC_QUERY_IDS as readonly string[]).includes(source)) {
       const ctx: Ctx = { ico, profile: { ico, statutory: names.map((n) => ({ name: n, role: "štatutár" })) } as any };
       const { attempts, needles } = attemptsFor(source, ctx);
-      const outcome = await probe(attempts, needles, 15000);
+      const outcome = await probe(attempts, needles, 15000, { diag: true });
       Object.assign(result, { needles, result: outcome.result, rows: outcome.rows, attempts: outcome.attempts });
       return NextResponse.json(result);
     }

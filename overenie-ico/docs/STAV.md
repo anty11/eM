@@ -208,3 +208,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.1.2** – Administrácia → Diagnostika zdrojov: všetky zdroje (API aj bez API), surová odpoveď kľúčových adries pre dané IČO + výsledok
   kontroly, pri registroch bez API formuláre/skripty/HTML; „Spustiť všetky zdroje“ zloží jeden výstup (kopírovať / stiahnuť JSON).
   `/api/diag?source=<id>&ico=&name=` pre každý zdroj.
+- **v2.1.3** – podľa prvej diagnostiky z produkcie: FS API vracia `searchable` ako reťazec oddelený čiarkou (opravené; daňoví dlžníci sa hľadajú
+  len podľa názvu, DPH/IBAN podľa IČ DPH), skutočné slugy `ds_iz_ran` (index), `ds_dppos` (DPPO), `ds_dph_iban` (účty). Registre bez API:
+  hlavičky prehliadača (justice.gov.sk vracal 403), prípravný krok s cookies (VšZP – vypnutie ochrany formulára, POST typ/nazov/docid/proceed),
+  v diagnostike prehľadanie skriptov SPA (Union) na adresy API, odkazy na stránke a hľadanie datasetov na data.gov.sk (diskvalifikácie, ÚVO).

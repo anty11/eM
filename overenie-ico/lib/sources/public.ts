@@ -16,15 +16,49 @@ export interface Attempt {
   method?: "GET" | "POST";
   body?: string;
   contentType?: string;
+  /** Prípravný krok (napr. vypnutie ochrany formulára) – jeho cookies sa pošlú s hlavným dopytom */
+  pre?: { url: string; method?: "GET" | "POST"; body?: string };
+  /** Len na diagnostiku – nie je to dopyt do registra (napr. hľadanie otvorených dát) */
+  info?: string;
+}
+
+/** Hlavičky bežného prehliadača – niektoré weby (nginx/WAF) odmietajú požiadavky bez nich. */
+const BROWSER_HEADERS: Record<string, string> = {
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7",
+  "Accept-Language": "sk-SK,sk;q=0.9,cs;q=0.8,en;q=0.7",
+  "Upgrade-Insecure-Requests": "1",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  "Cache-Control": "max-age=0",
+};
+
+/** Z JS balíka jednostránkovej aplikácie (Union portál) vytiahne kandidátov na adresy API. */
+export function apiHints(js: string): string[] {
+  const out = new Set<string>();
+  for (const m of js.matchAll(/["'`](https?:\/\/[^"'`\s]{6,160}|\/[A-Za-z0-9_\-./{}$]{2,120})["'`]/g)) {
+    const u = m[1];
+    if (/api|rest|service|dlzn|debt|search|vyhlad|zoznam|graphql|odata/i.test(u) && !/\.(js|css|png|svg|woff2?|ico|jpg)(\?|$)/i.test(u)) out.add(u);
+  }
+  return [...out].slice(0, 60);
 }
 export interface ProbeOutcome {
   result: "found" | "clean" | "unknown";
   rows: string[];
-  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; forms?: string[]; scripts?: string[]; raw?: string; contentType?: string }[];
+  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; forms?: string[]; scripts?: string[]; links?: string[]; apiHints?: string[]; raw?: string; contentType?: string; info?: string }[];
 }
 
 /** Z HTML vytiahne formuláre (action, metóda, polia) a skripty – na doladenie dopytov podľa diagnostiky bez prístupu k stránke. */
-export function describePage(html: string): { forms: string[]; scripts: string[] } {
+export function describePage(html: string): { forms: string[]; scripts: string[]; links: string[] } {
+  const links = (html.match(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,120}?)<\/a>/gi) || [])
+    .map((a) => {
+      const href = a.match(/href=["']([^"'#]+)["']/i)?.[1] || "";
+      const text = stripHtml(a).slice(0, 60);
+      return `${text} → ${href}`;
+    })
+    .filter((l) => /zakaz|register|vyhlad|search|api|export|csv|xml|json|opendata|otvoren|dlzn|zoznam|diskvalif/i.test(l))
+    .slice(0, 40);
   const forms = (html.match(/<form[\s\S]*?<\/form>/gi) || []).slice(0, 6).map((f) => {
     const action = f.match(/action=["']([^"']*)["']/i)?.[1] || "(bez action)";
     const method = f.match(/method=["']([^"']*)["']/i)?.[1] || "GET";
@@ -39,7 +73,7 @@ export function describePage(html: string): { forms: string[]; scripts: string[]
     return `${method.toUpperCase()} ${action} [${fields.join(", ")}]`;
   });
   const scripts = (html.match(/<script[^>]*\ssrc=["']([^"']+)["']/gi) || []).map((s) => s.match(/src=["']([^"']+)["']/i)![1]).slice(0, 15);
-  return { forms, scripts };
+  return { forms, scripts, links };
 }
 
 const NO_RESULTS = /(ziadne|ziadny|neboli najdene|nebol najdeny|nenasli sa|nenasiel sa|sa nenachadza|nenachadza sa|nebol zisteny|0 zaznamov|pocet zaznamov: 0|no records|no results|nothing found)/;
@@ -72,28 +106,48 @@ export function judge(html: string, needles: string[]): { verdict: "found" | "cl
   return { verdict: "unknown", rows: [] };
 }
 
-export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 12000): Promise<ProbeOutcome> {
+export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 12000, opts: { diag?: boolean } = {}): Promise<ProbeOutcome> {
   const out: ProbeOutcome = { result: "unknown", rows: [], attempts: [] };
   for (const a of attempts) {
     const t0 = Date.now();
     try {
+      let cookie = "";
+      if (a.pre) {
+        const pr = await fetchWithTimeout(a.pre.url, { method: a.pre.method || "GET", body: a.pre.body, headers: { ...BROWSER_HEADERS, ...(a.pre.body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) }, timeoutMs, redirect: "manual" });
+        const setCookies = (pr.headers as any).getSetCookie?.() as string[] | undefined;
+        cookie = (setCookies && setCookies.length ? setCookies : [pr.headers.get("set-cookie") || ""]).map((c) => c.split(";")[0]).filter(Boolean).join("; ");
+      }
       const r = await fetchWithTimeout(a.url, {
         method: a.method || "GET",
         body: a.body,
-        headers: a.body ? { "Content-Type": a.contentType || "application/x-www-form-urlencoded", Accept: "text/html,application/json" } : { Accept: "text/html,application/json" },
+        headers: { ...BROWSER_HEADERS, ...(a.body ? { "Content-Type": a.contentType || "application/x-www-form-urlencoded", Origin: new URL(a.url).origin, Referer: a.url, "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "navigate" } : {}), ...(cookie ? { Cookie: cookie } : {}) },
         timeoutMs,
       });
       const html = await r.text();
-      const j = r.ok ? judge(html, needles) : { verdict: "unknown" as const, rows: [] };
+      const j = r.ok && !a.info ? judge(html, needles) : { verdict: "unknown" as const, rows: [] };
       const d = describePage(html);
-      out.attempts.push({ url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, 1500), verdict: j.verdict, forms: d.forms, scripts: d.scripts, raw: html.slice(0, 2500), contentType: r.headers.get("content-type") || undefined });
+      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 6000 : 1500), verdict: j.verdict, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 4000 : 1500), contentType: r.headers.get("content-type") || undefined, info: a.info };
+      // jednostránková aplikácia bez obsahu – v diagnostike prezrieme jej skripty a vytiahneme adresy API
+      if (opts.diag && j.verdict === "unknown" && d.scripts.length && stripHtml(html).length < 400) {
+        const hints = new Set<string>();
+        for (const src of d.scripts.filter((s) => !/^https?:/.test(s) || new URL(s).origin === new URL(a.url).origin).slice(0, 3)) {
+          try {
+            const js = await (await fetchWithTimeout(new URL(src, a.url).toString(), { timeoutMs })).text();
+            apiHints(js.slice(0, 3_000_000)).forEach((h) => hints.add(h));
+          } catch {
+            /* skript sa nepodarilo načítať */
+          }
+        }
+        rec.apiHints = [...hints];
+      }
+      out.attempts.push(rec);
       if (j.verdict !== "unknown") {
         out.result = j.verdict;
         out.rows = j.rows;
         return out;
       }
     } catch (e) {
-      out.attempts.push({ url: a.url, ms: Date.now() - t0, error: (e as Error).message, excerpt: "", verdict: "unknown" });
+      out.attempts.push({ url: a.url, ms: Date.now() - t0, error: (e as Error).message, excerpt: "", verdict: "unknown", info: a.info });
     }
   }
   return out;
@@ -107,28 +161,41 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
   const statutory = (ctx.profile.statutory || []).map((s) => s.name).filter(Boolean);
   switch (id) {
     case "diskv": {
+      // justice.gov.sk vracia zo serverov v dátových centrách 403 (nginx) – skúšame s hlavičkami prehliadača; záložne otvorené dáta (data.gov.sk)
       const base = "https://www.justice.gov.sk/registre/registerDiskvalifikacii/";
       return {
         attempts: [
+          { url: `${base}?pageNum=1&size=10` },
           { url: `${base}?ico=${ico}&pageNum=1&size=50` },
-          { url: `${base}?identifikacneCislo=${ico}&pageNum=1&size=50` },
-          { url: `${base}?search=${ico}&pageNum=1&size=50` },
-          ...statutory.slice(0, 3).map((n) => ({ url: `${base}?meno=${enc(n.split(" ").slice(-1)[0])}&pageNum=1&size=50` })),
+          ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50` })),
+          { url: "https://data.gov.sk/api/3/action/package_search?q=diskvalifik%C3%A1ci%C3%AD&rows=5", info: "otvorené dáta – hľadanie datasetu Registra diskvalifikácií" },
         ],
         needles: [ico, ...statutory],
       };
     }
     case "uvo": {
       const base = "https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom";
-      return { attempts: [{ url: `${base}?ico=${ico}` }, { url: `${base}?search=${ico}` }, { url: `${base}?q=${ico}` }, { url: base }], needles: [ico] };
-    }
-    case "vszp": {
-      const base = "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html";
       return {
         attempts: [
-          { url: `${base}?ico=${ico}` },
-          { url: `${base}?typ=zamestnavatel&ico=${ico}` },
-          { url: base, method: "POST", body: `ico=${ico}` },
+          { url: base },
+          { url: `${base}?tx_uvosearch[search]=${ico}` },
+          { url: "https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=" + ico },
+          { url: "https://data.gov.sk/api/3/action/package_search?q=z%C3%A1kaz%20%C3%BA%C4%8Dasti%20verejn%C3%A9%20obstar%C3%A1vanie&rows=5", info: "otvorené dáta – hľadanie datasetu ÚVO" },
+        ],
+        needles: [ico],
+      };
+    }
+    case "vszp": {
+      // Formulár (WebJET): POST typ (0 = samoplatitelia, 1 = zamestnávatelia a SZČO), nazov, docid=227, proceed=true; pred ním vypnutie ochrany formulára
+      const base = "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html";
+      const body = `typ=1&nazov=${ico}&docid=227&proceed=true`;
+      const pre = { url: `https://www.vszp.sk/components/form/spamprotectiondisable.jsp?backurl=${enc("/platitelia/platenie-poistneho/zoznam-dlznikov.html")}`, method: "POST" as const, body: "words=" };
+      return {
+        attempts: [
+          { url: base, method: "POST", body, pre },
+          { url: base, method: "POST", body },
+          { url: `${base}?typ=1&nazov=${ico}&docid=227&proceed=true` },
+          { url: base, method: "POST", body: `typ=0&nazov=${ico}&docid=227&proceed=true`, pre },
         ],
         needles: [ico],
       };
