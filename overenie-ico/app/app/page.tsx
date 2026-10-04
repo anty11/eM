@@ -221,6 +221,8 @@ export default function Page() {
     [checks, lawyer, baseChecks],
   );
   const openManual = pendingManual.filter((c) => !answers[c.id]).length;
+  /** Počet všetkých kontrol registrov (bez karty údajov o obchode) – pre zápis „X/Y položiek“ */
+  const totalChecks = checks.filter((c) => c.id !== "deal").length;
   const grouped = useMemo(() => {
     const g = new Map<CategoryId, CheckResult[]>();
     for (const c of checks) if (lawyer || !nonPublic.includes(c.id)) g.set(c.category, [...(g.get(c.category) || []), c]);
@@ -494,7 +496,7 @@ export default function Page() {
                   <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
                   {verdict.preliminary && (
                     <span className="prelim">
-                      Predbežné hodnotenie – {verdict.pendingManual} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
+                      Predbežné hodnotenie – {verdict.pendingManual}/{totalChecks} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
                       {lawyer && <> · <button className="linkbtn no-print" onClick={() => setShowManual(true)}>otvoriť zoznam</button></>}
                     </span>
                   )}
@@ -774,7 +776,7 @@ export default function Page() {
             {lawyer && showManual && openManual > 0 && (
               <div className="modal-bg no-print" role="dialog" aria-modal="true" aria-labelledby="mtitle" onClick={(e) => e.target === e.currentTarget && setShowManual(false)}>
                 <div className="modal">
-                  <h2 id="mtitle">Overte manuálne – {openManual} {openManual === 1 ? "položka nie je" : openManual < 5 ? "položky nie sú" : "položiek nie je"} verejne dostupných</h2>
+                  <h2 id="mtitle">Overte manuálne – {openManual}/{totalChecks} {openManual === 1 ? "položka nie je" : openManual < 5 ? "položky nie sú" : "položiek nie je"} verejne dostupných</h2>
                   <p className="hint">Tieto registre sa nedajú overiť automaticky. Otvorte odkaz, skontrolujte subjekt a označte výsledok – verdikt sa hneď prepočíta a zapíše do protokolu.</p>
                   <ul className="mlist">
                     {pendingManual.map((c) => (
