@@ -126,6 +126,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"amount" (EUR alebo null)`,
     penalty: 25,
     foundText: "Dlh voči VšZP",
+    disabled: "Zoznam VšZP je formulár (POST) – AI ho nevie odoslať. Overuje sa priamo dopytom servera; ak dopyt zlyhá, overte ručne.",
   },
   union: {
     id: "union",
@@ -136,6 +137,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"amount" (EUR alebo null)`,
     penalty: 25,
     foundText: "Dlh voči Union ZP",
+    disabled: "Portál Union je aplikácia s vlastným API – AI ho nevie použiť. Overuje sa priamo dopytom servera; ak dopyt zlyhá, overte ručne.",
   },
   ov: {
     id: "ov",
@@ -147,6 +149,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"notices": [{"date","type","text"}]`,
     penalty: 30,
     foundText: "Negatívne oznámenie v Obchodnom vestníku",
+    disabled: "Obchodný vestník je formulár bez priamej adresy výsledku – AI ho nevie prehľadať. Overuje sa importom vydaní (po zapnutí) alebo ručne.",
   },
   diskv: {
     id: "diskv",
@@ -158,13 +161,14 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"persons": [{"name","until","note"}]`,
     penalty: 25,
     foundText: "Štatutár je v Registri diskvalifikácií",
+    disabled: "justice.gov.sk blokuje automatizovaný prístup z dátových centier (403) – nedostane sa k nemu server ani AI. Overte ručne.",
   },
   uvo: {
     id: "uvo",
     kind: "negative",
     domains: ["uvo.gov.sk", "www.uvo.gov.sk"],
-    urls: () => ["https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom"],
-    task: (ico, p) => `Over, či je subjekt ${who(ico, p)} v Registri osôb so zákazom účasti vo verejnom obstarávaní (ÚVO).`,
+    urls: (ico) => [`https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=OSZ`, "https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom"],
+    task: (ico, p) => `Over, či je subjekt ${who(ico, p)} v Registri osôb so zákazom účasti vo verejnom obstarávaní (ÚVO). Otvor prvý odkaz (globálne vyhľadávanie s výberom „Osoba so zákazom“) a prečítaj počet záznamov a výsledky.`,
     dataPoints: `"until" (dátum konca zákazu alebo null)`,
     penalty: 15,
     foundText: "Zákaz účasti vo verejnom obstarávaní",

@@ -26,6 +26,7 @@ export const POST = handler(async (req) => {
     await audit({
       type: "ai_check",
       by: me.email,
+      orgId: me.orgId,
       ico,
       company: profile.name,
       target: check.id,
@@ -33,7 +34,7 @@ export const POST = handler(async (req) => {
     });
     return NextResponse.json(r);
   } catch (e) {
-    await audit({ type: "ai_check", by: me.email, ico, target: check.id, detail: `chyba: ${(e as Error).message}` });
+    await audit({ type: "ai_check", by: me.email, orgId: me.orgId, ico, target: check.id, detail: `chyba: ${(e as Error).message}` });
     return NextResponse.json({ error: `AI overenie zlyhalo: ${(e as Error).message}` }, { status: 502 });
   }
 });
