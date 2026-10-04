@@ -205,3 +205,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   opätovné zvolenie – pri Slovnafte odpadli „8 zmien štatutárov“ a „zmena štatutárneho orgánu pred 173 dňami“ (išlo o aktualizáciu zápisu
   jediného akcionára); pri orgáne nad 3 členov sa indikátor „zmena tesne pred obchodom“ hlási správne ako zmena vlastníka. Diagnostika
   `/api/diag?source=` vracia aj formuláre (action, metóda, polia), skripty a surový začiatok HTML – na doladenie dopytov do registrov bez API.
+- **v2.1.2** – Administrácia → Diagnostika zdrojov: všetky zdroje (API aj bez API), surová odpoveď kľúčových adries pre dané IČO + výsledok
+  kontroly, pri registroch bez API formuláre/skripty/HTML; „Spustiť všetky zdroje“ zloží jeden výstup (kopírovať / stiahnuť JSON).
+  `/api/diag?source=<id>&ico=&name=` pre každý zdroj.
