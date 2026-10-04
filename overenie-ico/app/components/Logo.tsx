@@ -25,7 +25,7 @@ export function Wordmark({ size = 26, onDark = false, sub }: { size?: number; on
         <span aria-hidden style={{ display: "inline-block", width: size * 0.26, height: size * 0.26, borderRadius: "50%", background: dot, marginLeft: size * 0.14, transform: "translateY(-1px)" }} />
       </span>
       {sub && (
-        <span style={{ fontFamily: '"Montserrat", "Inter", system-ui, sans-serif', fontSize: Math.max(9, size * 0.34), letterSpacing: "0.14em", textTransform: "uppercase", color: gold, fontWeight: 600, marginTop: size * 0.2, whiteSpace: "nowrap" }}>
+        <span style={{ fontFamily: '"Montserrat", "Inter", system-ui, sans-serif', fontSize: Math.max(9, size * 0.34), letterSpacing: "0.14em", textTransform: "uppercase", color: gold, fontWeight: 600, marginTop: size * 0.34, whiteSpace: "nowrap" }}>
           {sub}
         </span>
       )}
