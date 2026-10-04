@@ -7,7 +7,7 @@ const rejects = async (p: Promise<unknown>, re: RegExp) => assert.rejects(p, (e:
 
 async function main() {
   useMemoryKV();
-  const ok = { company: "Vzorová firma, s.r.o.", ico: "47 244 895", contactName: "Jana Nováková", email: "Jana@Firma.sk", phone: "+421 900 111 222", users: "5", plan: "rozsirene", message: "Školenie prosím v Bratislave.", consent: true };
+  const ok = { company: "Vzorová firma, s.r.o.", ico: "47 244 895", contactName: "Janka Mrkvičková", email: "Jana@Firma.sk", phone: "+421 900 111 222", users: "5", plan: "rozsirene", message: "Školenie prosím v Bratislave.", consent: true };
 
   await rejects(createOrder({ ...ok, company: "" }, "1.1.1.1"), /názov spoločnosti/);
   await rejects(createOrder({ ...ok, ico: "12" }, "1.1.1.1"), /IČO/);

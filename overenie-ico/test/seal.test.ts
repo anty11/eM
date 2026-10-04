@@ -10,10 +10,10 @@ async function main() {
   assert.equal(sha256("a"), "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb");
   assert.match(shortHash(sha256("a")), /^CA97 8112 CA1B BDCA … 48BB$/);
 
-  const base = { scanId: "SK-47244895-20261004103339", ico: "47244895", scannedAt: "2026-10-04T10:33:39.000Z", profile: { name: "URBAN & PARTNERS s.r.o." }, checks: [{ id: "rpo", status: "ok" }], verdict: { level: "recommended", score: 100 }, company: "URBAN & PARTNERS s.r.o.", verdictLevel: "recommended", score: 100, by: "Jana Nováková", note: "", author: "Jana Nováková" };
+  const base = { scanId: "SK-47244895-20261004103339", ico: "47244895", scannedAt: "2026-10-04T10:33:39.000Z", profile: { name: "URBAN & PARTNERS s.r.o." }, checks: [{ id: "rpo", status: "ok" }], verdict: { level: "recommended", score: 100 }, company: "URBAN & PARTNERS s.r.o.", verdictLevel: "recommended", score: 100, by: "Janka Mrkvičková", note: "", author: "Janka Mrkvičková" };
   const s1 = await sealProtocol(base);
   assert.equal(s1.seq, 1);
-  assert.equal(s1.by, "Jana Nováková");
+  assert.equal(s1.by, "Janka Mrkvičková");
   assert.ok(!JSON.stringify(s1).includes("@"), "pečať neobsahuje e-mail");
   const s1b = await sealProtocol({ ...base, profile: { name: "URBAN & PARTNERS s.r.o." } });
   assert.equal(s1b.hash, s1.hash, "rovnaký obsah = rovnaká pečať");

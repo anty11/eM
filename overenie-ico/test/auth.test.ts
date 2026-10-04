@@ -89,7 +89,7 @@ async function main() {
   await rejects(login("jana@kancelaria.sk", "DalsieHeslo2026", "9.9.9.9"), /Príliš veľa/);
 
   // Verzia a meno
-  await updateUser("jana@kancelaria.sk", { mode: "advokat", name: "Mgr. Jana Nováková" }, admin.email);
+  await updateUser("jana@kancelaria.sk", { mode: "advokat", name: "Janka Mrkvičková" }, admin.email);
   assert.equal((await listUsers()).find((u) => u.email === "jana@kancelaria.sk")!.mode, "advokat");
   assert.equal((await listUsers()).find((u) => u.email === admin.email)!.mode, "firma", "predvolená verzia je Firma");
 
@@ -98,7 +98,7 @@ async function main() {
   await rejects(saveContact("47244895", { email: "zly" }, admin.email, dir), /e-mail/);
   const saved = await saveContact(
     "47244895",
-    { active: true, personName: "JUDr. Ján Vzor", phone: "+421 905 123 456", email: "vzor@urban.sk", isStatutory: true, owners: ["jana@kancelaria.sk", "cudzi@x.sk"] },
+    { active: true, personName: "Janko Mrkvička", phone: "+421 905 123 456", email: "mrkvicka@firma.sk", isStatutory: true, owners: ["jana@kancelaria.sk", "cudzi@x.sk"] },
     admin.email,
     dir,
   );

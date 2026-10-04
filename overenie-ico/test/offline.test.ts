@@ -50,7 +50,7 @@ async function main() {
   assert.deepEqual(r.profile.activities, ["poskytovanie právnych služieb", "sprostredkovateľská činnosť v oblasti obchodu"]);
   assert.equal(r.profile.lastOwnershipChange, "2024-01-16");
   assert.equal(r.profile.lastStatutoryChange, "2022-10-04");
-  assert.deepEqual(r.profile.owners?.map((o) => o.name), ["JUDr. Ján Vzor"]);
+  assert.deepEqual(r.profile.owners?.map((o) => o.name), ["Janko Mrkvička"]);
   const kf = (id: string) => r.keyFacts.find((f) => f.id === id)!;
   assert.match(kf("filed").answer, /^Áno – posledná závierka za rok 2025, uložená/);
   assert.equal(kf("dissolution").tone, "good");
@@ -68,7 +68,7 @@ async function main() {
   assert.equal(by("fs-ids").summary, "Hodnotenie: vysoko spoľahlivý.");
   assert.equal(by("fs-dppo").status, "ok");
   assert.equal(by("rpvs").status, "ok");
-  assert.deepEqual((by("rpvs").data as any).kuv, ["JUDr. Ján Vzor"], "len aktuálni KUV");
+  assert.deepEqual((by("rpvs").data as any).kuv, ["Janko Mrkvička"], "len aktuálni KUV");
   assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
   assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);
   assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(daň 7 830,00 €\)/);

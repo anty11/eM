@@ -20,9 +20,9 @@ await p.click("button.btn:has-text('Pridať')");
 await p.waitForSelector(".code");
 const code = (await p.locator(".code").first().textContent()).trim();
 // meno pre admina
-p.once("dialog", (d) => d.accept("Antonín Čajka"));
+p.once("dialog", (d) => d.accept("Janko Mrkvička"));
 await p.locator("tr", { hasText: "antonin.cajka" }).locator("text=doplniť meno").first().click();
-await p.waitForSelector("text=Antonín Čajka");
+await p.waitForSelector("text=Janko Mrkvička");
 
 await p.goto(B + "/app?ico=47244895");
 await p.waitForSelector(".facts");
@@ -32,10 +32,10 @@ assert.equal(await p.locator("summary", { hasText: "Ďalšie odporúčané overe
 assert.equal(await p.locator("text=Centrálny register exekúcií").isVisible(), false, "neverejné sú schované v rozbaľovacom zozname");
 // kontakt
 await p.check("text=S touto spoločnosťou komunikujeme");
-await p.fill("#cp-name", "Ján Vzor");
+await p.fill("#cp-name", "Janko Mrkvička");
 await p.fill("#cp-role", "konateľ");
 await p.fill("#cp-phone", "+421 905 123 456");
-await p.fill("#cp-email", "vzor@urban.sk");
+await p.fill("#cp-email", "mrkvicka@firma.sk");
 await p.waitForSelector("text=je v obchodnom registri zapísaný ako štatutár");
 await p.check("text=Kontaktná osoba je štatutár");
 await p.locator(".owner-list label", { hasText: "jana.novakova" }).locator("input").check();

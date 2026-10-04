@@ -23,6 +23,7 @@ používateľov spravujú administrátori.
 | Cron | `vercel.json` → `/api/cron/socpoist` denne 04:20 (stiahne a zaindexuje zoznam dlžníkov SP) |
 | Databáza | Upstash Redis cez Vercel Marketplace (premenné s predponou `KV_`); `lib/auth/kv.ts` prijme aj `*_REST_API_URL/TOKEN` alebo `REDIS_URL`; bez databázy beží lokálne v pamäti |
 | Administrátori | `antonincajka@gmail.com`, `lichnermonika@gmail.com` (zriadia sa cez `ADMIN_EMAILS` + `ADMIN_SETUP_CODE` na `/login` → prvé nastavenie) |
+| Demo mená | Vo všetkých ukážkach, demo dátach (`DEMO_DATA=1`), testoch a snímkach sa používa **Janko Mrkvička** (štatutár/spoločník/zamestnanec), bývalý spoločník Ferko Mrkvička, kolegyňa Janka Mrkvičková – nikdy skutočné mená ani e-maily. |
 | Testovacie IČO | **47244895** – URBAN & PARTNERS s.r.o. (predtým URBAN GAŠPEREC BOŠANSKÝ, URBAN STEINECKER GAŠPEREC BOŠANSKÝ); médiá musia nájsť články z r. 2022 (NAKA, korupcia) → očakávaný verdikt S VÝHRADOU |
 
 ## Technológie

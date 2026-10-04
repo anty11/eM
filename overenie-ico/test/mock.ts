@@ -20,12 +20,12 @@ const rpoEntity = (ico: string, bad: boolean) => ({
   legalForms: [{ value: { value: "Spoločnosť s ručením obmedzeným", code: "112" }, validFrom: "2013-01-09" }],
   establishment: bad ? "2025-11-01" : "2013-01-09",
   statutoryBodies: [
-    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: "2013-01-09", validTo: "2022-10-03", personName: { formatedName: "JUDr. Peter Starý" } },
-    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: bad ? "2025-11-01" : "2022-10-04", personName: { formatedName: "JUDr. Ján Vzor" } },
+    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: "2013-01-09", validTo: "2022-10-03", personName: { formatedName: "Ferko Mrkvička" } },
+    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: bad ? "2025-11-01" : "2022-10-04", personName: { formatedName: "Janko Mrkvička" } },
   ],
   stakeholders: [
-    { stakeholderType: { value: "Spoločník" }, validFrom: "2013-01-09", validTo: "2024-01-15", personName: { formatedName: "JUDr. Peter Starý" } },
-    { stakeholderType: { value: "Spoločník" }, validFrom: bad ? "2026-08-01" : "2024-01-16", personName: { formatedName: "JUDr. Ján Vzor" } },
+    { stakeholderType: { value: "Spoločník" }, validFrom: "2013-01-09", validTo: "2024-01-15", personName: { formatedName: "Ferko Mrkvička" } },
+    { stakeholderType: { value: "Spoločník" }, validFrom: bad ? "2026-08-01" : "2024-01-16", personName: { formatedName: "Janko Mrkvička" } },
   ],
   activities: [
     { economicActivityDescription: "poskytovanie právnych služieb,", validFrom: "2013-01-09" },
@@ -146,7 +146,7 @@ globalThis.fetch = (async (input: any, init?: any) => {
   }
   if (u.host === "rpvs.gov.sk") {
     if (url.includes(`'${GOOD}'`)) return json({ value: [{ Id: 9, Ico: GOOD, ObchodneMeno: "URBAN & PARTNERS s.r.o.", Partner: { Id: 36280, CisloVlozky: 12345 } }] });
-    if (url.includes("Partneri(36280)")) return json({ Id: 36280, KonecniUzivateliaVyhod: [{ Meno: "Ján", Priezvisko: "Vzor", TitulPred: "JUDr." }, { Meno: "Starý", Priezvisko: "Bývalý", PlatnostDo: "2020-01-01" }] });
+    if (url.includes("Partneri(36280)")) return json({ Id: 36280, KonecniUzivateliaVyhod: [{ Meno: "Janko", Priezvisko: "Mrkvička" }, { Meno: "Ferko", Priezvisko: "Mrkvička", PlatnostDo: "2020-01-01" }] });
     return json({ value: [] });
   }
   if (u.host === "api.anthropic.com") {

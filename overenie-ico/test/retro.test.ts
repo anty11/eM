@@ -12,14 +12,14 @@ async function main() {
   const rpo = r.checks.find((c) => c.id === "rpo")!.data!.asOf as any;
   assert.equal(rpo.existed, true);
   assert.equal(rpo.name, "URBAN GAŠPEREC BOŠANSKÝ, s.r.o., advokátska kancelária", "názov platný k rozhodnému dátumu");
-  assert.deepEqual(rpo.owners, ["JUDr. Peter Starý"], "spoločník k rozhodnému dátumu, nie dnešný");
-  assert.deepEqual(rpo.statutory, ["JUDr. Ján Vzor"]);
+  assert.deepEqual(rpo.owners, ["Ferko Mrkvička"], "spoločník k rozhodnému dátumu, nie dnešný");
+  assert.deepEqual(rpo.statutory, ["Janko Mrkvička"]);
   assert.equal(rpo.changesAfter.owners, 1, "po rozhodnom dátume pribudol nový spoločník");
   const ruz = r.checks.find((c) => c.id === "ruz")!.data!.asOf as any;
   assert.deepEqual(ruz.filedYears, [], "závierky za 2024/2025 boli uložené až po rozhodnom dátume");
   assert.equal(ruz.expectedThen, 2021);
   const lines = retroLines(r.asOf!, r.profile, r.checks);
-  assert.ok(lines.some((l) => l.source === "Obchodný register" && /Peter Starý/.test(l.text)));
+  assert.ok(lines.some((l) => l.source === "Obchodný register" && /Ferko Mrkvička/.test(l.text)));
   assert.ok(lines.some((l) => /nemajú verejnú históriu/.test(l.text)), "čestné upozornenie na neoveriteľné zoznamy");
   assert.ok(lines.some((l) => l.source === "Register úpadcov"));
   // bez rozhodného dátumu žiadne retro údaje
