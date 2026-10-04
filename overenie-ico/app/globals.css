@@ -319,6 +319,8 @@ textarea { width: 100%; min-height: 80px; }
 
   /* poznámky, podpis, odkazy */
   .note-print { white-space: pre-wrap; min-height: 14px; }
+  .seal-print { margin-top: 10px; padding-top: 4px; border-top: 1px solid #000; font-size: 8px; color: #333; }
+  .seal-print .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7.5px; word-break: break-all; }
   .sign { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; break-inside: avoid; }
   .sign div { border-top: 1px solid #000; padding-top: 3px; font-size: 8.5px; }
   .refs { font-size: 8px; color: #333; margin-top: 8px; border-top: 1px solid #000; padding-top: 4px; }

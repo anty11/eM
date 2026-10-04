@@ -114,3 +114,13 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v1.5.1** – ochrana údajov vo výstupoch: v protokole, PDF, JSON exporte, karte kontaktu a zozname preverených spoločností sa uvádza len **meno**
   povereného zamestnanca, nikdy e-mail („poverený zamestnanec“, ak meno nie je nastavené). E-maily ostávajú len v audite a v administrácii.
   Odporúčanie: administrátor nastaví používateľom mená (Administrácia → Používatelia).
+
+## v1.6.0 – 4. 10. 2026 – pečať protokolu a overovacia stránka
+
+- Pri „Uložiť PDF protokol“ sa konečný obsah (výsledky, manuálne overenia, údaje o obchode, karta kontaktu, poznámka, vypracovateľ) pošle na server,
+  ten vypočíta **SHA-256 z kanonického JSON**, zapíše pečať (čas, odtlačok, verdikt, skóre, meno) do databázy (`seals:<scanId>`) a auditu a vráti ju;
+  až potom sa otvorí tlač. Rovnaký obsah = rovnaká pečať a pôvodný čas; zmena obsahu = nová pečať #2, #3…
+- Protokol tlačí riadok „Pečať protokolu #n: odtlačok … zapísaný dd. mm. rrrr hh:mm:ss · overenie: obozretne.sk/overit/<číslo>“ + úplný odtlačok.
+- **Verejná stránka `/overit/<číslo protokolu>`** (bez prihlásenia, noindex): časy preverenia a pečatí, verdikt, skóre, odtlačky – bez osobných údajov.
+  Pripravené pole `tsa` pre kvalifikovanú časovú pečiatku (RFC 3161 / eIDAS) od tretej strany.
+- Kód: `lib/seal.ts`, `app/api/protocol/seal`, `app/overit/[scanId]/page.tsx`, `app/app/page.tsx` (`sealAndPrint`), `proxy.ts`; test `test/seal.test.ts`. Bez poplatkov.

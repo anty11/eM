@@ -8,6 +8,8 @@ import ContactCard from "../components/ContactCard";
 import KeyFacts from "../components/KeyFacts";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
 import { buildDealCheck, type BankAccountResult, type DealInput } from "@/lib/deal";
+import { shortHash, type Seal } from "@/lib/seal";
+import { DOMAIN } from "../components/site/SiteShell";
 import { MANUAL } from "@/lib/sources/manual";
 import { AUTO_ORDER, pendingCheck } from "@/lib/sources/meta";
 import { AI_SPECS, aiCapable } from "@/lib/ai/specs";
@@ -69,6 +71,11 @@ export default function Page() {
   // Údaje o obchode a indikátory rizika (SKDP 03/2024) – zadáva poverený zamestnanec
   const [deal, setDeal] = useState<DealInput>(EMPTY_DEAL);
   const [bank, setBank] = useState<BankAccountResult | null>(null);
+  // Pečať protokolu (odtlačok + čas zápisu na serveri) – vytvorí sa pri uložení PDF
+  const [seal, setSeal] = useState<Seal | null>(null);
+  const [sealing, setSealing] = useState(false);
+  const [sealErr, setSealErr] = useState("");
+  const [contactSnap, setContactSnap] = useState<Record<string, unknown> | null>(null);
   // Výsledky AI záložného overenia (prepíšu pôvodnú kontrolu) a doplnenia profilu
   const [aiResults, setAiResults] = useState<Record<string, CheckResult>>({});
   const [profilePatch, setProfilePatch] = useState<Partial<CompanyProfile>>({});
@@ -165,6 +172,8 @@ export default function Page() {
       setReport(j);
       setDeal(EMPTY_DEAL);
       setBank(null);
+      setSeal(null);
+      setSealErr("");
       if (!j.notFound) {
         setShowManual(true);
         autoAi(j);
@@ -220,6 +229,30 @@ export default function Page() {
     } finally {
       setRetrying((s) => ({ ...s, [id]: false }));
     }
+  }
+
+  /** Pred tlačou zapečatí konečný obsah protokolu na serveri (odtlačok + čas) a potom otvorí tlač do PDF. */
+  async function sealAndPrint() {
+    if (!report || !profile || !verdict) return;
+    setSealing(true);
+    setSealErr("");
+    try {
+      const r = await fetch("/api/protocol/seal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scanId: report.scanId, ico: report.ico, scannedAt: report.scannedAt, profile, checks, verdict, keyFacts: facts, deal, contact: contactSnap, note, author, appVersion: report.appVersion }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `Chyba ${r.status}`);
+      setSeal(j);
+    } catch (e) {
+      setSeal(null);
+      setSealErr(`Pečať sa nepodarilo zapísať (${(e as Error).message}) – protokol sa vytlačí bez odtlačku.`);
+    } finally {
+      setSealing(false);
+    }
+    // nech sa pečať stihne vykresliť do tlačovej hlavičky
+    setTimeout(() => window.print(), 150);
   }
 
   const retryButton = (c: CheckResult) => {
@@ -452,7 +485,7 @@ export default function Page() {
             })()}
             <KeyFacts facts={facts} />
 
-            <ContactCard ico={report.ico} profile={p} meEmail={me?.email} />
+            <ContactCard ico={report.ico} profile={p} meEmail={me?.email} onChange={setContactSnap} />
 
             <DealCard ico={report.ico} profile={p} deal={deal} onChange={setDeal} bank={bank} onBank={setBank} />
 
@@ -627,7 +660,14 @@ export default function Page() {
                   onChange={(e) => { setAuthor(e.target.value); safeSet("author", e.target.value); }}
                   className="no-print"
                 />
-                <button className="btn no-print" onClick={() => window.print()}>Uložiť PDF protokol</button>
+                <button className="btn no-print" disabled={sealing} onClick={() => sealAndPrint()}>{sealing ? "Pečatím protokol…" : "Uložiť PDF protokol"}</button>
+                {seal && (
+                  <span className="src no-print">
+                    Pečať #{seal.seq} · {new Date(seal.sealedAt).toLocaleString("sk-SK", { dateStyle: "short", timeStyle: "medium" })} · {shortHash(seal.hash)} ·{" "}
+                    <a href={`/overit/${seal.scanId}`} target="_blank" rel="noreferrer">overiť ↗</a>
+                  </span>
+                )}
+                {sealErr && <span className="f-critical no-print">{sealErr}</span>}
                 <button className="btn ghost no-print" onClick={() => {
                   const blob = new Blob([JSON.stringify({ ...report, profile, keyFacts: facts, checks, verdict, deal, bank, note, author }, null, 2)], { type: "application/json" });
                   const a = document.createElement("a");
@@ -640,6 +680,16 @@ export default function Page() {
               <div className="print-only sign">
                 <div>Vypracoval (poverený zamestnanec): {author || me?.name || "………………………"}</div>
                 <div>Dátum a podpis</div>
+              </div>
+              <div className="print-only seal-print">
+                {seal ? (
+                  <>
+                    <b>Pečať protokolu #{seal.seq}:</b> odtlačok SHA-256 {shortHash(seal.hash)} zapísaný {new Date(seal.sealedAt).toLocaleString("sk-SK", { dateStyle: "long", timeStyle: "medium" })} ·
+                    overenie: {DOMAIN}/overit/{seal.scanId} · úplný odtlačok: <span className="mono">{seal.hash}</span>
+                  </>
+                ) : (
+                  <>Protokol bol vytlačený bez pečate (odtlačok sa nepodarilo zapísať). Čas preverenia je uvedený v hlavičke; overenie: {DOMAIN}/overit/{report.scanId}</>
+                )}
               </div>
             </section>
 

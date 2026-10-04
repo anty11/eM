@@ -18,7 +18,7 @@ používateľov spravujú administrátori.
 | Čo | Hodnota |
 |---|---|
 | GitHub | `anty11/eM`, aplikácia v podpriečinku **`overenie-ico/`**; push do `main` nasadí |
-| Adresy | `/` verejný web · `/pravny-zaklad` · `/objednavka` · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
+| Adresy | `/` verejný web · `/pravny-zaklad` · `/objednavka` · `/overit/<číslo protokolu>` (verejné overenie pečate) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
 | Vercel | projekt **`e-m`**, Root Directory `overenie-ico`, Framework Next.js, región `fra1` |
 | Cron | `vercel.json` → `/api/cron/socpoist` denne 04:20 (stiahne a zaindexuje zoznam dlžníkov SP) |
 | Databáza | Upstash Redis cez Vercel Marketplace (premenné s predponou `KV_`); `lib/auth/kv.ts` prijme aj `*_REST_API_URL/TOKEN` alebo `REDIS_URL`; bez databázy beží lokálne v pamäti |
@@ -49,6 +49,7 @@ Lokálne bez internetu: `DEMO_DATA=1 npm run dev`.
 | `lib/sources/news.ts`, `slovakMedia.ts` | médiá: Google News/Bing RSS, DuckDuckGo, priame vyhľadávanie v slovenských médiách; varianty mena, bývalé názvy, skratky (USGB), štatutári a priezviská partnerov; skóre relevancie a zoznam odmietnutých |
 | `lib/keyfacts.ts` | 9 kľúčových otázok (zadanie z praxe daňových kontrol) · `lib/scoring.ts` skóre a verdikt (režim Firma ignoruje neverejné registre) |
 | `lib/companies.ts`, `lib/ago.ts` | databáza preverených spoločností (Redis hash `companies`, jeden záznam na IČO, prvé doplnenie z auditu); vek preverenia, hranica `STALE_DAYS = 180` · API `app/api/companies` · zoznam v `app/components/CompanyList.tsx` na stránke `/account` |
+| `lib/seal.ts`, `app/api/protocol/seal`, `app/overit/[scanId]` | pečať protokolu: SHA-256 z kanonického JSON pri uložení PDF, zápis s časom, verejná overovacia stránka; pole `tsa` pre kvalifikovanú časovú pečiatku |
 | `lib/auth/*` | používatelia, scrypt heslá, HMAC cookie (12 h), pozvánky, limit pokusov, CSRF · `lib/audit.ts` záznam preverení a nastavení |
 | `lib/ai/*` | záložné vyhľadávanie LLM (Anthropic web_search / OpenAI web_search). **Predvolene VYPNUTÉ** – spúšťa sa len tlačidlom „AI overiť“, nikdy pri každom preverení |
 | `app/page.tsx`, `app/pravny-zaklad`, `app/objednavka`, `app/components/site/SiteShell.tsx`, `app/site.css` | verejný web: prezentácia, judikatúra, objednávka (`lib/orders.ts`, `/api/order`, admin panel `OrdersPanel`); kontakty kancelárií a farby na jednom mieste |

@@ -25,7 +25,7 @@ const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
  * Kontaktná karta partnera – s kým komunikujeme, jeho telefón a e-mail a kto od nás s ním komunikuje.
  * Ukladá sa k IČO, zdieľa sa v rámci firmy a tlačí sa do protokolu.
  */
-export default function ContactCard({ ico, profile, meEmail }: { ico: string; profile: CompanyProfile; meEmail?: string }) {
+export default function ContactCard({ ico, profile, meEmail, onChange }: { ico: string; profile: CompanyProfile; meEmail?: string; onChange?: (c: Record<string, unknown>) => void }) {
   const [c, setC] = useState<Contact>(EMPTY);
   const [saved, setSaved] = useState<Contact | null>(null);
   const [people, setPeople] = useState<{ email: string; name?: string }[]>([]);
@@ -42,6 +42,10 @@ export default function ContactCard({ ico, profile, meEmail }: { ico: string; pr
     fetch("/api/directory").then((r) => r.json()).then((j) => Array.isArray(j) && setPeople(j)).catch(() => {});
   }, [ico, meEmail]);
 
+  useEffect(() => {
+    onChange?.({ ...c, owners: c.owners.map((e) => people.find((p) => p.email === e)?.name || "poverený zamestnanec") });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c, people]);
   const statutoryNames = (profile.statutory || []).map((s) => s.name);
   const match = c.personName.trim().length > 3 ? statutoryNames.find((n) => fold(n) === fold(c.personName) || fold(n).includes(fold(c.personName))) : undefined;
   const dirty = JSON.stringify({ ...c, updatedAt: 0, updatedBy: 0 }) !== JSON.stringify({ ...(saved || EMPTY), updatedAt: 0, updatedBy: 0 });

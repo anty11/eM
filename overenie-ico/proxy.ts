@@ -10,7 +10,7 @@ const PUBLIC = ["/", "/objednavka", "/pravny-zaklad", "/login", "/api/auth/login
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC.some((p) => pathname === p)) return NextResponse.next();
+  if (PUBLIC.some((p) => pathname === p) || pathname.startsWith("/overit/")) return NextResponse.next();
   const s = await verifySession(req.cookies.get(COOKIE)?.value);
   if (!s) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Prihláste sa." }, { status: 401 });
