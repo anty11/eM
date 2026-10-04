@@ -333,8 +333,14 @@ export default function Page() {
   const aiBadge = (c: CheckResult) =>
     c.ai ? (
       <div className="ai-note">
-        <span className="pill s-ai">Overené AI</span>{" "}
+        <span className={`pill ${c.status === "manual" ? "s-manual" : "s-ai"}`}>{c.status === "manual" ? "AI nevedela overiť" : "Overené AI"}</span>{" "}
         <span className="src">{c.ai.provider === "openai" ? "OpenAI" : "Claude"} · {c.ai.model} · {new Date(c.ai.at).toLocaleTimeString("sk-SK")}{c.ai.rejected ? ` · ${c.ai.rejected}` : ""}</span>
+        {c.status === "manual" && (
+          <div className="src">
+            {c.ai.evidence?.length ? "AI otvorila len tieto stránky – k výsledku vyhľadávania pre dané IČO sa nedostala, preto nič nepotvrdila. " : "AI sa k výsledku vyhľadávania nedostala a nič nepotvrdila. "}
+            Výsledok označte manuálne.
+          </div>
+        )}
         {c.ai.evidence?.length > 0 && (
           <ul className="evidence">
             {c.ai.evidence.map((e, i) => (
@@ -783,7 +789,7 @@ export default function Page() {
                       <li key={c.id} className={answers[c.id] ? "done" : ""}>
                         <div>
                           <b>{c.name}</b>
-                          <div className="src">{(report.checks.find((o) => o.id === c.id) || c).summary}</div>
+                          <div className="src">{(c.ai ? c : report.checks.find((o) => o.id === c.id) || c).summary}</div>
                         </div>
                         <div className="actions">
                           {c.verifyUrl && <a href={c.verifyUrl} target="_blank" rel="noreferrer">Otvoriť ↗</a>}
