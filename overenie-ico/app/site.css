@@ -264,4 +264,4 @@
 @media (min-width: 1100px) { .s-head.wide h2 { white-space: nowrap; } }
 
 /* objednávka – nadpis, formulár aj tabuľka v jednom vycentrovanom stĺpci */
-.s-wrap.s-center > .s-head, .s-wrap.s-center > .s-form, .s-wrap.s-center > .s-compare-wrap { max-width: 780px; margin-left: auto; margin-right: auto; }
+.s-wrap.s-center > .s-form, .s-wrap.s-center > .s-compare-wrap { max-width: 780px; margin-left: auto; margin-right: auto; }
