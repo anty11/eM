@@ -201,3 +201,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - `/api/diag?source=<diskv|uvo|vszp|union>&ico=…&name=…` vráti všetky pokusy s výňatkami odpovedí; `/api/diag` ukazuje aj telo detailu zoznamu FS
   a stav indexu OV. Dôvera: výslovne ručne. CRE: poznámka o webovej službe (1,60 €), klient po registrácii.
 - Klient: automaticky vyriešené „neverejné“ registre sa počítajú ako bežné kontroly; „Skúsiť znova“ funguje aj pre ne. Testy `test/public.test.ts`.
+- **v2.1.1** – RPO: zmeny vlastníkov a štatutárov sa počítajú len ako skutočné zmeny osôb (zmena množiny mien), nie aktualizácie zápisu či
+  opätovné zvolenie – pri Slovnafte odpadli „8 zmien štatutárov“ a „zmena štatutárneho orgánu pred 173 dňami“ (išlo o aktualizáciu zápisu
+  jediného akcionára); pri orgáne nad 3 členov sa indikátor „zmena tesne pred obchodom“ hlási správne ako zmena vlastníka. Diagnostika
+  `/api/diag?source=` vracia aj formuláre (action, metóda, polia), skripty a surový začiatok HTML – na doladenie dopytov do registrov bez API.

@@ -111,13 +111,27 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
         return c ? String(c.value || c.name || "") : undefined;
       };
       const owners = current(ownerRows).map((s: any) => ({ name: personName(s), role: s.stakeholderType?.value || "spoločník", since: s.validFrom, country: countryOf(s) }));
-      const changeDates = (rows: any[]) =>
-        rows
-          .flatMap((x) => [x.validFrom, x.validTo])
-          .filter((d): d is string => Boolean(d) && d !== e.establishment)
-          .sort();
-      const lastOwnershipChange = changeDates(ownerRows).pop() || (ownerRows.length ? e.establishment : undefined);
-      const lastStatutoryChange = changeDates(e.statutoryBodies || []).pop() || ((e.statutoryBodies || []).length ? e.establishment : undefined);
+      /**
+       * Skutočné zmeny osôb (nie aktualizácie zápisu): dátum, ku ktorému sa zmenila množina mien.
+       * Register zapisuje novú položku aj pri zmene adresy či funkcie tej istej osoby a pri opätovnom zvolení člena orgánu –
+       * tie sa ako zmena vlastníka / štatutára nepočítajú.
+       */
+      const personChanges = (rows: any[]): string[] => {
+        const dates = [...new Set(rows.flatMap((x) => [x.validFrom, x.validTo]).filter((d): d is string => Boolean(d) && d !== e.establishment))].sort();
+        const setAt = (day: string) => new Set(validAt(rows, day).map((x) => fold(personName(x) || "")).filter(Boolean));
+        const out: string[] = [];
+        for (const d of dates) {
+          const before = setAt(new Date(+new Date(d) - 864e5).toISOString().slice(0, 10));
+          const after = setAt(d);
+          const changed = [...after].some((n) => !before.has(n)) || [...before].some((n) => !after.has(n));
+          if (changed) out.push(d);
+        }
+        return out;
+      };
+      const ownerChangeDates = personChanges(ownerRows);
+      const statutoryChangeDates = personChanges(e.statutoryBodies || []);
+      const lastOwnershipChange = ownerChangeDates[ownerChangeDates.length - 1] || (ownerRows.length ? e.establishment : undefined);
+      const lastStatutoryChange = statutoryChangeDates[statutoryChangeDates.length - 1] || ((e.statutoryBodies || []).length ? e.establishment : undefined);
 
       Object.assign(ctx.profile, {
         name,
@@ -167,21 +181,24 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       if (seatChanges >= 3) f.push({ severity: "warning", text: `Časté zmeny sídla – ${seatChanges}× za posledné 3 roky`, penalty: 10 });
       const nameChanges = recent(e.fullNames, 3);
       if (nameChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny obchodného mena – ${nameChanges}× za posledné 3 roky`, penalty: 6 });
-      // Pri veľkých orgánoch (predstavenstvo a. s.) sú jednotlivé zmeny členov bežné – hodnotí sa až výmena väčšiny orgánu
-      const statChanges = recent(e.statutoryBodies, 2);
-      if (statChanges >= Math.max(3, Math.ceil(statutory.length * 0.6))) f.push({ severity: "warning", text: `Časté zmeny štatutárov – ${statChanges} zmien za posledné 2 roky`, penalty: 8 });
+      // Počítajú sa len skutočné zmeny osôb (nie aktualizácie zápisu či opätovné zvolenie). Pri veľkých orgánoch (predstavenstvo a. s.)
+      // sú jednotlivé zmeny členov bežné – hodnotí sa až výmena väčšiny orgánu.
+      const within = (dates: string[], years: number) => dates.filter((d) => yearsSince(d) < years).length;
+      const statChanges = within(statutoryChangeDates, 2);
+      if (statChanges >= Math.max(3, Math.ceil(statutory.length * 0.6))) f.push({ severity: "warning", text: `Časté zmeny štatutárov – ${statChanges} zmien osôb za posledné 2 roky`, penalty: 8 });
       // Indikátor (iv) SKDP 03/2024: časté zmeny vlastníkov a zmena vlastníka alebo štatutára tesne pred obchodom
-      const ownerChanges = recent(ownerRows, 2);
+      const ownerChanges = within(ownerChangeDates, 2);
       if (ownerChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny spoločníkov – ${ownerChanges} zmien za posledné 2 roky (indikátor iv)`, penalty: 8 });
       const daysAgo = (d?: string) => (d ? Math.floor((Date.now() - +new Date(d)) / 86400000) : Infinity);
-      const recentOwner = Math.min(...ownerRows.filter((x: any) => x.validFrom !== e.establishment).flatMap((x: any) => [daysAgo(x.validFrom), daysAgo(x.validTo)]));
-      const recentStat = Math.min(...(e.statutoryBodies || []).filter((x: any) => x.validFrom !== e.establishment).flatMap((x: any) => [daysAgo(x.validFrom), daysAgo(x.validTo)]));
+      const recentOwner = daysAgo(ownerChangeDates[ownerChangeDates.length - 1]);
+      const recentStat = daysAgo(statutoryChangeDates[statutoryChangeDates.length - 1]);
       // zmena jedného člena z väčšieho orgánu nie je indikátor – pri orgáne nad 3 členov sa sleduje len zmena vlastníka
-      const recentChange = statutory.length > 3 ? recentOwner : Math.min(recentOwner, recentStat);
+      const bigBoard = statutory.length > 3;
+      const recentChange = bigBoard ? recentOwner : Math.min(recentOwner, recentStat);
       if (recentChange <= 180 && age >= 1)
         f.push({
           severity: "warning",
-          text: `Zmena ${recentOwner <= recentStat ? "vlastníka" : "štatutárneho orgánu"} pred ${recentChange} dňami – zmena tesne pred obchodom je indikátor rizika (iv), overte dôvod a nových konateľov`,
+          text: `Zmena ${bigBoard || recentOwner <= recentStat ? "vlastníka" : "štatutárneho orgánu"} pred ${recentChange} dňami – zmena tesne pred obchodom je indikátor rizika (iv), overte dôvod a nové osoby`,
           penalty: 10,
         });
       // Indikátor (iii): spoločník so sídlom v jurisdikcii so zvýšeným daňovým rizikom

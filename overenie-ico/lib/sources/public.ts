@@ -20,7 +20,26 @@ export interface Attempt {
 export interface ProbeOutcome {
   result: "found" | "clean" | "unknown";
   rows: string[];
-  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown" }[];
+  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; forms?: string[]; scripts?: string[]; raw?: string; contentType?: string }[];
+}
+
+/** Z HTML vytiahne formuláre (action, metóda, polia) a skripty – na doladenie dopytov podľa diagnostiky bez prístupu k stránke. */
+export function describePage(html: string): { forms: string[]; scripts: string[] } {
+  const forms = (html.match(/<form[\s\S]*?<\/form>/gi) || []).slice(0, 6).map((f) => {
+    const action = f.match(/action=["']([^"']*)["']/i)?.[1] || "(bez action)";
+    const method = f.match(/method=["']([^"']*)["']/i)?.[1] || "GET";
+    const fields = (f.match(/<(input|select|textarea|button)\b[^>]*>/gi) || [])
+      .map((i) => {
+        const name = i.match(/name=["']([^"']*)["']/i)?.[1];
+        const type = i.match(/type=["']([^"']*)["']/i)?.[1] || i.match(/^<(\w+)/)?.[1];
+        const value = i.match(/value=["']([^"']{0,40})["']/i)?.[1];
+        return name ? `${name}:${type}${value ? `=${value}` : ""}` : null;
+      })
+      .filter(Boolean);
+    return `${method.toUpperCase()} ${action} [${fields.join(", ")}]`;
+  });
+  const scripts = (html.match(/<script[^>]*\ssrc=["']([^"']+)["']/gi) || []).map((s) => s.match(/src=["']([^"']+)["']/i)![1]).slice(0, 15);
+  return { forms, scripts };
 }
 
 const NO_RESULTS = /(ziadne|ziadny|neboli najdene|nebol najdeny|nenasli sa|nenasiel sa|sa nenachadza|nenachadza sa|nebol zisteny|0 zaznamov|pocet zaznamov: 0|no records|no results|nothing found)/;
@@ -66,7 +85,8 @@ export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 
       });
       const html = await r.text();
       const j = r.ok ? judge(html, needles) : { verdict: "unknown" as const, rows: [] };
-      out.attempts.push({ url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, 1500), verdict: j.verdict });
+      const d = describePage(html);
+      out.attempts.push({ url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, 1500), verdict: j.verdict, forms: d.forms, scripts: d.scripts, raw: html.slice(0, 2500), contentType: r.headers.get("content-type") || undefined });
       if (j.verdict !== "unknown") {
         out.result = j.verdict;
         out.rows = j.rows;
