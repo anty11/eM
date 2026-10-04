@@ -1,11 +1,8 @@
 ▲ Next.js 16.3.6 (Turbopack)
 - Local:         http://localhost:3100
 - Network:       http://192.0.2.2:3100
-✓ Ready in 1598ms
-✓ Running next.config.ts took 2.6s
+✓ Ready in 503ms
+✓ Running next.config.ts took 101ms
 ⚠ DEMO_DATA=1 – registre vracajú TESTOVACIE údaje (IČO 47244895 = v poriadku, 31318177 = rizikový).
 
-○ Compiling / ...
- GET / 200 in 5.9s (next.js: 4.3s, proxy.ts: 1329ms, application-code: 270ms)
- GET /objednavka 200 in 91ms (next.js: 20ms, proxy.ts: 13ms, application-code: 58ms)
- GET / 200 in 96ms (next.js: 4ms, proxy.ts: 4ms, application-code: 88ms)
+ GET / 200 in 504ms (next.js: 97ms, proxy.ts: 180ms, application-code: 227ms)

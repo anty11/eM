@@ -121,82 +121,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="s-band alt" id="co">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Čo overujeme</span>
-            <h2>Sedemnásť zdrojov, jeden prehľadný výsledok.</h2>
-            <p>Všetky údaje pochádzajú z oficiálnych verejných registrov Slovenskej republiky a EÚ. Každý nález má odkaz na zdroj, kde si ho môžete overiť. Prioritou je priamy dodávateľ a odberateľ.</p>
-          </div>
-          <ul className="s-regs">
-            {REGISTERS.map((r) => (
-              <li key={r.name}>
-                <span>
-                  {r.name}
-                  <small>{r.src}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="s-band">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Ako to funguje</span>
-            <h2>Overenie vykoná vaša spoločnosť sama. Trvá pol minúty.</h2>
-            <p>Nie je potrebný externý poradca – overenie vykonajú vaši poverení zamestnanci priamo v klientskej sekcii. Každé preverenie je zaznamenané: kto, kedy a s akým výsledkom.</p>
-          </div>
-          <div className="s-steps">
-            <div className="s-step"><h3>Zadáte IČO</h3><p>Dodávateľa, odberateľa alebo iného partnera. Stačí IČO – názov, DIČ a IČ DPH si aplikácia doplní z registrov.</p></div>
-            <div className="s-step"><h3>Registre odpovedajú priebežne</h3><p>Výsledky sa zobrazujú, ako jednotlivé registre odpovedajú. Celé preverenie trvá zvyčajne 10 – 30 sekúnd.</p></div>
-            <div className="s-step"><h3>Dostanete prehľadný výsledok</h3><p>Odporúčame · S výhradou · Neodporúčame, so skóre a odpoveďami na kľúčové otázky: podaná závierka, likvidácia, nedoplatky, spoľahlivý platiteľ DPH, zmeny vlastníkov.</p></div>
-            <div className="s-step"><h3>Uložíte protokol</h3><p>Dvojstranový PDF protokol s časom preverenia, menom zamestnanca a odkazmi na zdroje. Spoločnosť sa uloží do databázy preverení s pripomienkou po 180 dňoch.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="s-band dark">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Pre koho</span>
-            <h2>Pre každú firmu, ktorá nakupuje alebo predáva.</h2>
-            <p>Od prvej objednávky u nového dodávateľa po pravidelnú kontrolu stálych partnerov.</p>
-          </div>
-          <div className="s-grid four">
-            <div className="s-card"><div className="num">1</div><h3>Nový dodávateľ</h3><p>Pred prvou objednávkou alebo zmluvou. Protokol založíte k zmluve ako doklad náležitej starostlivosti.</p></div>
-            <div className="s-card"><div className="num">2</div><h3>Odberateľ na faktúru</h3><p>Pred dodaním tovaru alebo služby s odloženou splatnosťou – nedoplatky, konkurz a záporné imanie uvidíte vopred.</p></div>
-            <div className="s-card"><div className="num">3</div><h3>Pravidelná kontrola</h3><p>Databáza preverených spoločností pripomenie, komu sa blíži 180 dní od posledného overenia. Jedným klikom preveríte znova.</p></div>
-            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia a menom zamestnanca, ktorý ho vykonal.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="s-band alt" id="zastita">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">O projekte</span>
-            <h2>Samostatný projekt s odbornou záštitou dvoch advokátskych kancelárií.</h2>
-            <p>Rozsah overenia a hodnotenie rizika vychádzajú zo skúseností z daňových kontrol a súdnych konaní, v ktorých sa rozhodovalo práve o tom, či si podnikateľ svojho partnera preveril.</p>
-          </div>
-          <div className="s-firms">
-            <div className="s-firm urban">
-              <div className="logo">URBAN<span>&amp;</span>PARTNERS<em>LAW FIRM</em></div>
-              <div className="tag">{u.tagline}</div>
-              <p>{u.about}</p>
-              <div className="meta"><a href={u.web} target="_blank" rel="noreferrer">{u.webLabel} →</a></div>
-            </div>
-            <div className="s-firm lexnera">
-              <div className="logo">LEXNERA<span>LEGAL</span></div>
-              <div className="tag">{l.tagline}</div>
-              <p>{l.about}</p>
-              <div className="meta"><a href={l.web} target="_blank" rel="noreferrer">{l.webLabel} →</a></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="s-band warm" id="objednat">
         <div className="s-wrap">
           <div className="s-head">
@@ -231,6 +155,82 @@ export default function Home() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="s-band dark">
+        <div className="s-wrap">
+          <div className="s-head">
+            <span className="s-eyebrow">Pre koho</span>
+            <h2>Pre každú firmu, ktorá nakupuje alebo predáva.</h2>
+            <p>Od prvej objednávky u nového dodávateľa po pravidelnú kontrolu stálych partnerov.</p>
+          </div>
+          <div className="s-grid four">
+            <div className="s-card"><div className="num">1</div><h3>Nový dodávateľ</h3><p>Pred prvou objednávkou alebo zmluvou. Protokol založíte k zmluve ako doklad náležitej starostlivosti.</p></div>
+            <div className="s-card"><div className="num">2</div><h3>Odberateľ na faktúru</h3><p>Pred dodaním tovaru alebo služby s odloženou splatnosťou – nedoplatky, konkurz a záporné imanie uvidíte vopred.</p></div>
+            <div className="s-card"><div className="num">3</div><h3>Pravidelná kontrola</h3><p>Databáza preverených spoločností pripomenie, komu sa blíži 180 dní od posledného overenia. Jedným klikom preveríte znova.</p></div>
+            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia a menom zamestnanca, ktorý ho vykonal.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="s-band" id="co">
+        <div className="s-wrap">
+          <div className="s-head">
+            <span className="s-eyebrow">Čo overujeme</span>
+            <h2>Sedemnásť zdrojov, jeden prehľadný výsledok.</h2>
+            <p>Všetky údaje pochádzajú z oficiálnych verejných registrov Slovenskej republiky a EÚ. Každý nález má odkaz na zdroj, kde si ho môžete overiť. Prioritou je priamy dodávateľ a odberateľ.</p>
+          </div>
+          <ul className="s-regs">
+            {REGISTERS.map((r) => (
+              <li key={r.name}>
+                <span>
+                  {r.name}
+                  <small>{r.src}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="s-band alt">
+        <div className="s-wrap">
+          <div className="s-head">
+            <span className="s-eyebrow">Ako to funguje</span>
+            <h2>Overenie vykoná vaša spoločnosť sama. Trvá pol minúty.</h2>
+            <p>Nie je potrebný externý poradca – overenie vykonajú vaši poverení zamestnanci priamo v klientskej sekcii. Každé preverenie je zaznamenané: kto, kedy a s akým výsledkom.</p>
+          </div>
+          <div className="s-steps">
+            <div className="s-step"><h3>Zadáte IČO</h3><p>Dodávateľa, odberateľa alebo iného partnera. Stačí IČO – názov, DIČ a IČ DPH si aplikácia doplní z registrov.</p></div>
+            <div className="s-step"><h3>Registre odpovedajú priebežne</h3><p>Výsledky sa zobrazujú, ako jednotlivé registre odpovedajú. Celé preverenie trvá zvyčajne 10 – 30 sekúnd.</p></div>
+            <div className="s-step"><h3>Dostanete prehľadný výsledok</h3><p>Odporúčame · S výhradou · Neodporúčame, so skóre a odpoveďami na kľúčové otázky: podaná závierka, likvidácia, nedoplatky, spoľahlivý platiteľ DPH, zmeny vlastníkov.</p></div>
+            <div className="s-step"><h3>Uložíte protokol</h3><p>Dvojstranový PDF protokol s časom preverenia, menom zamestnanca a odkazmi na zdroje. Spoločnosť sa uloží do databázy preverení s pripomienkou po 180 dňoch.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="s-band warm" id="zastita">
+        <div className="s-wrap">
+          <div className="s-head">
+            <span className="s-eyebrow">O projekte</span>
+            <h2>Samostatný projekt s odbornou záštitou dvoch advokátskych kancelárií.</h2>
+            <p>Rozsah overenia a hodnotenie rizika vychádzajú zo skúseností z daňových kontrol a súdnych konaní, v ktorých sa rozhodovalo práve o tom, či si podnikateľ svojho partnera preveril.</p>
+          </div>
+          <div className="s-firms">
+            <div className="s-firm urban">
+              <div className="logo">URBAN<span>&amp;</span>PARTNERS<em>LAW FIRM</em></div>
+              <div className="tag">{u.tagline}</div>
+              <p>{u.about}</p>
+              <div className="meta"><a href={u.web} target="_blank" rel="noreferrer">{u.webLabel} →</a></div>
+            </div>
+            <div className="s-firm lexnera">
+              <div className="logo">LEXNERA<span>LEGAL</span></div>
+              <div className="tag">{l.tagline}</div>
+              <p>{l.about}</p>
+              <div className="meta"><a href={l.web} target="_blank" rel="noreferrer">{l.webLabel} →</a></div>
+            </div>
           </div>
         </div>
       </section>
