@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { fetchWithTimeout, fold, stripHtml } from "../http";
 import type { CheckResult, Ctx, Finding } from "../types";
 import { MANUAL } from "./manual";
@@ -12,14 +13,35 @@ import { MANUAL } from "./manual";
  * Dopyty sú zdvorilé: jeden dopyt na IČO a register, výsledok sa drží 24 h v pamäti (`cached`).
  */
 export interface Attempt {
+  /** Register, ktorému dopyt patrí (vyhodnotenie podľa registra) */
+  source?: string;
   url: string;
   method?: "GET" | "POST";
   body?: string;
   contentType?: string;
+  /** Načítať cez Edge runtime vlastného nasadenia (iné sieťové adresy) – pre weby blokujúce dátové centrá */
+  viaEdge?: boolean;
   /** Prípravný krok (napr. vypnutie ochrany formulára) – jeho cookies sa pošlú s hlavným dopytom */
   pre?: { url: string; method?: "GET" | "POST"; body?: string };
   /** Len na diagnostiku – nie je to dopyt do registra (napr. hľadanie otvorených dát) */
   info?: string;
+}
+
+/** Adresa vlastného nasadenia (Vercel) a token pre interné volanie Edge načítania. */
+function selfOrigin(): string | null {
+  const h = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  return h ? `https://${h}` : process.env.SELF_ORIGIN || null;
+}
+function internalToken(): string {
+  return createHash("sha256").update(`edgefetch:${process.env.SESSION_SECRET || "dev-only-secret-dev-only-secret-dev-only"}`).digest("hex");
+}
+async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: number; body: string; contentType: string | null } | null> {
+  const origin = selfOrigin();
+  if (!origin) return null;
+  const r = await fetchWithTimeout(`${origin}/api/edgefetch?url=${encodeURIComponent(url)}`, { headers: { "x-internal": internalToken() }, timeoutMs: timeoutMs + 3000 });
+  const j = await r.json().catch(() => null);
+  if (!j || typeof j.status !== "number") throw new Error(`edge: ${j?.error || `HTTP ${r.status}`}`);
+  return { status: j.status, body: String(j.body || ""), contentType: j.contentType || null };
 }
 
 /** Hlavičky bežného prehliadača – niektoré weby (nginx/WAF) odmietajú požiadavky bez nich. */
@@ -46,7 +68,47 @@ export function apiHints(js: string): string[] {
 export interface ProbeOutcome {
   result: "found" | "clean" | "unknown";
   rows: string[];
-  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; evidence?: string; forms?: string[]; scripts?: string[]; links?: string[]; inlineScripts?: string[]; apiHints?: string[]; codeAround?: string[]; around?: string[]; raw?: string; contentType?: string; info?: string }[];
+  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; evidence?: string; forms?: string[]; scripts?: string[]; links?: string[]; inlineScripts?: string[]; apiHints?: string[]; codeAround?: string[]; around?: string[]; mainText?: string; selects?: string[]; chunks?: string[]; raw?: string; contentType?: string; info?: string }[];
+}
+
+/** Text hlavného obsahu (od <main>/<h1>) – bez navigácie, na čítanie výsledkov v diagnostike. */
+export function mainText(html: string): string {
+  const i = Math.max(html.search(/<main\b/i), html.search(/<h1\b/i), html.search(/id=["']main["']/i));
+  return stripHtml(i > 0 ? html.slice(i) : html).slice(0, 5000);
+}
+
+/** Výberové polia formulárov s hodnotami možností (napr. typ vyhľadávania ÚVO). */
+export function selectOptions(html: string): string[] {
+  return (html.match(/<select\b[^>]*>[\s\S]*?<\/select>/gi) || []).slice(0, 6).map((sel) => {
+    const name = sel.match(/name=["']([^"']+)["']/i)?.[1] || "(bez mena)";
+    const opts = (sel.match(/<option\b[^>]*>[\s\S]*?<\/option>/gi) || []).slice(0, 20).map((o) => `${o.match(/value=["']([^"']*)["']/i)?.[1] ?? ""}=${stripHtml(o).slice(0, 40)}`);
+    return `${name}: ${opts.join(" | ")}`;
+  });
+}
+
+/**
+ * Vyhodnotenie podľa registra. VšZP: výsledková tabuľka (Obchodné meno · Obec · Ulica · PSČ · Pohľadávka …) neobsahuje IČO,
+ * preto sa pri dopyte podľa IČO počítajú dátové riadky tabuľky; „Nenašli sa žiadne záznamy.“ = bez záznamu.
+ */
+export function judgeFor(source: string, html: string, needles: string[]): { verdict: "found" | "clean" | "unknown"; rows: string[]; evidence?: string } {
+  if (source === "vszp" || source === "union") {
+    const text = stripHtml(html);
+    const f = fold(text);
+    const head = f.indexOf("obchodne meno");
+    const echoed = fold(html).includes(fold(needles[0] || ""));
+    if (head >= 0 && echoed) {
+      const after = text.slice(head);
+      if (/nena[sš]li sa [zž]iadne z[aá]znamy/i.test(after.slice(0, 400))) return { verdict: "clean", rows: [], evidence: after.slice(0, 160) };
+      // dátové riadky tabuľky za hlavičkou
+      const tables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
+      const results = tables.find((t) => /obchodn[eé] meno/i.test(stripHtml(t)) && /poh[lľ]ad[aá]vka/i.test(stripHtml(t)));
+      if (results) {
+        const rows = (results.match(/<tr[\s\S]*?<\/tr>/gi) || []).map((r) => stripHtml(r)).filter((r) => /\d/.test(r) && !/obchodn[eé] meno/i.test(r));
+        if (rows.length) return { verdict: "found", rows: rows.slice(0, 10), evidence: rows[0].slice(0, 200) };
+      }
+    }
+  }
+  return judge(html, needles);
 }
 
 /** Textové okolie hľadaných reťazcov v odpovedi (diagnostika) – kde sa IČO alebo hlásenie o výsledku nachádza. */
@@ -161,19 +223,34 @@ export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 
         const setCookies = (pr.headers as any).getSetCookie?.() as string[] | undefined;
         cookie = (setCookies && setCookies.length ? setCookies : [pr.headers.get("set-cookie") || ""]).map((c) => c.split(";")[0]).filter(Boolean).join("; ");
       }
-      const r = await fetchWithTimeout(a.url, {
-        method: a.method || "GET",
-        body: a.body,
-        headers: { ...BROWSER_HEADERS, ...(a.body ? { "Content-Type": a.contentType || "application/x-www-form-urlencoded", Origin: new URL(a.url).origin, Referer: a.url, "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "navigate" } : {}), ...(cookie ? { Cookie: cookie } : {}) },
-        timeoutMs,
-      });
-      const html = await r.text();
-      const j = r.ok && !a.info ? judge(html, needles) : { verdict: "unknown" as const, rows: [] };
+      let status: number, html: string, contentType: string | null;
+      if (a.viaEdge) {
+        const e = await fetchViaEdge(a.url, timeoutMs);
+        if (!e) {
+          out.attempts.push({ url: a.url, ms: Date.now() - t0, error: "Edge načítanie nie je k dispozícii (bez adresy nasadenia)", excerpt: "", verdict: "unknown", info: a.info });
+          continue;
+        }
+        ({ status, body: html, contentType } = e);
+      } else {
+        const r = await fetchWithTimeout(a.url, {
+          method: a.method || "GET",
+          body: a.body,
+          headers: { ...BROWSER_HEADERS, ...(a.body ? { "Content-Type": a.contentType || "application/x-www-form-urlencoded", Origin: new URL(a.url).origin, Referer: a.url, "Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "navigate" } : {}), ...(cookie ? { Cookie: cookie } : {}) },
+          timeoutMs,
+        });
+        status = r.status;
+        html = await r.text();
+        contentType = r.headers.get("content-type");
+      }
+      const ok = status >= 200 && status < 300;
+      const j = ok && !a.info ? judgeFor(a.source || "", html, needles) : { verdict: "unknown" as const, rows: [] };
       const d = describePage(html);
-      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status: r.status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 3000 : 1500), verdict: j.verdict, evidence: j.evidence, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 3000 : 1500), contentType: r.headers.get("content-type") || undefined, info: a.info };
+      const rec: ProbeOutcome["attempts"][number] = { url: a.url, status, ms: Date.now() - t0, excerpt: stripHtml(html).slice(0, opts.diag ? 3000 : 1500), verdict: j.verdict, evidence: j.evidence, forms: d.forms, scripts: d.scripts, links: d.links, raw: html.slice(0, opts.diag ? 3000 : 1500), contentType: contentType || undefined, info: (a.info || "") + (a.viaEdge ? " [cez Edge]" : "") || undefined };
       if (opts.diag) {
         rec.around = around(html, needles);
         rec.inlineScripts = inlineScripts(html);
+        rec.mainText = mainText(html);
+        rec.selects = selectOptions(html);
       }
       // jednostránková aplikácia bez obsahu – v diagnostike prezrieme jej skripty a vytiahneme adresy API a kód okolo kľúčových slov
       if (opts.diag && j.verdict === "unknown" && d.scripts.length && stripHtml(html).length < 400) {
@@ -191,6 +268,19 @@ export async function probe(attempts: Attempt[], needles: string[], timeoutMs = 
         }
         rec.apiHints = [...hints].slice(0, 80);
         rec.codeAround = code.slice(0, 10);
+        // lenivo načítané časti aplikácie (Vue/Vite) týkajúce sa dlžníkov – v nich je volanie API
+        const chunkNames = [...new Set((rec.codeAround.join(" ").match(/\.\/(Debtors[^"')]+\.js|[A-Za-z]*[Dd]lzn[^"')]+\.js)/g) || []).map((m) => m.replace(/^\.\//, "")))];
+        const chunks: string[] = [];
+        for (const name of chunkNames.slice(0, 2)) {
+          try {
+            const js = (await (await fetchWithTimeout(new URL(`/assets/${name}`, a.url).toString(), { timeoutMs })).text()).slice(0, 2_000_000);
+            chunks.push(`${name}: ${apiHints(js).join(" , ")}`);
+            chunks.push(...codeAround(js, ["api", "axios", ".get(", ".post(", "dlzn", "ico"], 8).map((c) => `${name} › ${c}`));
+          } catch {
+            /* časť sa nepodarilo načítať */
+          }
+        }
+        rec.chunks = chunks.slice(0, 14);
       }
       out.attempts.push(rec);
       if (j.verdict !== "unknown") {
@@ -214,16 +304,15 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
   switch (id) {
     case "diskv": {
       // justice.gov.sk vracia zo serverov v dátových centrách 403 (nginx) – skúšame s hlavičkami prehliadača; záložne otvorené dáta (data.gov.sk)
+      // justice.gov.sk blokuje adresy dátových centier (403 zo serverových funkcií) – skúšame cez Edge runtime vlastného nasadenia
       const base = "https://www.justice.gov.sk/registre/registerDiskvalifikacii/";
       return {
         attempts: [
+          { url: `${base}?pageNum=1&size=10`, viaEdge: true },
+          { url: `${base}?ico=${ico}&pageNum=1&size=50`, viaEdge: true },
+          ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50`, viaEdge: true })),
           { url: `${base}?pageNum=1&size=10` },
-          { url: `https://justice.gov.sk/registre/registerDiskvalifikacii/?pageNum=1&size=10`, info: "variant bez www" },
-          { url: `http://www.justice.gov.sk/registre/registerDiskvalifikacii/?pageNum=1&size=10`, info: "variant http" },
-          { url: `${base}?ico=${ico}&pageNum=1&size=50` },
-          ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50` })),
-          { url: "https://data.slovensko.sk/api/datasets?q=diskvalifik%C3%A1ci%C3%AD", info: "otvorené dáta (data.slovensko.sk) – hľadanie datasetu" },
-          { url: "https://data.slovensko.sk/api/v1/datasets/search?q=diskvalifik%C3%A1ci%C3%AD", info: "otvorené dáta (data.slovensko.sk) – variant API" },
+          { url: "https://data.slovensko.sk/api/datasets/search?q=diskvalifik%C3%A1ci%C3%AD", info: "otvorené dáta (data.slovensko.sk) – hľadanie datasetu" },
         ],
         needles: [ico, ...statutory],
       };
@@ -232,10 +321,13 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       const base = "https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom";
       return {
         attempts: [
-          { url: base },
-          { url: "https://www.uvo.gov.sk/dohlad/spravne-delikty/prehlad-rozhodnuti-o-ulozeni-pokuty-a-sankcie-zakazu-ucasti-vo-vo" },
-          { url: "https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=" + ico + "&searchType=zakaz" },
-          { url: "https://data.slovensko.sk/api/datasets?q=z%C3%A1kaz%20%C3%BA%C4%8Dasti", info: "otvorené dáta (data.slovensko.sk) – hľadanie datasetu ÚVO" },
+          // globálne vyhľadávanie ÚVO má výber „Osoba so zákazom“ – hodnota sa doladí podľa diagnostiky (selects); zatiaľ bežné varianty
+          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=osoba-so-zakazom` },
+          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=banned` },
+          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=6` },
+          { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}`, info: "všetky registre – na zistenie hodnôt výberu" },
+          { url: "https://www.uvo.gov.sk/dohlad/spravne-delikty/prehlad-rozhodnuti-o-ulozeni-pokuty-a-sankcie-zakazu-ucasti-vo-vo", info: "prehľad rozhodnutí o zákaze (strana 1)" },
+          { url: base, info: "stránka registra" },
         ],
         needles: [ico],
       };
@@ -290,7 +382,7 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
   const { attempts, needles } = attemptsFor(id, ctx);
   if (!def || !attempts.length) return { check: null, outcome: { result: "unknown", rows: [], attempts: [] } };
   const t0 = Date.now();
-  const outcome = await probe(attempts, needles);
+  const outcome = await probe(attempts.map((a) => ({ ...a, source: id })), needles);
   if (outcome.result === "unknown") return { check: null, outcome };
   const now = new Date().toISOString();
   const used = outcome.attempts.find((a) => a.verdict !== "unknown");

@@ -56,3 +56,18 @@ async function main() {
   console.log("OK – testy registrov bez API a Obchodného vestníka prešli.");
 }
 main().catch((e) => { console.error(e); process.exit(1); });
+
+// VšZP: výsledková tabuľka bez IČO – vyhodnotenie podľa dátových riadkov / hlásenia
+{
+  const { judgeFor } = require("../lib/sources/public");
+  const page = (body: string) => `<html><form><input name="nazov" value="31322832"></form><h3>Zamestnávatelia a SZČO</h3>${body}</html>`;
+  const empty = page(`<table><tr><th>Obchodné meno</th><th>Obec</th><th>Ulica</th><th>PSČ</th><th>Pohľadávka</th><th>Typ platiteľa</th></tr></table><p>Nenašli sa žiadne záznamy.</p>`);
+  assert.equal(judgeFor("vszp", empty, ["31322832"]).verdict, "clean");
+  const hit = page(`<table><tr><th>Obchodné meno</th><th>Obec</th><th>Ulica</th><th>PSČ</th><th>Pohľadávka</th><th>Typ platiteľa</th></tr><tr><td>Zlá firma s.r.o.</td><td>Košice</td><td>Hlavná 1</td><td>04001</td><td>1 250,30 €</td><td>Zamestnávateľ</td></tr></table>`);
+  const j = judgeFor("vszp", hit, ["31322832"]);
+  assert.equal(j.verdict, "found");
+  assert.match(j.rows[0], /1 250,30/);
+  const noEcho = `<html><table><tr><th>Obchodné meno</th><th>Pohľadávka</th></tr></table><p>Nenašli sa žiadne záznamy.</p></html>`;
+  assert.equal(judgeFor("vszp", noEcho, ["31322832"]).verdict, "unknown", "bez ozveny dopytu nie je výsledok platný");
+  console.log("OK – VšZP tabuľka.");
+}

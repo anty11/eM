@@ -216,3 +216,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   výsledok / subjekt) – druhá diagnostika ukázala, že VšZP by inak prešlo ako „bez záznamu“ bez istoty; dôkaz (úryvok) sa ukladá do výsledku.
   Diagnostika: okolie hľadaných reťazcov, vložené skripty, úryvky kódu z JS balíka (Union), varianty adries (justice.gov.sk bez www / http),
   stránka ÚVO s rozhodnutiami o zákaze účasti, hľadanie datasetov na data.slovensko.sk.
+- **v2.1.5** – VšZP potvrdené (odpoveď „Nenašli sa žiadne záznamy.“ za hlavičkou tabuľky Obchodné meno · Obec · Ulica · PSČ · Pohľadávka);
+  vyhodnotenie podľa registra (`judgeFor`): tabuľka bez IČO → počítajú sa dátové riadky. Register diskvalifikácií: justice.gov.sk blokuje
+  adresy dátových centier → pokus cez **Edge runtime** vlastného nasadenia (`/api/edgefetch`, interný token zo SESSION_SECRET, povolené domény).
+  Union: v diagnostike sa načítajú lenivé časti aplikácie (Debtors-*.js) a vytiahnu volania API. ÚVO: varianty `searchType` globálneho
+  vyhľadávania, hodnoty výberu (`selects`) a text hlavného obsahu (`mainText`) v diagnostike.
