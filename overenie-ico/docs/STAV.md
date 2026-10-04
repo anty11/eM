@@ -191,3 +191,13 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   pri viacerých účtovných jednotkách na IČO sa vyberie platná s najviac závierkami; zavedená spoločnosť bez jedinej závierky v RÚZ (6+ splatných
   období) = upozornenie na manuálne overenie (−12), nie kritický nález „34 období“ (Slovnaft). Manuálne overenie: poznámka „čo ste zistili“
   (ide do zhrnutia, nálezu a protokolu), manuálny výsledok má prednosť pred výsledkom AI, tlačidlo „Zahodiť výsledok AI“. `CheckResult.manual`.
+
+## v2.1.0 – 4. 10. 2026 – registre bez API: priame dopyty servera a import Obchodného vestníka
+
+- `lib/sources/public.ts`: diskvalifikácie, ÚVO, VšZP, Union – server položí dopyt priamo registru; prísne vyhodnotenie (nález / výslovne prázdny
+  výsledok / inak manuálne). Výsledok nahradí manuálnu položku, inak ostáva manuálna s poznámkou „automatický dopyt sa nepodaril“.
+- `lib/sources/ov.ts`: index Obchodného vestníka z XML vydaní (cron `/api/cron/ov` 04:40, ručný import `POST /api/admin/ov` s XML v tele,
+  stav `GET /api/admin/ov`); kontrola „ov“ číta index, zaraďuje oznámenia a hodnotí 3 roky. Bez indexu ostáva manuálna.
+- `/api/diag?source=<diskv|uvo|vszp|union>&ico=…&name=…` vráti všetky pokusy s výňatkami odpovedí; `/api/diag` ukazuje aj telo detailu zoznamu FS
+  a stav indexu OV. Dôvera: výslovne ručne. CRE: poznámka o webovej službe (1,60 €), klient po registrácii.
+- Klient: automaticky vyriešené „neverejné“ registre sa počítajú ako bežné kontroly; „Skúsiť znova“ funguje aj pre ne. Testy `test/public.test.ts`.

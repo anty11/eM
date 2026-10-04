@@ -211,8 +211,8 @@ export default function Page() {
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
   const pendingCount = checks.filter((c) => c.status === "pending").length;
   const totalAuto = checks.filter((c) => c.automated !== false && !NON_PUBLIC.includes(c.id)).length || 1;
-  // neverejné registre, ktoré už overila AI, sa správajú ako bežné kontroly
-  const nonPublic = useMemo(() => NON_PUBLIC.filter((id) => !(aiResults[id] && aiResults[id].status !== "manual")), [aiResults]);
+  // neverejné registre, ktoré sa podarilo overiť automaticky (dopyt servera, index Obchodného vestníka alebo AI), sa správajú ako bežné kontroly
+  const nonPublic = useMemo(() => NON_PUBLIC.filter((id) => (baseChecks.find((c) => c.id === id)?.status ?? "manual") === "manual"), [baseChecks]);
   const verdict = useMemo(() => (report ? computeVerdict(checks, { ignore: lawyer ? [] : nonPublic }) : null), [report, checks, lawyer, nonPublic]);
   // Vo verzii Firma sa neverejné registre zobrazujú len ako odporúčané doplnkové overenia na konci
   const extra = useMemo(() => (lawyer ? [] : checks.filter((c) => nonPublic.includes(c.id))), [checks, lawyer, nonPublic]);
@@ -270,7 +270,8 @@ export default function Page() {
 
   const retryButton = (c: CheckResult) => {
     const cur = baseChecks.find((o) => o.id === c.id) || c;
-    if (!AUTO_ORDER.includes(c.id) || (cur.status !== "error" && !(cur.status === "manual" && cur.automated !== false))) return null;
+    const retryable = AUTO_ORDER.includes(c.id) || NON_PUBLIC.includes(c.id);
+    if (!retryable || (cur.status !== "error" && cur.status !== "manual")) return null;
     return (
       <button className="mbtn no-print" disabled={retrying[c.id]} onClick={() => retryOne(c.id)}>
         {retrying[c.id] ? "Skúšam znova…" : "Skúsiť znova"}

@@ -464,3 +464,23 @@ Zmeny štatutárov: pri orgáne nad 3 členov sa jednotlivé zmeny nehodnotia (a
 veľkom orgáne len zmenu vlastníka.
 
 Živý test proti registrom (mimo `npm test`, vyžaduje sieť): `npx tsx test/_live.ts <IČO>`.
+
+
+## Registre bez API – priame dopyty servera (v2.1.0)
+
+| Register | Spôsob | Stav |
+|---|---|---|
+| Register diskvalifikácií (justice.gov.sk) | GET dopyt podľa IČO a mien štatutárov, parsovanie tabuľky | adresy/parametre sa dolaďujú podľa `/api/diag?source=diskv&ico=…&name=…` |
+| Zákaz účasti vo VO (ÚVO) | GET dopyt podľa IČO | doladiť podľa `/api/diag?source=uvo` |
+| Dlžníci VšZP | GET/POST dopyt podľa IČO na stránke zoznamu | doladiť podľa `/api/diag?source=vszp` |
+| Dlžníci Union | JSON/HTML dopyt portálu | doladiť podľa `/api/diag?source=union` |
+| Dlžníci Dôvera | **nikdy automaticky** – Dôvera to výslovne zakazuje | ručne |
+| Obchodný vestník | import XML vydaní od MS SR (`/api/cron/ov`, ručné nahratie `POST /api/admin/ov`), index `ov:ico:<IČO>` | čaká na prístup (registrácia u MS SR) |
+| Centrálny register exekúcií | webová služba SKE (certifikát, 1,60 €/dopyt) | čaká na registráciu prevádzkovateľa; klient sa doplní podľa dokumentácie z profilu |
+
+Pravidlo vyhodnotenia (`lib/sources/public.ts` → `judge`): **nález** len pri riadku s IČO / menom; **bez záznamu** len keď register výslovne hlási
+prázdny výsledok a v odpovedi je ozvena nášho dopytu; inak ostáva **manuálne** (nikdy „bez záznamu“ z neprečítanej odpovede). Jeden dopyt na IČO
+a register, výňatky odpovedí len v diagnostike. Opakovanie: tlačidlo „Skúsiť znova“ (`runOne`).
+
+Obchodný vestník – zaradenie oznámení (`classifyNotice`): konkurz / reštrukturalizácia −40, likvidácia −35, zrušenie / výmaz −35 (kritické);
+dražba −15, zníženie ZI −10, výzva veriteľom −10 (upozornenia); zlúčenia a závierky len informácia. Rovnaký druh sa počíta raz; hodnotia sa 3 roky.

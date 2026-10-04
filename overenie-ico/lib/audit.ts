@@ -22,7 +22,8 @@ export type AuditType =
   | "order_status"
   | "protocol_sealed"
   | "org_created"
-  | "org_updated";
+  | "org_updated"
+  | "ov_import";
 
 export interface AuditEvent {
   at: string;
