@@ -68,7 +68,7 @@ export function CompareTable({ compact = false, moreHref }: { compact?: boolean;
   const rows = compact ? FEATURES.filter((f) => f.key) : FEATURES;
   return (
     <>
-      <div className="s-compare-wrap">
+      <div className={`s-compare-wrap${compact ? " compact" : ""}`}>
         <table className="s-compare">
           <thead>
             <tr>
@@ -76,12 +76,12 @@ export function CompareTable({ compact = false, moreHref }: { compact?: boolean;
               <th className="plan hi">
                 <span className="pn">Rozšírené</span>
                 <span className="pd">pre väčšie obchody a regulované odvetvia</span>
-                <a className="s-btn gold" href="/objednavka?plan=rozsirene">Objednať Rozšírené</a>
+                <a className="s-btn gold" href="/objednavka?plan=rozsirene">{compact ? "Objednať" : "Objednať Rozšírené"}</a>
               </th>
               <th className="plan">
                 <span className="pn">Štandard</span>
                 <span className="pd">pre bežný obchodný styk</span>
-                <a className="s-btn ghost" href="/objednavka?plan=standard">Objednať Štandard</a>
+                <a className="s-btn ghost" href="/objednavka?plan=standard">{compact ? "Objednať" : "Objednať Štandard"}</a>
               </th>
             </tr>
           </thead>
@@ -97,7 +97,7 @@ export function CompareTable({ compact = false, moreHref }: { compact?: boolean;
         </table>
       </div>
       {compact && moreHref && (
-        <p style={{ marginTop: 14, fontSize: 15 }}>
+        <p className="s-compare-more" style={{ marginTop: 14, fontSize: 15 }}>
           <a href={moreHref}>Úplné porovnanie verzií ({FEATURES.length} položiek) →</a>
         </p>
       )}

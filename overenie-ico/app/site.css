@@ -243,3 +243,16 @@
 .s-teaser .more { display: block; margin-top: 16px; align-self: end; color: var(--s-primary); font-weight: 600; font-size: 14px; }
 /* kotvy pod lepiacou hlavičkou */
 .site [id] { scroll-margin-top: 90px; }
+
+/* skrátená tabuľka verzií na úvodnej strane – užšia a nižšia */
+.s-compare-wrap.compact { max-width: 880px; margin: 0 auto; }
+.s-compare-wrap.compact .s-compare { min-width: 560px; }
+.s-compare-wrap.compact th, .s-compare-wrap.compact td { padding: 10px 16px; }
+.s-compare-wrap.compact thead th { padding-top: 18px; padding-bottom: 16px; }
+.s-compare-wrap.compact .pn { font-size: 19px; }
+.s-compare-wrap.compact .pd { font-size: 12px; margin: 2px 0 10px; }
+.s-compare-wrap.compact thead .s-btn { padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+.s-compare-wrap.compact .plan { width: 21%; }
+.s-compare-wrap.compact td.feat { font-size: 14px; }
+.s-compare-wrap.compact .yes, .s-compare-wrap.compact .no { font-size: 15px; }
+.s-compare-more { max-width: 880px; margin-left: auto; margin-right: auto; }
