@@ -84,6 +84,8 @@ export interface CompanyProfile {
   owners?: { name: string; role: string; since?: string; country?: string }[];
   lastOwnershipChange?: string;
   lastStatutoryChange?: string;
+  /** IČO sa v Registri právnických osôb nenašlo – ostatné kontroly sa nevykonávajú. */
+  notFound?: boolean;
 }
 
 export type VerdictLevel = "recommended" | "caution" | "not_recommended";
@@ -116,6 +118,8 @@ export interface ScanReport {
   verdict: Verdict;
   appVersion: string;
   keyFacts: KeyFact[];
+  /** IČO nebolo nájdené v registri – preverenie sa skončilo pri obchodnom registri. */
+  notFound?: boolean;
   /** Kto preverenie spustil (doplní API). */
   scannedBy?: string;
   /** Dostupnosť záložného AI vyhľadávania (doplní API). */

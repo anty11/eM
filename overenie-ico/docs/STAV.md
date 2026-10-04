@@ -102,3 +102,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Automaticky: neaktívna spoločnosť (tržby < 1 000 €), spoločník v rizikovej jurisdikcii, časté zmeny spoločníkov, zmena vlastníka/štatutára za posledných 180 dní.
 - Karta kontaktu: „Oprávnenie konať za spoločnosť je doložené (plná moc / poverenie)“ – indikátor (v).
 - Virtuálne sídlo sa zámerne nerieši. Dokumentácia: `docs/ZDROJE.md` – sekcia Indikátory. Test `test/deal.test.ts`. PDF ostáva na 2 stranách.
+- **v1.4.1** – IČO, ktoré sa v Registri právnických osôb nenájde, preverenie zastaví: zobrazí sa len karta „IČO sa v registri nenašlo“ s postupom
+  (kontrola IČO, zahraničný subjekt, výpis z OR), ostatné registre ani indikátory sa nevyhodnocujú, záznam sa nezapíše do databázy preverených spoločností
+  (audit ho eviduje s verdiktom `not_found`). Výpadok RPO (chyba API) sa od „nenájdené“ odlišuje – vtedy preverenie pokračuje.

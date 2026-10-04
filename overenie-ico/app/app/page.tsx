@@ -165,8 +165,10 @@ export default function Page() {
       setReport(j);
       setDeal(EMPTY_DEAL);
       setBank(null);
-      setShowManual(true);
-      autoAi(j);
+      if (!j.notFound) {
+        setShowManual(true);
+        autoAi(j);
+      }
       const next = [{ ico: j.ico, name: j.profile?.name }, ...recent.filter((x) => x.ico !== j.ico)].slice(0, 8);
       setRecent(next);
       safeSet("recent", next);
@@ -363,7 +365,30 @@ export default function Page() {
           )}
         </section>
 
-        {report && verdict && p && (
+        {report?.notFound && (
+          <section className="card verdict not_recommended notfound" style={{ ["--s" as any]: 0 }}>
+            <div className="score"><div><div><b>?</b><br /><span>IČO</span></div></div></div>
+            <div>
+              <p className="vlabel">IČO {report.ico} sa v registri nenašlo</p>
+              <div className="vmeta">Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}</div>
+              <p style={{ margin: "10px 0 0" }}>
+                Register právnických osôb (Štatistický úrad SR) neeviduje subjekt s týmto IČO. Bez identifikácie subjektu nie je možné pokračovať
+                v ďalších kontrolách – dane, poisťovne, konkurzy ani médiá sa nepreverovali a preverenie sa nezapísalo do databázy preverených spoločností.
+              </p>
+              <ul className="reasons">
+                <li>Skontrolujte IČO na faktúre alebo v zmluve – má 8 číslic (staršie 6), bez medzier.</li>
+                <li>Ak ide o zahraničný subjekt, nemá slovenské IČO – overte ho v registri jeho štátu (napr. ARES v ČR, Handelsregister v DE) alebo cez VIES podľa IČ DPH.</li>
+                <li>Ak partner tvrdí, že spoločnosť existuje, ale v registri nie je, je to samo osebe závažný signál – vyžiadajte výpis z obchodného registra.</li>
+              </ul>
+              <div className="toolbar no-print">
+                <a className="btn ghost" href={`https://www.orsr.sk/hladaj_ico.asp?ICO=${report.ico}&SID=0`} target="_blank" rel="noreferrer">Overiť v ORSR ↗</a>
+                <button className="btn ghost" onClick={() => run(report.ico)}>Preveriť znova</button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {report && !report.notFound && verdict && p && (
           <>
             <div className="print-only print-head">
               <div className="ph-row">

@@ -12,7 +12,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "1.4.0";
+export const APP_VERSION = "1.4.1";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -55,16 +55,40 @@ export async function scan(ico: string, onProgress?: Progress): Promise<ScanRepo
       })),
     ]);
 
-  for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
+  // Najprv identifikácia v Registri právnických osôb – ak IČO neexistuje, ostatné kontroly nemajú zmysel
   const rpoP = checkRpo(ctx);
   ctx.rpoDone = rpoP.catch(() => undefined);
+  const rpoFirst = await capRaw("rpo", rpoP);
+  if (ctx.profile.notFound || (rpoFirst.data as any)?.notFound) {
+    onProgress?.(rpoFirst, ctx.profile);
+    const scanId = `SK-${ico}-${scannedAt.replace(/[-:TZ.]/g, "").slice(0, 14)}`;
+    return {
+      scanId,
+      ico,
+      scannedAt,
+      profile: ctx.profile,
+      checks: [rpoFirst],
+      verdict: {
+        level: "not_recommended",
+        label: "IČO NENÁJDENÉ – preverenie nie je možné",
+        score: 0,
+        reasons: ["IČO nie je evidované v Registri právnických osôb. Skontrolujte správnosť IČO; ostatné registre sa nepreverovali."],
+        preliminary: false,
+        pendingManual: 0,
+      },
+      keyFacts: [],
+      appVersion: APP_VERSION,
+      notFound: true,
+    };
+  }
+  for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
   const ruzP = checkRuz(ctx);
   // daňové kontroly: potrebujú meno (RPO) a DIČ (RÚZ) – na DIČ čakajú najviac 8 s
   const idReady = Promise.all([ctx.rpoDone, Promise.race([ctx.dicReady, sleep(8000)])]);
   const after = (fn: (c: Ctx) => Promise<CheckResult>) => idReady.then(() => fn(ctx));
 
   const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await Promise.all([
-    cap("rpo", rpoP),
+    cap("rpo", Promise.resolve(rpoFirst)),
     cap("ruz", ruzP),
     cap("fs-debtors", after(checkTaxDebtors)),
     cap("fs-vat", after(checkVat)),

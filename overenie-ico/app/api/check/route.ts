@@ -27,8 +27,8 @@ export const GET = handler(async (req) => {
         send({ type: "start", ico, scannedBy, ai: aiInfo });
         try {
           const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }));
-          await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
-          await audit({ type: "scan", by: me.email, ico, company: report.profile.name, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId });
+          if (!report.notFound) await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
+          await audit({ type: "scan", by: me.email, ico, company: report.profile.name || (report.notFound ? "IČO nenájdené" : undefined), verdict: report.notFound ? "not_found" : report.verdict.level, score: report.verdict.score, scanId: report.scanId });
           send({ type: "done", report: { ...report, scannedBy, ai: aiInfo } });
         } catch (e) {
           send({ type: "error", error: (e as Error).message });
@@ -40,7 +40,7 @@ export const GET = handler(async (req) => {
   }
 
   const report = await scan(ico);
-  await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
+  if (!report.notFound) await recordScan({ ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
   await audit({
     type: "scan",
     by: me.email,

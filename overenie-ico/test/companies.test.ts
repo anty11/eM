@@ -11,8 +11,9 @@ async function main() {
 
   // Staršie preverenia existujú len v audite – zoznam sa z nich doplní pri prvom načítaní
   await audit({ type: "scan", by: "jana@kancelaria.sk", ico: "31318177", company: "C.C.C. s.r.o.", verdict: "not_recommended", score: 0, scanId: "SK-1" });
+  await audit({ type: "scan", by: "jana@kancelaria.sk", ico: "00000000", company: "IČO nenájdené", verdict: "not_found", score: 0, scanId: "SK-0" });
   const seeded = await listCompanies();
-  assert.equal(seeded.length, 1);
+  assert.equal(seeded.length, 1, "nenájdené IČO sa do databázy nedoplní");
   assert.equal(seeded[0].name, "C.C.C. s.r.o.");
   assert.equal(seeded[0].days, 0);
   assert.equal(seeded[0].stale, false);

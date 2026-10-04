@@ -80,7 +80,7 @@ async function doSeed() {
   await kv().set(SEEDED, new Date().toISOString());
   const scans = await listAudit({ type: "scan", limit: 5000 });
   for (const s of scans.reverse()) {
-    if (!s.ico) continue;
+    if (!s.ico || s.verdict === "not_found") continue; // nenájdené IČO do databázy nepatrí
     await write({
       ico: s.ico,
       name: s.company,

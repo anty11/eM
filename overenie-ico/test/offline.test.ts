@@ -127,6 +127,13 @@ async function main() {
   assert.deepEqual(fsx(0, "2026-02-01"), { duePeriods: 0, firstDue: 2026, missing: 0 }, "vznik 2026 – ešte nemusela podať, bez zrážky");
   assert.deepEqual(fsx(0, "2024-11-15"), { duePeriods: 1, firstDue: 2025, missing: 1 }, "vznik v novembri 2024 – prvé obdobie predĺžené do 2025, chýba len jedno");
   assert.equal(fsx(0, "2023-11-15").missing, 2, "vznik v novembri 2023 – splatné 2024 a 2025, chýbajú dve");
+
+  // IČO, ktoré v registri nie je: preverenie sa skončí pri RPO, ostatné kontroly sa nevykonajú
+  const nf = await scan("00000000");
+  assert.equal(nf.notFound, true);
+  assert.equal(nf.checks.length, 1, "len kontrola RPO");
+  assert.equal(nf.verdict.label, "IČO NENÁJDENÉ – preverenie nie je možné");
+  assert.equal(nf.keyFacts.length, 0);
 }
 
 main().catch((e) => {

@@ -84,6 +84,8 @@ voliteľné `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `
 
 ## Pravidlá overené v prevádzke
 
+0. Ak IČO nie je v Registri právnických osôb, preverenie sa skončí – ostatné registre a indikátory sa nevyhodnocujú a nič sa nezapisuje do databázy preverení.
+
 1. Výsledky sa zobrazujú priebežne (stream); žiadny pomalý zdroj nesmie blokovať ostatné. Ťažké veci idú na pozadie alebo do cronu.
 2. Interné diagnostické karty sa klientovi nikdy nezobrazujú.
 3. Negatívny nález musí vychádzať zo spracovaného riadku údajov, nie z textu, ktorý je na stránke vždy.

@@ -35,11 +35,13 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       const search = await getJson<{ results?: any[] }>(`${BASE}/search?identifier=${ctx.ico}`);
       const hit = search.results?.[0];
       if (!hit) {
+        ctx.profile.notFound = true;
         return {
           status: "critical",
-          summary: "Subjekt s týmto IČO sa v Registri právnických osôb nenašiel.",
-          findings: [{ severity: "critical", text: "IČO nie je evidované v Registri právnických osôb", penalty: 60 }],
+          summary: "Subjekt s týmto IČO sa v Registri právnických osôb nenašiel. Skontrolujte IČO – bez identifikácie subjektu nie je možné pokračovať v ďalších kontrolách.",
+          findings: [{ severity: "critical", text: "IČO nie je evidované v Registri právnických osôb", penalty: 100 }],
           verifyUrl: `https://www.orsr.sk/hladaj_ico.asp?ICO=${ctx.ico}&SID=0`,
+          data: { notFound: true },
         };
       }
       let e: any = hit;
