@@ -14,14 +14,14 @@ export default async function VerifyEntry({ params, searchParams }: { params: Pr
   if (valid && code) redirect(`/overit/${encodeURIComponent(scanId)}/${encodeURIComponent(normalizeCode(code) || "X")}`);
   return (
     <div className="site">
-      <SiteHeader />
+      <SiteHeader active="verify" />
       <section className="s-band">
         <div className="s-wrap">
           <div className="s-article">
             <span className="s-eyebrow">Overenie protokolu</span>
             <h1 style={{ fontSize: "clamp(26px, 3.4vw, 38px)" }}>Protokol č. {scanId}</h1>
             {!valid ? (
-              <div className="s-form" style={{ marginTop: 24 }}><div className="s-err">Číslo protokolu má tvar SK-IČO-RRRRMMDDHHMMSS.</div></div>
+              <div className="s-form" style={{ marginTop: 24 }}><div className="s-err">Číslo protokolu má tvar SK-IČO-RRRRMMDDHHMMSS.</div><p style={{ margin: 0 }}><a href="/overit">Zadať číslo protokolu znova →</a></p></div>
             ) : (
               <form className="s-form" style={{ marginTop: 24 }} method="get">
                 <p style={{ margin: 0, color: "var(--s-muted)" }}>

@@ -36,7 +36,7 @@ export const FIRMS = {
   },
 } as const;
 
-export type NavKey = "home" | "law" | "order" | "what" | "how" | "who";
+export type NavKey = "home" | "law" | "order" | "what" | "how" | "who" | "verify";
 
 const NAV: { key: NavKey; href: string; label: string; sec?: boolean }[] = [
   { key: "home", href: "/#preco", label: "Prečo overovať" },
@@ -44,6 +44,7 @@ const NAV: { key: NavKey; href: string; label: string; sec?: boolean }[] = [
   { key: "how", href: "/ako-to-funguje", label: "Ako to funguje", sec: true },
   { key: "who", href: "/pre-koho", label: "Pre koho", sec: true },
   { key: "law", href: "/pravny-zaklad", label: "Právny základ" },
+  { key: "verify", href: "/overit", label: "Overiť protokol", sec: true },
 ];
 
 export function SiteHeader({ active }: { active?: NavKey }) {
@@ -89,7 +90,7 @@ export function SiteFooter() {
               Nástroj na overenie dodávateľa a odberateľa vo verejných registroch Slovenskej republiky s protokolom o preverení.
             </p>
             <p style={{ margin: "10px 0 0" }}>
-              <a href="/objednavka">Objednať</a> · <a href="/pravny-zaklad">Právny základ</a> · <a href="/login">Klientska sekcia</a>
+              <a href="/objednavka">Objednať</a> · <a href="/pravny-zaklad">Právny základ</a> · <a href="/overit">Overiť protokol</a> · <a href="/login">Klientska sekcia</a>
             </p>
           </div>
           <div>

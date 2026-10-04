@@ -26,7 +26,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ scanId:
   const first = seals[0];
   return (
     <div className="site">
-      <SiteHeader />
+      <SiteHeader active="verify" />
       <section className="s-band">
         <div className="s-wrap">
           <div className="s-article">

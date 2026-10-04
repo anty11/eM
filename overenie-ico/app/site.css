@@ -65,7 +65,7 @@
 .s-more-menu { position: absolute; right: 0; top: calc(100% + 10px); min-width: 220px; display: grid; gap: 2px; padding: 10px; background: #fff; border: 1px solid var(--s-line); border-radius: 12px; box-shadow: 0 16px 40px rgba(28, 20, 60, 0.14); z-index: 60; }
 .s-more-menu a { display: block; padding: 9px 12px; border-radius: 8px; text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; }
 .s-more-menu a:hover { background: var(--s-bg-soft); }
-@media (max-width: 1320px) { .s-nav { gap: 14px; } .s-nav a.sec { display: none; } .s-more { display: block; } }
+@media (max-width: 1460px) { .s-nav { gap: 14px; } .s-nav a.sec { display: none; } .s-more { display: block; } }
 @media (max-width: 900px) { .s-nav > a:not(.s-btn) { display: none; } }
 @media (max-width: 760px) {
   .s-brand > span > span:last-child:not(:first-child) { display: none; }
@@ -218,7 +218,7 @@
 .s-compare thead .plan.hi { border-top: 3px solid var(--s-gold); }
 .s-compare .pn { display: block; font-family: var(--s-serif); font-size: 22px; font-weight: 600; color: var(--s-ink); }
 .s-compare .pd { display: block; font-size: 13px; color: var(--s-muted); margin: 4px 0 14px; font-weight: 400; }
-.s-compare thead .s-btn { padding: 10px 16px; font-size: 14px; }
+.s-compare thead .s-btn { padding: 10px 12px; font-size: 13px; white-space: nowrap; }
 .s-compare td.feat { color: var(--s-ink-2); font-size: 15px; }
 .s-compare td.feat small { display: block; color: var(--s-muted); font-size: 13px; margin-top: 2px; }
 .s-compare .yes { color: var(--s-ok); font-weight: 700; font-size: 17px; }

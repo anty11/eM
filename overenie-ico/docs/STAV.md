@@ -155,3 +155,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   (`Hero`, `Firms`), `SiteShell.tsx` (`NavKey`, menu „Viac“), `app/site.css` (`.s-more`, `.s-why`, `.s-teaser`, kotvy pod hlavičkou), `proxy.ts` (PUBLIC).
 - **v1.8.1** – skrátená úvodná strana nasadená na `/` (náhľad `/nahlad` zrušený); riadok tabuľky „Údaje o obchode a indikátory rizika podľa
   Bulletinu SKDP 03/2024“ premenovaný na „Indikátory rizika“ (odkaz na SKDP ostáva v poznámke úplnej tabuľky). Podtitul loga v jednom riadku.
+- **v1.8.2** – verejná stránka **`/overit`** (vstup na overenie protokolu bez adresy z PDF: číslo protokolu + overovací kód, vysvetlenie, čo
+  overenie ukáže); odkaz „Overiť protokol“ v navigácii (pod 1460 px v menu „Viac“) a v päte. Na stránke objednávky má úplná tabuľka verzií
+  rovnakú šírku ako formulár (780 px); tlačidlá v hlavičke tabuliek na jednom riadku.

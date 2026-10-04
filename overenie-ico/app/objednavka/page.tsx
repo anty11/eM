@@ -118,7 +118,7 @@ export default function OrderPage() {
               <h2>Čo je v ktorej verzii</h2>
               <p>Obe verzie overujú rovnaké registre a dávajú rovnaký protokol. Rozšírené pridáva neverejné registre, spätné preverenie existujúcej spolupráce, školenie a komunikáciu s advokátom.</p>
             </div>
-            <CompareTable />
+            <div style={{ maxWidth: 780 }}><CompareTable /></div>
           </div>
         </section>
       )}
