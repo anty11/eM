@@ -229,3 +229,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   šifrovane), správca prepína aktívneho poskytovateľa v Administrácii kedykoľvek (aj keď sú kľúče v prostredí), model na poskytovateľa;
   predvolený Claude. AI vypnutá s vysvetlením pre VšZP, Union (formulár / API – overuje server), Obchodný vestník (formulár) a Register
   diskvalifikácií (blokovanie); ÚVO cez globálne vyhľadávanie OSZ. Audit AI overení ide do protokolu firmy.
+- **v2.1.8** – AI znova povolená pre VšZP, Union, Obchodný vestník a Register diskvalifikácií (na želanie: vyskúšať Claude web search na
+  všetkých registroch; vypnutá ostáva len pre CRE a Dôveru). Zadania pre AI pri týchto registroch výslovne žiadajú „unknown“, ak sa stránka
+  s výsledkom nedá otvoriť (nástroj web_fetch len načíta adresu – formulár nevyplní). Voliteľná hlavička `ANTHROPIC_BETA` z prostredia.

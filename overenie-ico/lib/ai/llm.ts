@@ -64,7 +64,8 @@ async function anthropic(cfg: AiConfig, req: LlmRequest): Promise<LlmResponse> {
       { type: "web_fetch_20260318", name: "web_fetch", max_uses: req.maxSearches ?? 5, max_content_tokens: 30000, ...domains },
     ],
   };
-  const headers = { "x-api-key": cfg.key, "anthropic-version": "2023-06-01" };
+  // Beta hlavička pre webové nástroje, ak ju API vyžaduje (nastaviteľná bez nasadenia: ANTHROPIC_BETA)
+  const headers: Record<string, string> = { "x-api-key": cfg.key, "anthropic-version": "2023-06-01", ...(process.env.ANTHROPIC_BETA ? { "anthropic-beta": process.env.ANTHROPIC_BETA } : {}) };
   const visited = new Set<string>();
   const deadline = Date.now() + (req.timeoutMs ?? 90000);
   let usage = { input: 0, output: 0, searches: 0 };

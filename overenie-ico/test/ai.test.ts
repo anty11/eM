@@ -73,9 +73,8 @@ async function main() {
   assert.equal(r.check.status, "ok");
   assert.equal(r.check.ai?.evidence.length, 1);
   assert.match(r.check.ai!.evidence[0].url, /uvo\.gov\.sk/);
-  // registre, kde AI nemôže fungovať (formulár POST, vlastné API, blokovanie) – s vysvetlením
-  await assert.rejects(aiCheck(cfg, stub("vszp"), GOOD, { ico: GOOD }), /formulár/);
-  await assert.rejects(aiCheck(cfg, stub("diskv"), GOOD, { ico: GOOD }), /blokuje/);
+  // registre bez API ostávajú pre AI dostupné (na overenie v praxi) – okrem CRE (prihlásenie, poplatok) a Dôvery (zákaz automatizácie)
+  assert.ok(!AI_SPECS.vszp.disabled && !AI_SPECS.union.disabled && !AI_SPECS.ov.disabled && !AI_SPECS.diskv.disabled);
 
   // Negatívny nález – postih ako pri API
   r = await aiCheck(cfg, stub("socpoist"), BAD, { ico: BAD, name: "C.C.C. s.r.o." });
