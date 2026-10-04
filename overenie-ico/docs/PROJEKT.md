@@ -18,7 +18,7 @@ používateľov spravujú administrátori.
 | Čo | Hodnota |
 |---|---|
 | GitHub | `anty11/eM`, aplikácia v podpriečinku **`overenie-ico/`**; push do `main` nasadí |
-| Adresy | `/` verejný web · `/pravny-zaklad` · `/objednavka` · `/overit/<číslo protokolu>` (verejné overenie pečate) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
+| Adresy | `/` verejný web · `/pravny-zaklad` · `/objednavka` · `/overit/<číslo protokolu>/<overovací kód>` (verejné overenie pečate; bez kódu len formulár) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
 | Vercel | projekt **`e-m`**, Root Directory `overenie-ico`, Framework Next.js, región `fra1` |
 | Cron | `vercel.json` → `/api/cron/socpoist` denne 04:20 (stiahne a zaindexuje zoznam dlžníkov SP) |
 | Databáza | Upstash Redis cez Vercel Marketplace (premenné s predponou `KV_`); `lib/auth/kv.ts` prijme aj `*_REST_API_URL/TOKEN` alebo `REDIS_URL`; bez databázy beží lokálne v pamäti |

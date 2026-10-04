@@ -124,3 +124,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **Verejná stránka `/overit/<číslo protokolu>`** (bez prihlásenia, noindex): časy preverenia a pečatí, verdikt, skóre, odtlačky – bez osobných údajov.
   Pripravené pole `tsa` pre kvalifikovanú časovú pečiatku (RFC 3161 / eIDAS) od tretej strany.
 - Kód: `lib/seal.ts`, `app/api/protocol/seal`, `app/overit/[scanId]/page.tsx`, `app/app/page.tsx` (`sealAndPrint`), `proxy.ts`; test `test/seal.test.ts`. Bez poplatkov.
+- **v1.6.1** – overovacia stránka vyžaduje **náhodný overovací kód** (10 znakov, vytlačený v riadku „Pečať protokolu“ a v adrese
+  `/overit/<číslo>/<kód>`). Číslo protokolu je z IČO a času uhádnuteľné, kód nie – bez neho stránka neukáže nič, ani existenciu protokolu
+  (informácie o obchodných vzťahoch klientov nie sú odhaliteľné hádaním). 20 pokusov za hodinu z jednej adresy. `/overit/<číslo>` bez kódu zobrazí len formulár na jeho zadanie.

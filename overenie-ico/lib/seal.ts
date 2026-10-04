@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { audit } from "./audit";
 import { kv } from "./auth/kv";
 
@@ -22,13 +22,33 @@ export interface Seal {
   score: number;
   /** Len meno povereného zamestnanca (bez e-mailu) */
   by: string;
+  /** Náhodný overovací kód (rovnaký pre všetky pečate protokolu) – bez neho overovacia stránka nič neukáže, číslo protokolu je totiž uhádnuteľné */
+  code: string;
   appVersion?: string;
   /** Kvalifikovaná časová pečiatka (RFC 3161 / eIDAS) – doplní sa po výbere poskytovateľa */
   tsa?: { provider: string; time: string; serial: string; token?: string };
 }
 
 const key = (scanId: string) => `seals:${scanId}`;
+const codeKey = (scanId: string) => `sealcode:${scanId}`;
 const MAX = 50;
+
+/** 10 znakov z abecedy bez zameniteľných znakov (0/O, 1/I/L) – do PDF a do adresy */
+const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+export function newCode(): string {
+  const b = randomBytes(10);
+  return Array.from(b, (x) => ALPHABET[x % ALPHABET.length]).join("");
+}
+export const CODE_RE = /^[A-Z2-9]{10}$/;
+export const normalizeCode = (c: string) => (c || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/0/g, "O").replace(/1/g, "I");
+
+async function codeFor(scanId: string): Promise<string> {
+  const existing = await kv().get<string>(codeKey(scanId));
+  if (existing) return existing;
+  const c = newCode();
+  await kv().set(codeKey(scanId), c);
+  return c;
+}
 
 /** Kanonický JSON: zoradené kľúče, bez undefined – rovnaký obsah dá vždy rovnaký reťazec. */
 export function canonical(v: unknown): string {
@@ -69,8 +89,9 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
   if (!SCAN_ID_RE.test(input.scanId)) throw new Error("Neplatné číslo protokolu.");
   const hash = sha256(canonical(protocolDigestInput(input)));
   const existing = await kv().lrange<Seal>(key(input.scanId), 0, MAX - 1);
+  const code = await codeFor(input.scanId);
   const same = existing.find((s) => s.hash === hash);
-  if (same) return same; // rovnaký obsah už zapečatený – vraciame pôvodný čas
+  if (same) return { ...same, code }; // rovnaký obsah už zapečatený – vraciame pôvodný čas
   const seal: Seal = {
     scanId: input.scanId,
     seq: existing.length + 1,
@@ -82,6 +103,7 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
     verdict: input.verdictLevel,
     score: input.score,
     by: input.by,
+    code,
     appVersion: input.appVersion,
   };
   await kv().lpush(key(input.scanId), seal, MAX);
@@ -89,10 +111,19 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
   return seal;
 }
 
-export async function listSeals(scanId: string): Promise<Seal[]> {
-  if (!SCAN_ID_RE.test(scanId)) return [];
+/** Pečate protokolu – len so správnym overovacím kódom; inak prázdny zoznam (nerozlišuje „neexistuje“ a „zlý kód“). */
+export async function listSeals(scanId: string, code: string): Promise<Seal[]> {
+  if (!SCAN_ID_RE.test(scanId) || !CODE_RE.test(code)) return [];
+  const real = await kv().get<string>(codeKey(scanId));
+  if (!real || real !== code) return [];
   const all = await kv().lrange<Seal>(key(scanId), 0, MAX - 1);
-  return all.sort((a, b) => a.seq - b.seq);
+  return all.sort((a, b) => a.seq - b.seq).map((s) => ({ ...s, code }));
+}
+
+/** Obmedzenie pokusov o uhádnutie kódu: 20 za hodinu z jednej adresy. */
+export async function verifyRateLimited(ip: string): Promise<boolean> {
+  const n = await kv().incr(`rl:verify:${ip}`, 3600);
+  return n > 20;
 }
 
 /** Skrátený zápis odtlačku do protokolu: 4 skupiny po 4 znaky z prvých 16 + … + posledné 4 */

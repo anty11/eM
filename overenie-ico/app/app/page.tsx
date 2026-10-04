@@ -664,7 +664,7 @@ export default function Page() {
                 {seal && (
                   <span className="src no-print">
                     Pečať #{seal.seq} · {new Date(seal.sealedAt).toLocaleString("sk-SK", { dateStyle: "short", timeStyle: "medium" })} · {shortHash(seal.hash)} ·{" "}
-                    <a href={`/overit/${seal.scanId}`} target="_blank" rel="noreferrer">overiť ↗</a>
+                    kód {seal.code} · <a href={`/overit/${seal.scanId}/${seal.code}`} target="_blank" rel="noreferrer">overiť ↗</a>
                   </span>
                 )}
                 {sealErr && <span className="f-critical no-print">{sealErr}</span>}
@@ -685,10 +685,10 @@ export default function Page() {
                 {seal ? (
                   <>
                     <b>Pečať protokolu #{seal.seq}:</b> odtlačok SHA-256 {shortHash(seal.hash)} zapísaný {new Date(seal.sealedAt).toLocaleString("sk-SK", { dateStyle: "long", timeStyle: "medium" })} ·
-                    overenie: {DOMAIN}/overit/{seal.scanId} · úplný odtlačok: <span className="mono">{seal.hash}</span>
+                    overovací kód <b>{seal.code}</b> · overenie: {DOMAIN}/overit/{seal.scanId}/{seal.code} · úplný odtlačok: <span className="mono">{seal.hash}</span>
                   </>
                 ) : (
-                  <>Protokol bol vytlačený bez pečate (odtlačok sa nepodarilo zapísať). Čas preverenia je uvedený v hlavičke; overenie: {DOMAIN}/overit/{report.scanId}</>
+                  <>Protokol bol vytlačený bez pečate (odtlačok sa nepodarilo zapísať). Čas preverenia je uvedený v hlavičke protokolu.</>
                 )}
               </div>
             </section>
