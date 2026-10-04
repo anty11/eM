@@ -18,7 +18,7 @@ export default function Home() {
 
       <section className="s-band" id="preco">
         <div className="s-wrap">
-          <div className="s-head">
+          <div className="s-head wide">
             <span className="s-eyebrow">Prečo overovať</span>
             <h2>Náležitá starostlivosť je súčasťou podnikania. A dá sa preukázať.</h2>
             <p>
@@ -81,7 +81,7 @@ export default function Home() {
 
       <section className="s-band" id="zastita">
         <div className="s-wrap">
-          <div className="s-head">
+          <div className="s-head wide">
             <span className="s-eyebrow">O projekte</span>
             <h2>Samostatný projekt s odbornou záštitou dvoch advokátskych kancelárií.</h2>
           </div>

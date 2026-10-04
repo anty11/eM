@@ -23,7 +23,7 @@ export default async function VerifyIndex({ searchParams }: { searchParams: Prom
   if (scanId && SCAN_ID_RE.test(scanId)) redirect(`/overit/${encodeURIComponent(scanId)}`);
   return (
     <div className="site">
-      <SiteHeader active="verify" />
+      <SiteHeader />
       <section className="s-band">
         <div className="s-wrap">
           <div className="s-article">

@@ -96,6 +96,9 @@ export default function LoginPage() {
             <p className="hint">Zabudli ste heslo? Požiadajte administrátora o nový jednorazový kód.</p>
           )}
         </div>
+        <p className="hint" style={{ textAlign: "center", marginTop: 18 }}>
+          Máte v ruke protokol o preverení a chcete overiť jeho pravosť? <a href="/overit">Overiť protokol →</a>
+        </p>
       </main>
     </>
   );

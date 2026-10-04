@@ -18,7 +18,7 @@ používateľov spravujú administrátori.
 | Čo | Hodnota |
 |---|---|
 | GitHub | `anty11/eM`, aplikácia v podpriečinku **`overenie-ico/`**; push do `main` nasadí |
-| Adresy | `/` verejný web · `/co-overujeme` · `/ako-to-funguje` · `/pre-koho` · `/pravny-zaklad` · `/objednavka` (`#porovnanie` – úplná tabuľka verzií) · `/overit` (verejný vstup: číslo protokolu + kód) · `/overit/<číslo protokolu>/<overovací kód>` (overenie pečate; bez kódu len formulár) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
+| Adresy | `/` verejný web · `/co-overujeme` · `/ako-to-funguje` · `/pre-koho` · `/pravny-zaklad` · `/objednavka` (`#porovnanie` – úplná tabuľka verzií) · `/overit` (verejný vstup: číslo protokolu + kód; odkaz pod prihlásením) · právne dokumenty `/obchodne-podmienky`, `/ochrana-osobnych-udajov`, `/spracovanie-udajov`, `/cookies`, `/pravne-upozornenie` (zatiaľ placeholder) · `/overit/<číslo protokolu>/<overovací kód>` (overenie pečate; bez kódu len formulár) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
 | Vercel | projekt **`e-m`**, Root Directory `overenie-ico`, Framework Next.js, región `fra1` |
 | Cron | `vercel.json` → `/api/cron/socpoist` denne 04:20 (stiahne a zaindexuje zoznam dlžníkov SP) |
 | Databáza | Upstash Redis cez Vercel Marketplace (premenné s predponou `KV_`); `lib/auth/kv.ts` prijme aj `*_REST_API_URL/TOKEN` alebo `REDIS_URL`; bez databázy beží lokálne v pamäti |

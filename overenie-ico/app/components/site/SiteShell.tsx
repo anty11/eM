@@ -36,7 +36,7 @@ export const FIRMS = {
   },
 } as const;
 
-export type NavKey = "home" | "law" | "order" | "what" | "how" | "who" | "verify";
+export type NavKey = "home" | "law" | "order" | "what" | "how" | "who";
 
 const NAV: { key: NavKey; href: string; label: string; sec?: boolean }[] = [
   { key: "home", href: "/#preco", label: "Prečo overovať" },
@@ -44,7 +44,15 @@ const NAV: { key: NavKey; href: string; label: string; sec?: boolean }[] = [
   { key: "how", href: "/ako-to-funguje", label: "Ako to funguje", sec: true },
   { key: "who", href: "/pre-koho", label: "Pre koho", sec: true },
   { key: "law", href: "/pravny-zaklad", label: "Právny základ" },
-  { key: "verify", href: "/overit", label: "Overiť protokol", sec: true },
+];
+
+/** Právne dokumenty v päte – obsah sa doplní; zatiaľ stránky s informáciou, že sa pripravujú. */
+export const LEGAL_DOCS: { href: string; label: string; title: string }[] = [
+  { href: "/obchodne-podmienky", label: "Obchodné podmienky", title: "Všeobecné obchodné podmienky" },
+  { href: "/ochrana-osobnych-udajov", label: "Ochrana osobných údajov", title: "Zásady ochrany osobných údajov" },
+  { href: "/spracovanie-udajov", label: "Zmluva o spracúvaní údajov", title: "Zmluva o spracúvaní osobných údajov (sprostredkovateľ)" },
+  { href: "/cookies", label: "Cookies", title: "Informácie o súboroch cookie" },
+  { href: "/pravne-upozornenie", label: "Právne upozornenie", title: "Právne upozornenie a vylúčenie zodpovednosti" },
 ];
 
 export function SiteHeader({ active }: { active?: NavKey }) {
@@ -90,7 +98,7 @@ export function SiteFooter() {
               Nástroj na overenie dodávateľa a odberateľa vo verejných registroch Slovenskej republiky s protokolom o preverení.
             </p>
             <p style={{ margin: "10px 0 0" }}>
-              <a href="/objednavka">Objednať</a> · <a href="/pravny-zaklad">Právny základ</a> · <a href="/overit">Overiť protokol</a> · <a href="/login">Klientska sekcia</a>
+              <a href="/objednavka">Objednať</a> · <a href="/pravny-zaklad">Právny základ</a> · <a href="/login">Klientska sekcia</a>
             </p>
           </div>
           <div>
@@ -102,6 +110,10 @@ export function SiteFooter() {
             <h4>Odborná záštita</h4>
             <div><a href={u.web} target="_blank" rel="noreferrer">{u.short}</a> – {u.webLabel}</div>
             <div><a href={l.web} target="_blank" rel="noreferrer">{l.short}</a> – {l.webLabel}</div>
+          </div>
+          <div>
+            <h4>Právne dokumenty</h4>
+            {LEGAL_DOCS.map((d) => <div key={d.href}><a href={d.href}>{d.label}</a></div>)}
           </div>
         </div>
         <div className="legal">

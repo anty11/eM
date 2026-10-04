@@ -158,3 +158,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v1.8.2** – verejná stránka **`/overit`** (vstup na overenie protokolu bez adresy z PDF: číslo protokolu + overovací kód, vysvetlenie, čo
   overenie ukáže); odkaz „Overiť protokol“ v navigácii (pod 1460 px v menu „Viac“) a v päte. Na stránke objednávky má úplná tabuľka verzií
   rovnakú šírku ako formulár (780 px); tlačidlá v hlavičke tabuliek na jednom riadku.
+- **v1.8.3** – nadpisy „Náležitá starostlivosť…“ a „Samostatný projekt…“ na úvodnej strane na jednom riadku (`.s-head.wide`); päta má stĺpec
+  **Právne dokumenty** (obchodné podmienky, ochrana osobných údajov, zmluva o spracúvaní údajov, cookies, právne upozornenie – zatiaľ stránky
+  „dokument sa pripravuje“, šablóna `app/components/site/LegalPage.tsx`, zoznam `LEGAL_DOCS` v `SiteShell.tsx`); „Overiť protokol“ vypustené
+  z hornej navigácie aj päty – odkaz je pod prihlasovacím formulárom (`/login`) a adresa je v PDF; objednávka: nadpis, formulár a tabuľka
+  v jednom vycentrovanom stĺpci 780 px.

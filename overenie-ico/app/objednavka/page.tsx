@@ -41,7 +41,7 @@ export default function OrderPage() {
     <div className="site">
       <SiteHeader active="order" />
       <section className="s-band">
-        <div className="s-wrap">
+        <div className="s-wrap s-center">
           <div className="s-head">
             <span className="s-eyebrow">Objednávka</span>
             <h1 style={{ fontSize: "clamp(28px, 3.6vw, 40px)" }}>Objednávka pre vašu spoločnosť</h1>
@@ -112,13 +112,13 @@ export default function OrderPage() {
       </section>
       {!done && (
         <section className="s-band alt" id="porovnanie">
-          <div className="s-wrap">
+          <div className="s-wrap s-center">
             <div className="s-head">
               <span className="s-eyebrow">Porovnanie verzií</span>
               <h2>Čo je v ktorej verzii</h2>
               <p>Obe verzie overujú rovnaké registre a dávajú rovnaký protokol. Rozšírené pridáva neverejné registre, spätné preverenie existujúcej spolupráce, školenie a komunikáciu s advokátom.</p>
             </div>
-            <div style={{ maxWidth: 780 }}><CompareTable /></div>
+            <CompareTable />
           </div>
         </section>
       )}

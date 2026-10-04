@@ -200,7 +200,8 @@
 
 /* päta – jediná tmavá časť, s mäkkým prechodom zo svetlého pozadia */
 .s-foot { background: linear-gradient(180deg, var(--s-bg) 0%, var(--s-primary-deep) 140px); color: rgba(255, 255, 255, 0.78); padding: 170px 0 28px; font-size: 14px; margin-top: -40px; }
-.s-foot .cols { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 28px; align-items: start; }
+.s-foot .cols { display: grid; grid-template-columns: 1.4fr 1fr 1.1fr 1fr; gap: 28px; align-items: start; }
+@media (max-width: 1000px) { .s-foot .cols { grid-template-columns: 1fr 1fr; } }
 .s-foot .cols > div > div { line-height: 1.7; }
 @media (max-width: 760px) { .s-foot .cols { grid-template-columns: 1fr; } }
 .s-foot h4 { color: #fff; font-family: var(--s-serif); margin: 0 0 8px; font-size: 16px; font-weight: 600; }
@@ -256,3 +257,11 @@
 .s-compare-wrap.compact td.feat { font-size: 14px; }
 .s-compare-wrap.compact .yes, .s-compare-wrap.compact .no { font-size: 15px; }
 .s-compare-more { max-width: 880px; margin-left: auto; margin-right: auto; }
+
+/* nadpisy častí, ktoré majú ostať na jednom riadku (široké obrazovky) */
+.s-head.wide { max-width: none; }
+.s-head.wide p { max-width: 820px; }
+@media (min-width: 1100px) { .s-head.wide h2 { white-space: nowrap; } }
+
+/* objednávka – nadpis, formulár aj tabuľka v jednom vycentrovanom stĺpci */
+.s-wrap.s-center > .s-head, .s-wrap.s-center > .s-form, .s-wrap.s-center > .s-compare-wrap { max-width: 780px; margin-left: auto; margin-right: auto; }

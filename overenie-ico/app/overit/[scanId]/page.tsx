@@ -14,7 +14,7 @@ export default async function VerifyEntry({ params, searchParams }: { params: Pr
   if (valid && code) redirect(`/overit/${encodeURIComponent(scanId)}/${encodeURIComponent(normalizeCode(code) || "X")}`);
   return (
     <div className="site">
-      <SiteHeader active="verify" />
+      <SiteHeader />
       <section className="s-band">
         <div className="s-wrap">
           <div className="s-article">
