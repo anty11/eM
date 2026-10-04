@@ -18,7 +18,7 @@ používateľov spravujú administrátori.
 | Čo | Hodnota |
 |---|---|
 | GitHub | `anty11/eM`, aplikácia v podpriečinku **`overenie-ico/`**; push do `main` nasadí |
-| Adresy | `/` verejný web · `/pravny-zaklad` · `/objednavka` · `/overit/<číslo protokolu>/<overovací kód>` (verejné overenie pečate; bez kódu len formulár) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
+| Adresy | `/` verejný web · `/co-overujeme` · `/ako-to-funguje` · `/pre-koho` · `/pravny-zaklad` · `/objednavka` (`#porovnanie` – úplná tabuľka verzií) · `/nahlad` (náhľad novej úvodnej strany, noindex) · `/overit/<číslo protokolu>/<overovací kód>` (verejné overenie pečate; bez kódu len formulár) · `/login` · klientska sekcia `/app` (`/app?ico=…`) · `/account` preverené spoločnosti · `/admin` |
 | Vercel | projekt **`e-m`**, Root Directory `overenie-ico`, Framework Next.js, región `fra1` |
 | Cron | `vercel.json` → `/api/cron/socpoist` denne 04:20 (stiahne a zaindexuje zoznam dlžníkov SP) |
 | Databáza | Upstash Redis cez Vercel Marketplace (premenné s predponou `KV_`); `lib/auth/kv.ts` prijme aj `*_REST_API_URL/TOKEN` alebo `REDIS_URL`; bez databázy beží lokálne v pamäti |
@@ -53,7 +53,7 @@ Lokálne bez internetu: `DEMO_DATA=1 npm run dev`.
 | `lib/seal.ts`, `app/api/protocol/seal`, `app/overit/[scanId]` | pečať protokolu: SHA-256 z kanonického JSON pri uložení PDF, zápis s časom, verejná overovacia stránka; pole `tsa` pre kvalifikovanú časovú pečiatku |
 | `lib/auth/*` | používatelia, scrypt heslá, HMAC cookie (12 h), pozvánky, limit pokusov, CSRF · `lib/audit.ts` záznam preverení a nastavení |
 | `lib/ai/*` | záložné vyhľadávanie LLM (Anthropic web_search / OpenAI web_search). **Predvolene VYPNUTÉ** – spúšťa sa len tlačidlom „AI overiť“, nikdy pri každom preverení |
-| `app/page.tsx`, `app/pravny-zaklad`, `app/objednavka`, `app/components/site/SiteShell.tsx`, `app/site.css` | verejný web: prezentácia, judikatúra, objednávka (`lib/orders.ts`, `/api/order`, admin panel `OrdersPanel`); kontakty kancelárií a farby na jednom mieste |
+| `app/page.tsx`, `app/nahlad`, `app/{co-overujeme,ako-to-funguje,pre-koho,pravny-zaklad,objednavka}`, `app/components/site/{SiteShell,content,Hero}.tsx`, `app/site.css` | verejný web: prezentácia, podstránky, judikatúra, objednávka; texty zdieľané v `content.tsx` (`lib/orders.ts`, `/api/order`, admin panel `OrdersPanel`); kontakty kancelárií a farby na jednom mieste |
 | `app/app/page.tsx` | klient so streamovaním (`/api/check?ico=&stream=1`), kľúčové fakty, karta kontaktu, Štandard/Rozšírené, opakovanie zdroja |
 | `app/admin` | používatelia, AI kľúč, audit · `app/api/diag?ico=` diagnostika len pre admina; karta „Pokrytie overenia“ sa zobrazí len adminovi s `?diag` – **nikdy klientovi** |
 

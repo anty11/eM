@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { OPERATOR, SiteFooter, SiteHeader } from "../components/site/SiteShell";
+import { CompareTable } from "../components/site/content";
 
 type Plan = "standard" | "rozsirene";
 
@@ -76,6 +77,7 @@ export default function OrderPage() {
                     <small>verejné registre, indikátory rizika, protokol s pečaťou, databáza preverení</small>
                   </label>
                 </div>
+                <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--s-muted)" }}><a href="#porovnanie">Úplné porovnanie verzií ↓</a></p>
               </div>
               <div className="row">
                 <label>Spoločnosť (objednávateľ)<input required value={f.company} onChange={set("company")} placeholder="Názov podľa obchodného registra" /></label>
@@ -108,6 +110,18 @@ export default function OrderPage() {
           )}
         </div>
       </section>
+      {!done && (
+        <section className="s-band alt" id="porovnanie">
+          <div className="s-wrap">
+            <div className="s-head">
+              <span className="s-eyebrow">Porovnanie verzií</span>
+              <h2>Čo je v ktorej verzii</h2>
+              <p>Obe verzie overujú rovnaké registre a dávajú rovnaký protokol. Rozšírené pridáva neverejné registre, spätné preverenie existujúcej spolupráce, školenie a komunikáciu s advokátom.</p>
+            </div>
+            <CompareTable />
+          </div>
+        </section>
+      )}
       <SiteFooter />
     </div>
   );

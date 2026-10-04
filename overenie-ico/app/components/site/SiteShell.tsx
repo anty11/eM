@@ -36,7 +36,17 @@ export const FIRMS = {
   },
 } as const;
 
-export function SiteHeader({ active }: { active?: "home" | "law" | "order" }) {
+export type NavKey = "home" | "law" | "order" | "what" | "how" | "who";
+
+const NAV: { key: NavKey; href: string; label: string; sec?: boolean }[] = [
+  { key: "home", href: "/#preco", label: "Prečo overovať" },
+  { key: "what", href: "/co-overujeme", label: "Čo overujeme" },
+  { key: "how", href: "/ako-to-funguje", label: "Ako to funguje", sec: true },
+  { key: "who", href: "/pre-koho", label: "Pre koho", sec: true },
+  { key: "law", href: "/pravny-zaklad", label: "Právny základ" },
+];
+
+export function SiteHeader({ active }: { active?: NavKey }) {
   return (
     <header className="s-top">
       {/* Písma: Montserrat (text), Playfair Display (nadpisy) */}
@@ -48,10 +58,16 @@ export function SiteHeader({ active }: { active?: "home" | "law" | "order" }) {
           <Wordmark size={26} sub="overenie obchodného partnera" />
         </a>
         <nav className="s-nav">
-          <a href="/#preco" style={{ fontWeight: active === "home" ? 600 : 500 }}>Prečo overovať</a>
-          <a href="/#co" className="sec">Čo overujeme</a>
-          <a href="/pravny-zaklad" style={{ fontWeight: active === "law" ? 600 : 500 }}>Právny základ</a>
-          <a href="/#zastita" className="sec">O projekte</a>
+          {NAV.map((n) => (
+            <a key={n.key} href={n.href} className={n.sec ? "sec" : undefined} aria-current={active === n.key ? "page" : undefined} style={{ fontWeight: active === n.key ? 600 : 500 }}>{n.label}</a>
+          ))}
+          {/* Na užších obrazovkách: skryté položky v rozbaľovacom menu */}
+          <details className="s-more">
+            <summary>Viac</summary>
+            <div className="s-more-menu">
+              {NAV.map((n) => <a key={n.key} href={n.href}>{n.label}</a>)}
+            </div>
+          </details>
           <a href="/objednavka" className="s-btn gold">Objednať</a>
           <a href="/login" className="s-btn ghost">Klientska sekcia</a>
         </nav>

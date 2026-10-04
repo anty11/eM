@@ -56,8 +56,17 @@
 .s-nav a { text-decoration: none; color: var(--s-ink-2); white-space: nowrap; }
 .s-nav a:hover { color: var(--s-primary); }
 .s-nav .s-btn { padding: 10px 16px; font-size: 12px; letter-spacing: 0.06em; }
-@media (max-width: 1320px) { .s-nav { gap: 14px; } .s-nav a.sec { display: none; } }
-@media (max-width: 900px) { .s-nav a:not(.s-btn) { display: none; } }
+/* Rozbaľovacie menu „Viac“ – zobrazí sa, keď sa nezmestia všetky položky */
+.s-more { display: none; position: relative; }
+.s-more summary { list-style: none; cursor: pointer; color: var(--s-ink-2); white-space: nowrap; padding: 6px 0; }
+.s-more summary::-webkit-details-marker { display: none; }
+.s-more summary::after { content: " ▾"; font-size: 11px; }
+.s-more[open] summary { color: var(--s-primary); }
+.s-more-menu { position: absolute; right: 0; top: calc(100% + 10px); min-width: 220px; display: grid; gap: 2px; padding: 10px; background: #fff; border: 1px solid var(--s-line); border-radius: 12px; box-shadow: 0 16px 40px rgba(28, 20, 60, 0.14); z-index: 60; }
+.s-more-menu a { display: block; padding: 9px 12px; border-radius: 8px; text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; }
+.s-more-menu a:hover { background: var(--s-bg-soft); }
+@media (max-width: 1320px) { .s-nav { gap: 14px; } .s-nav a.sec { display: none; } .s-more { display: block; } }
+@media (max-width: 900px) { .s-nav > a:not(.s-btn) { display: none; } }
 @media (max-width: 760px) {
   .s-brand > span > span:last-child:not(:first-child) { display: none; }
   .s-nav { gap: 8px; }
@@ -223,3 +232,14 @@
 .s-close-box p { color: var(--s-muted); margin: 10px 0 0; }
 .s-close-box .s-actions { justify-content: flex-end; flex-wrap: nowrap; }
 @media (max-width: 760px) { .s-close-box { grid-template-columns: 1fr; padding: 28px 24px; } .s-close-box .s-actions { justify-content: flex-start; } }
+
+/* úvodná strana (skrátená) – „prečo overovať“ v dvoch stĺpcoch a karty-odkazy na podstránky */
+.s-why { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; align-items: start; margin-top: 8px; }
+.s-why .s-quote { margin: 0; }
+@media (max-width: 860px) { .s-why { grid-template-columns: 1fr; gap: 20px; } }
+.site a.s-card.s-teaser { text-decoration: none; color: inherit; grid-template-rows: auto auto auto 1fr; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.site a.s-card.s-teaser:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(42, 29, 92, 0.10); border-color: var(--s-primary-soft); }
+.s-teaser h3 { min-height: 0; margin-top: 8px; }
+.s-teaser .more { display: block; margin-top: 16px; align-self: end; color: var(--s-primary); font-weight: 600; font-size: 14px; }
+/* kotvy pod lepiacou hlavičkou */
+.site [id] { scroll-margin-top: 90px; }

@@ -141,3 +141,15 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - Tlač zhustená (prázdne údaje o obchode = jeden riadok), všetky varianty protokolu na 2 stranách.
 - **v1.7.1** – AI dohľadanie sa na verejnom webe už neuvádza (ostáva internou záložnou funkciou v klientskej sekcii na tlačidlo, predvolene vypnuté);
   demo meno vo všetkých ukážkach a testoch je Janko Mrkvička.
+
+## v1.8.0 – 4. 10. 2026 – web: podstránky a náhľad skrátenej úvodnej strany
+
+- Spätná väzba: príliš veľa textu na úvodnej strane, pôsobí chaoticky. Riešenie odsúhlasené: rozhodnutia súdov presunuté do `/pravny-zaklad`
+  (nová časť „4. Kľúčové rozhodnutia a ustanovenia v skratke“), nové podstránky **`/co-overujeme`**, **`/ako-to-funguje`**, **`/pre-koho`**
+  (verejné, v navigácii; na užších obrazovkách rozbaľovacie menu „Viac“).
+- Úplná porovnávacia tabuľka verzií je na `/objednavka#porovnanie` (pod formulárom); na úvodnej strane bude len 7 kľúčových riadkov s odkazom.
+- **Náhľad novej úvodnej strany na `/nahlad`** (noindex): úvod → Prečo overovať (jeden odsek, citát, odkaz) → tri karty-odkazy na podstránky →
+  skrátená tabuľka → O projekte (karty kancelárií bez úvodného odseku) → záverečná výzva. Pôvodná úvodná strana `/` zatiaľ bez zmeny obsahu
+  (len refaktor – zdieľané texty). Po odsúhlasení sa obsah `/nahlad` presunie do `app/page.tsx` a `/nahlad` sa zruší.
+- Kód: `app/components/site/content.tsx` (REGISTERS, FEATURES s príznakom `key`, CASES, STEPS, AUDIENCES, `CompareTable`), `app/components/site/Hero.tsx`
+  (`Hero`, `Firms`), `SiteShell.tsx` (`NavKey`, menu „Viac“), `app/site.css` (`.s-more`, `.s-why`, `.s-teaser`, kotvy pod hlavičkou), `proxy.ts` (PUBLIC).

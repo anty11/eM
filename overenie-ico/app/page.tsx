@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { FIRMS, PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
+import { PRODUCT, SiteFooter, SiteHeader } from "./components/site/SiteShell";
+import { FEATURES, REGISTERS } from "./components/site/content";
+import { Firms, Hero } from "./components/site/Hero";
 
 export const metadata: Metadata = {
   title: "Obozretne – overenie dodávateľa a odberateľa podľa IČO",
@@ -8,85 +10,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-const REGISTERS: { name: string; src: string }[] = [
-  { name: "Obchodný register a Register právnických osôb", src: "Štatistický úrad SR, Ministerstvo spravodlivosti SR" },
-  { name: "Zoznam daňových dlžníkov", src: "Finančná správa SR" },
-  { name: "Registrácia pre DPH a zoznam platiteľov s dôvodmi na zrušenie registrácie", src: "Finančná správa SR, EÚ VIES" },
-  { name: "Index daňovej spoľahlivosti", src: "Finančná správa SR" },
-  { name: "Podanie daňového priznania k dani z príjmov", src: "Finančná správa SR" },
-  { name: "Register účtovných závierok – tržby, zisk, vlastné imanie, záväzky", src: "Ministerstvo financií SR" },
-  { name: "Dlžníci Sociálnej poisťovne", src: "Sociálna poisťovňa" },
-  { name: "Konkurz, reštrukturalizácia, likvidácia", src: "Register úpadcov REPLIK" },
-  { name: "Register partnerov verejného sektora a koneční užívatelia výhod", src: "Ministerstvo spravodlivosti SR" },
-  { name: "Médiá a internet – správy o spoločnosti a jej štatutároch", src: "slovenské spravodajské weby" },
-  { name: "Vek spoločnosti, zmeny vlastníkov a štatutárov, predmet podnikania", src: "Obchodný register" },
-  { name: "Zoznam bankových účtov platiteľov DPH – overenie IBAN z faktúry", src: "Finančná správa SR" },
-  { name: "Kontrolný zoznam neverejných registrov (exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie)", src: "na manuálne overenie – verzia Rozšírené" },
-];
-
-const FEATURES: { name: string; note?: string; ext: boolean; std: boolean }[] = [
-  { name: "Všetkých 10 automatických zdrojov", note: "obchodný register, Finančná správa (dlžníci, DPH, index spoľahlivosti, daň z príjmov), Sociálna poisťovňa, závierky, konkurzy a likvidácie, RPVS, médiá", ext: true, std: true },
-  { name: "Výsledok, skóre a 9 kľúčových otázok k partnerovi", note: "vrátane chýbajúcich závierok za 2+ období ako dôvodu na zrušenie súdom", ext: true, std: true },
-  { name: "Údaje o obchode a indikátory rizika podľa Bulletinu SKDP 03/2024", note: "predmet obchodu vs. predmet podnikania, overenie IBAN v zozname účtov Finančnej správy, posúdenie indikátorov povereným zamestnancom", ext: true, std: true },
-  { name: "Dvojstranový PDF protokol s pečaťou", note: "čas preverenia, meno povereného zamestnanca, odtlačok SHA-256 a verejná overovacia stránka s kódom z protokolu", ext: true, std: true },
-  { name: "Databáza preverených spoločností s pripomienkou po 180 dňoch", note: "zdieľaná v rámci firmy, opakované preverenie jedným klikom", ext: true, std: true },
-  { name: "Karta kontaktu", note: "s kým u partnera komunikujete, kto od vás, overenie oprávnenia konať", ext: true, std: true },
-  { name: "Neobmedzený počet preverení", ext: true, std: true },
-  { name: "Kontrolný zoznam neverejných registrov so zápisom výsledku do protokolu", note: "exekúcie, zdravotné poisťovne, Obchodný vestník, diskvalifikácie, verejné obstarávanie – výsledok sa premietne do skóre", ext: true, std: false },
-  { name: "Spätné preverenie existujúcej spolupráce k rozhodnému dátumu", note: "čo bolo z registrov zistiteľné pri začiatku spolupráce; protokol je vždy vyhotovený k dnešku", ext: true, std: false },
-  { name: "Úvodné školenie poverených zamestnancov", ext: true, std: false },
-  { name: "Komunikácia s advokátom obratom pri rizikovom náleze", note: "prednostný kontakt na advokátske kancelárie poskytujúce odbornú záštitu; právne služby nie sú v cene a účtujú sa osobitne", ext: true, std: false },
-];
-
 export default function Home() {
-  const u = FIRMS.urban;
-  const l = FIRMS.lexnera;
   return (
     <div className="site">
       <SiteHeader active="home" />
 
-      <section className="s-hero">
-        <div className="s-wrap">
-          <div>
-            <span className="s-eyebrow">Overenie obchodného partnera</span>
-            <h1>Obchodujte obozretne. Partnera preveríte rýchlo, spoľahlivo a s protokolom.</h1>
-            <p className="s-lead">
-              Zadáte IČO a do pol minúty máte prehľad o dodávateľovi alebo odberateľovi: obchodný register, dane a DPH, poisťovne, konkurzy,
-              účtovné závierky aj médiá. Výsledkom je protokol s časom preverenia – doklad náležitej starostlivosti, akú od podnikateľov
-              očakáva judikatúra Súdneho dvora EÚ.
-            </p>
-            <div className="s-actions">
-              <a className="s-btn gold" href="/objednavka">Objednať pre našu firmu</a>
-              <a className="s-btn light" href="/login">Klientska sekcia</a>
-            </div>
-            <p className="s-note">
-              Overenie vykonáva vaša spoločnosť sama prostredníctvom poverených zamestnancov. Odbornú záštitu nad obsahom overenia poskytujú advokátske
-              kancelárie {u.short} a {l.short}.
-            </p>
-          </div>
-          <div className="s-proto" aria-hidden>
-            <div className="ph">
-              <span>Protokol o preverení</span>
-              <small>stav k dnešnému dňu</small>
-            </div>
-            <div className="verdict">
-              <div className="ring">96</div>
-              <div>
-                <div className="vl">ODPORÚČAME – bezpečný partner</div>
-                <small style={{ color: "var(--s-muted)" }}>Vzorová spoločnosť, s.r.o. · IČO 12 345 678</small>
-              </div>
-            </div>
-            <ul>
-              <li><span>Zoznam daňových dlžníkov</span><span className="pill ok">bez záznamu</span></li>
-              <li><span>Platiteľ DPH · dôvody na zrušenie</span><span className="pill ok">registrovaný</span></li>
-              <li><span>Dlžníci Sociálnej poisťovne</span><span className="pill ok">bez záznamu</span></li>
-              <li><span>Konkurz · likvidácia</span><span className="pill ok">bez konania</span></li>
-              <li><span>Účtovná závierka 2025</span><span className="pill ok">uložená</span></li>
-              <li><span>Zmena konateľa pred 40 dňami</span><span className="pill warn">upozornenie</span></li>
-            </ul>
-          </div>
-        </div>
-      </section>
+      <Hero />
 
       <section className="s-band" id="preco">
         <div className="s-wrap">
@@ -219,20 +148,7 @@ export default function Home() {
             <h2>Samostatný projekt s odbornou záštitou dvoch advokátskych kancelárií.</h2>
             <p>Rozsah overenia a hodnotenie rizika vychádzajú zo skúseností z daňových kontrol a súdnych konaní, v ktorých sa rozhodovalo práve o tom, či si podnikateľ svojho partnera preveril.</p>
           </div>
-          <div className="s-firms">
-            <div className="s-firm urban">
-              <div className="logo">URBAN<span>&amp;</span>PARTNERS<em>LAW FIRM</em></div>
-              <div className="tag">{u.tagline}</div>
-              <p>{u.about}</p>
-              <div className="meta"><a href={u.web} target="_blank" rel="noreferrer">{u.webLabel} →</a></div>
-            </div>
-            <div className="s-firm lexnera">
-              <div className="logo">LEXNERA<span>LEGAL</span></div>
-              <div className="tag">{l.tagline}</div>
-              <p>{l.about}</p>
-              <div className="meta"><a href={l.web} target="_blank" rel="noreferrer">{l.webLabel} →</a></div>
-            </div>
-          </div>
+          <Firms />
         </div>
       </section>
 

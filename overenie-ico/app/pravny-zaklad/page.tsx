@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PRODUCT, SiteFooter, SiteHeader } from "../components/site/SiteShell";
+import { CASES } from "../components/site/content";
 
 export const metadata: Metadata = {
   title: "Právny základ – prečo si podnikateľ musí overiť dodávateľa a odberateľa",
@@ -67,7 +68,14 @@ export default function LawPage() {
               rozhoduje dokumentácia z času pred obchodom, nie dodatočné vysvetlenia pri kontrole.
             </p>
 
-            <h2>4. Čo z toho vyplýva pre prax</h2>
+            <h2 id="rozhodnutia">4. Kľúčové rozhodnutia a ustanovenia v skratke</h2>
+            <ul className="s-cases" style={{ margin: "16px 0 8px" }}>
+              {CASES.map((c) => (
+                <li key={c.title}><b>{c.title}</b><span>{c.text}</span></li>
+              ))}
+            </ul>
+
+            <h2>5. Čo z toho vyplýva pre prax</h2>
             <p>Náležitá starostlivosť má v praxi tri zložky, ktoré aplikácia {PRODUCT} pokrýva:</p>
             <ul>
               <li><b>Overenie v registroch pred obchodom</b> – obchodný register, registrácia pre DPH a zoznamy Finančnej správy (dlžníci, dôvody na zrušenie registrácie, index spoľahlivosti), Sociálna poisťovňa, konkurzy a likvidácie, účtovné závierky, register partnerov verejného sektora, médiá.</li>
