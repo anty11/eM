@@ -1,5 +1,6 @@
 "use client";
 
+import { withOrg } from "./org";
 import { useEffect, useState } from "react";
 import type { CompanyProfile } from "@/lib/types";
 
@@ -34,12 +35,12 @@ export default function ContactCard({ ico, profile, meEmail, onChange }: { ico: 
 
   useEffect(() => {
     setMsg(null);
-    fetch(`/api/contacts?ico=${ico}`).then((r) => r.json()).then((j) => {
+    fetch(withOrg(`/api/contacts?ico=${ico}`)).then((r) => r.json()).then((j) => {
       const v = j && j.ico ? { ...EMPTY, ...j } : { ...EMPTY, owners: meEmail ? [meEmail] : [] };
       setC(v);
       setSaved(j && j.ico ? v : null);
     }).catch(() => {});
-    fetch("/api/directory").then((r) => r.json()).then((j) => Array.isArray(j) && setPeople(j)).catch(() => {});
+    fetch(withOrg("/api/directory")).then((r) => r.json()).then((j) => Array.isArray(j) && setPeople(j)).catch(() => {});
   }, [ico, meEmail]);
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function ContactCard({ ico, profile, meEmail, onChange }: { ico: 
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch(`/api/contacts?ico=${ico}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(c) });
+      const r = await fetch(withOrg(`/api/contacts?ico=${ico}`), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(c) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Uloženie zlyhalo.");
       setC({ ...EMPTY, ...j });

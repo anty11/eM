@@ -1,5 +1,6 @@
 "use client";
 
+import { withOrg } from "./org";
 import { useEffect, useMemo, useState } from "react";
 import type { CompanyRecord } from "@/lib/companies";
 import { STALE_DAYS, agoLabel } from "@/lib/ago";
@@ -31,7 +32,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
   async function load() {
     setErr("");
     try {
-      const r = await fetch("/api/companies");
+      const r = await fetch(withOrg("/api/companies"));
       if (!r.ok) throw new Error(`Chyba ${r.status}`);
       setRows(await r.json());
     } catch (e) {
@@ -40,7 +41,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
   }
   useEffect(() => {
     load();
-    fetch("/api/directory").then((r) => r.json()).then((j) => Array.isArray(j) && setPeople(j)).catch(() => {});
+    fetch(withOrg("/api/directory")).then((r) => r.json()).then((j) => Array.isArray(j) && setPeople(j)).catch(() => {});
   }, []);
 
   const shown = useMemo(() => {
@@ -55,7 +56,7 @@ export default function CompanyList({ me }: { me?: Me | null }) {
 
   async function remove(ico: string, name: string) {
     if (!confirm(`Odstrániť ${name || ico} zo zoznamu preverených spoločností?`)) return;
-    const r = await fetch(`/api/companies?ico=${ico}`, { method: "DELETE" });
+    const r = await fetch(withOrg(`/api/companies?ico=${ico}`), { method: "DELETE" });
     if (r.ok) setRows((s) => (s || []).filter((x) => x.ico !== ico));
     else setErr("Odstránenie zlyhalo.");
   }

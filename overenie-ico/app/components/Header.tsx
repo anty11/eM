@@ -2,12 +2,38 @@
 
 import { useEffect, useState } from "react";
 import { Wordmark } from "./Logo";
+import { selectedOrg, setSelectedOrg } from "./org";
 
 export interface Me {
   email: string;
   role: "admin" | "user";
   mode?: "firma" | "advokat";
   name?: string;
+  orgId?: string;
+  orgName?: string;
+}
+
+interface OrgRow { id: string; name: string; mode: "firma" | "advokat"; disabled?: boolean; used: number; seats: number }
+
+/** Výber firmy, v mene ktorej správca platformy pracuje (preverenia, databáza, kontakty). */
+export function OrgPicker() {
+  const [orgs, setOrgs] = useState<OrgRow[]>([]);
+  const [sel, setSel] = useState("");
+  useEffect(() => {
+    setSel(selectedOrg());
+    fetch("/api/admin/orgs").then((r) => r.json()).then((j) => Array.isArray(j) && setOrgs(j)).catch(() => {});
+  }, []);
+  return (
+    <select
+      className="org-pick no-print"
+      value={sel}
+      onChange={(e) => { setSelectedOrg(e.target.value); location.reload(); }}
+      title="Firma, v mene ktorej pracujete"
+    >
+      <option value="">– zvoľte firmu –</option>
+      {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}{o.disabled ? " (pozastavená)" : ""}</option>)}
+    </select>
+  );
 }
 
 export function useMe() {
@@ -42,6 +68,7 @@ export default function Header({ me, active }: { me?: Me | null; active?: "check
             <a href="/app" style={{ fontWeight: active === "check" ? 600 : 400 }}>Preverenie</a>
             {me.role === "admin" && <a href="/admin" style={{ fontWeight: active === "admin" ? 600 : 400 }}>Administrácia</a>}
             <a href="/account" style={{ fontWeight: active === "account" ? 600 : 400 }}>Preverené spoločnosti</a>
+            {me.role === "admin" ? <OrgPicker /> : me.orgName && <span className="who org" title="Vaša spoločnosť">{me.orgName}</span>}
             <a href="/account" className="who" title="Môj účet">{me.name || me.email}</a>
             <button className="linkbtn" onClick={logout}>Odhlásiť</button>
           </nav>

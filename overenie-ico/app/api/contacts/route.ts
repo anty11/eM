@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { directory } from "@/lib/auth/users";
-import { handler, requireUser } from "@/lib/auth/guard";
+import { handler, orgScope, requireUser } from "@/lib/auth/guard";
 import { getContact, saveContact } from "@/lib/contacts";
 import { normalizeIco } from "@/lib/ico";
 
@@ -14,16 +14,18 @@ const icoOf = (req: Request) => {
 };
 
 export const GET = handler(async (req) => {
-  await requireUser();
-  return NextResponse.json((await getContact(icoOf(req))) || null);
+  const me = await requireUser();
+  const orgId = orgScope(me, new URL(req.url).searchParams.get("org"));
+  return NextResponse.json((await getContact(orgId, icoOf(req))) || null);
 });
 
 export const PUT = handler(async (req) => {
   const me = await requireUser();
+  const orgId = orgScope(me, new URL(req.url).searchParams.get("org"));
   const ico = icoOf(req);
   try {
-    const allowed = (await directory()).map((u) => u.email);
-    return NextResponse.json(await saveContact(ico, await req.json(), me.email, allowed));
+    const allowed = (await directory(orgId)).map((u) => u.email);
+    return NextResponse.json(await saveContact(orgId, ico, await req.json(), me.email, allowed));
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }

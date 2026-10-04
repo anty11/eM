@@ -124,6 +124,8 @@ export interface ScanReport {
   asOf?: string;
   /** Kto preverenie spustil – len meno povereného zamestnanca, bez e-mailu (doplní API; e-mail ostáva v audite). */
   scannedBy?: string;
+  /** Názov firmy, ktorá preverenie vykonala (do hlavičky protokolu) */
+  orgName?: string;
   /** Dostupnosť záložného AI vyhľadávania (doplní API). */
   ai?: { available: boolean; auto?: boolean; noApiSources?: boolean; provider?: string };
 }

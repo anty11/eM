@@ -163,3 +163,22 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „dokument sa pripravuje“, šablóna `app/components/site/LegalPage.tsx`, zoznam `LEGAL_DOCS` v `SiteShell.tsx`); „Overiť protokol“ vypustené
   z hornej navigácie aj päty – odkaz je pod prihlasovacím formulárom (`/login`) a adresa je v PDF; objednávka: nadpis, formulár a tabuľka
   v jednom vycentrovanom stĺpci 780 px.
+
+## v2.0.0 – 4. 10. 2026 – viacfiremný režim: každá firma vidí len svoje dáta
+
+- **Model:** správcovia platformy (prevádzkovateľ; 2 – 3 účty, vznikajú výlučne cez `ADMIN_EMAILS` + `ADMIN_SETUP_CODE`, nedajú sa kúpiť ani
+  vytvoriť v aplikácii) → **firmy** (klienti; názov, IČO, balík Štandard / Rozšírené, počet používateľských miest, stav aktívna / pozastavená)
+  → **používatelia** firmy (patria práve do jednej firmy; počet obmedzený miestami). Správcu firmy zatiaľ nemáme – používateľov spravuje len prevádzkovateľ.
+- **Oddelenie dát:** preverenia, databáza preverených spoločností, karty kontaktov, protokol činností a adresár kolegov sú uložené pod kľúčmi
+  `org:<id>:…` (`lib/orgs.ts` → `orgKey`). Každé API určí firmu cez `orgScope()`: používateľ vždy len vlastnú (parameter `org` sa ignoruje),
+  správca platformy musí firmu zvoliť (`?org=`, výber v hornej lište ukladaný v prehliadači), inak chyba – nikdy sa nespadne do cudzej firmy.
+  Pečať protokolu nesie `orgId`/`orgName`; číslo protokolu patrí firme, ktorá ho zapečatila prvá. Verzia Štandard / Rozšírené je vlastnosťou firmy.
+- **Prihlásenie:** pozastavená firma = jej používatelia sa neprihlásia a existujúce relácie prestanú platiť; používateľ bez firmy sa neprihlási.
+- **Administrácia:** panel Firmy (založenie, balík, miesta, pozastavenie, poznámka; „Založiť firmu“ priamo z objednávky), používatelia zvolenej firmy
+  (pridanie len do voľných miest, nový kód, blokovanie, meno, zmazanie), zoznam správcov platformy (len nový kód a meno), protokol činností
+  s výberom firmy / platformy. Protokol PDF a overovacia stránka uvádzajú názov preverujúcej firmy.
+- **Prechod:** pri prvom prihlásení po nasadení sa – ak existujú doterajšie dáta – založí firma `test` („Obozretne – test“, Rozšírené, 10 miest),
+  doterajší používatelia sa do nej priradia a pôvodná databáza preverení, karty kontaktov a protokol činností sú pre ňu dostupné (`LEGACY_ORG`).
+  Pri čistej inštalácii sa nič nevytvára. Správcovia platformy ostávajú bez firmy.
+- Kód: `lib/orgs.ts`, `lib/auth/{users,guard}.ts`, `lib/{companies,contacts,audit,seal}.ts`, `app/api/admin/orgs`, `app/api/admin/users`,
+  `app/components/{OrgsPanel,org,Header}.tsx`, `app/admin/page.tsx`. Testy: `test/orgs.test.ts` (oddelenie a prechod), aktualizované auth/companies/seal.

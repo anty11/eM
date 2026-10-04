@@ -1,12 +1,13 @@
 import { listAudit } from "./audit";
 import { kv } from "./auth/kv";
 import { STALE_DAYS, daysSince } from "./ago";
+import { LEGACY_ORG, orgKey } from "./orgs";
 
 export { STALE_DAYS, daysSince, agoLabel } from "./ago";
 
 /**
- * Databáza už preverených spoločností – jeden záznam na IČO s posledným preverením.
- * Zdieľa ju celá kancelária: ak kolega preveril firmu pred týždňom, netreba to robiť znova.
+ * Databáza už preverených spoločností – jeden záznam na IČO s posledným preverením, oddelene pre každú firmu (orgId).
+ * Zdieľajú ju kolegovia v rámci firmy: ak kolega preveril partnera pred týždňom, netreba to robiť znova.
  * Po 180 dňoch sa záznam označí ako zastaraný (odporúčané opakované preverenie).
  */
 export interface CompanyRecord {
@@ -23,10 +24,11 @@ export interface CompanyRecord {
   count: number;
 }
 
-const KEY = "companies";
-const SEEDED = "companies:seeded";
+const LEGACY_KEY = "companies";
+const KEY = (orgId: string) => orgKey(orgId, "companies");
+const SEEDED = (orgId: string) => orgKey(orgId, "companies:seeded");
 
-export async function recordScan(e: {
+export async function recordScan(orgId: string, e: {
   ico: string;
   name?: string;
   by: string;
@@ -36,14 +38,14 @@ export async function recordScan(e: {
   at?: string;
 }) {
   try {
-    await seedFromAudit();
-    await write(e);
+    await seedFromAudit(orgId);
+    await write(orgId, e);
   } catch (err) {
     console.error("záznam spoločnosti zlyhal", err);
   }
 }
 
-async function write(e: {
+async function write(orgId: string, e: {
   ico: string;
   name?: string;
   by: string;
@@ -53,7 +55,7 @@ async function write(e: {
   at?: string;
 }) {
   const at = e.at || new Date().toISOString();
-  const prevRaw = await kv().hget(KEY, e.ico);
+  const prevRaw = await kv().hget(KEY(orgId), e.ico);
   const prev = prevRaw ? (JSON.parse(prevRaw) as CompanyRecord) : null;
   const rec: CompanyRecord = {
     ico: e.ico,
@@ -66,22 +68,35 @@ async function write(e: {
     firstAt: prev && prev.firstAt < at ? prev.firstAt : at,
     count: (prev?.count || 0) + 1,
   };
-  await kv().hset(KEY, { [e.ico]: JSON.stringify(rec) });
+  await kv().hset(KEY(orgId), { [e.ico]: JSON.stringify(rec) });
 }
 
-/** Jednorazovo doplní databázu zo starších záznamov auditu (preverenia pred zavedením databázy). Volá sa pred každým zápisom aj čítaním. */
-let seeding: Promise<void> | null = null;
-async function seedFromAudit() {
-  if (await kv().get(SEEDED)) return;
-  if (!seeding) seeding = doSeed().finally(() => (seeding = null));
-  return seeding;
+/**
+ * Jednorazové doplnenie databázy firmy: z jej protokolu činností (preverenia pred zavedením databázy) a pre firmu LEGACY_ORG
+ * aj z pôvodnej spoločnej databázy spred viacfiremného režimu. Volá sa pred každým zápisom aj čítaním (po prvý raz niečo urobí).
+ */
+const seeding = new Map<string, Promise<void>>();
+async function seedFromAudit(orgId: string) {
+  if (await kv().get(SEEDED(orgId))) return;
+  let p = seeding.get(orgId);
+  if (!p) {
+    p = doSeed(orgId).finally(() => seeding.delete(orgId));
+    seeding.set(orgId, p);
+  }
+  return p;
 }
-async function doSeed() {
-  await kv().set(SEEDED, new Date().toISOString());
-  const scans = await listAudit({ type: "scan", limit: 5000 });
+async function doSeed(orgId: string) {
+  await kv().set(SEEDED(orgId), new Date().toISOString());
+  if (orgId === LEGACY_ORG) {
+    for (const v of Object.values(await kv().hgetall(LEGACY_KEY))) {
+      const c = JSON.parse(v) as CompanyRecord;
+      await kv().hset(KEY(orgId), { [c.ico]: JSON.stringify(c) });
+    }
+  }
+  const scans = await listAudit({ orgId, type: "scan", limit: 5000 });
   for (const s of scans.reverse()) {
     if (!s.ico || s.verdict === "not_found") continue; // nenájdené IČO do databázy nepatrí
-    await write({
+    await write(orgId, {
       ico: s.ico,
       name: s.company,
       by: s.by,
@@ -91,14 +106,15 @@ async function doSeed() {
       at: s.at,
     });
   }
-  await kv().set(SEEDED, new Date().toISOString());
+  await kv().set(SEEDED(orgId), new Date().toISOString());
 }
 
 export async function listCompanies(
+  orgId: string,
   opts: { by?: string } = {},
 ): Promise<(CompanyRecord & { days: number; stale: boolean })[]> {
-  await seedFromAudit();
-  const all = Object.values(await kv().hgetall(KEY)).map(
+  await seedFromAudit(orgId);
+  const all = Object.values(await kv().hgetall(KEY(orgId))).map(
     (v) => JSON.parse(v) as CompanyRecord,
   );
   const now = Date.now();
@@ -111,6 +127,6 @@ export async function listCompanies(
     .sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1));
 }
 
-export async function removeCompany(ico: string) {
-  await kv().hdel(KEY, ico);
+export async function removeCompany(orgId: string, ico: string) {
+  await kv().hdel(KEY(orgId), ico);
 }

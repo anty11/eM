@@ -24,6 +24,9 @@ export interface Seal {
   score: number;
   /** Len meno povereného zamestnanca (bez e-mailu) */
   by: string;
+  /** Firma, ktorá preverenie vykonala (názov sa zobrazuje na overovacej stránke) */
+  orgId?: string;
+  orgName?: string;
   /** Náhodný overovací kód (rovnaký pre všetky pečate protokolu) – bez neho overovacia stránka nič neukáže, číslo protokolu je totiž uhádnuteľné */
   code: string;
   appVersion?: string;
@@ -33,6 +36,8 @@ export interface Seal {
 
 const key = (scanId: string) => `seals:${scanId}`;
 const codeKey = (scanId: string) => `sealcode:${scanId}`;
+/** Ktorej firme číslo protokolu patrí – iná firma s rovnakým číslom (ten istý partner v tej istej sekunde) pečať nedostane. */
+const ownerKey = (scanId: string) => `sealorg:${scanId}`;
 const MAX = 50;
 
 /** 10 znakov z abecedy bez zameniteľných znakov (0/O, 1/I/L) – do PDF a do adresy */
@@ -88,8 +93,11 @@ export function protocolDigestInput(p: { scanId: string; ico: string; scannedAt:
 
 export const SCAN_ID_RE = /^SK-\d{6,8}-\d{14}$/;
 
-export async function sealProtocol(input: Parameters<typeof protocolDigestInput>[0] & { company?: string; verdictLevel: string; score: number; by: string }): Promise<Seal> {
+export async function sealProtocol(input: Parameters<typeof protocolDigestInput>[0] & { company?: string; verdictLevel: string; score: number; by: string; orgId: string; orgName?: string }): Promise<Seal> {
   if (!SCAN_ID_RE.test(input.scanId)) throw new Error("Neplatné číslo protokolu.");
+  const owner = await kv().get<string>(ownerKey(input.scanId));
+  if (owner && owner !== input.orgId) throw new Error("Číslo protokolu už patrí inému prevereniu – spustite preverenie znova.");
+  if (!owner) await kv().set(ownerKey(input.scanId), input.orgId);
   const hash = sha256(canonical(protocolDigestInput(input)));
   const existing = await kv().lrange<Seal>(key(input.scanId), 0, MAX - 1);
   const code = await codeFor(input.scanId);
@@ -107,11 +115,13 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
     verdict: input.verdictLevel,
     score: input.score,
     by: input.by,
+    orgId: input.orgId,
+    orgName: input.orgName,
     code,
     appVersion: input.appVersion,
   };
   await kv().lpush(key(input.scanId), seal, MAX);
-  await audit({ type: "protocol_sealed", by: input.by, ico: input.ico, company: input.company, scanId: input.scanId, detail: `${hash.slice(0, 16)}… #${seal.seq}` });
+  await audit({ type: "protocol_sealed", by: input.by, orgId: input.orgId, ico: input.ico, company: input.company, scanId: input.scanId, detail: `${hash.slice(0, 16)}… #${seal.seq}` });
   return seal;
 }
 

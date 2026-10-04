@@ -12,7 +12,7 @@ const PLAN: Record<Order["plan"], string> = { standard: "Štandard", rozsirene: 
 const fmt = (iso: string) => new Date(iso).toLocaleString("sk-SK", { dateStyle: "medium", timeStyle: "short" });
 
 /** Objednávky z verejného webu – administrátor ich tu vidí a mení stav. */
-export default function OrdersPanel() {
+export default function OrdersPanel({ onCreateOrg }: { onCreateOrg?: (o: Order) => void } = {}) {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [err, setErr] = useState("");
   const [showDone, setShowDone] = useState(false);
@@ -39,7 +39,8 @@ export default function OrdersPanel() {
     <section className="card">
       <h2>Objednávky z webu ({orders?.length ?? "…"}){open > 0 && <span className="pill s-warning" style={{ marginLeft: 8 }}>{open} nových</span>}</h2>
       <p className="hint" style={{ marginTop: 0 }}>
-        Objednávky odoslané z verejnej stránky /objednavka. Po oslovení klienta zmeňte stav; prístupy mu vytvoríte v časti Pridať používateľov.
+        Objednávky odoslané z verejnej stránky /objednavka. Po oslovení klienta zmeňte stav; po podpise zmluvy tlačidlom „Založiť firmu“ predvyplníte
+        novú firmu (názov, IČO, balík, počet miest) a potom jej v časti Používatelia pridáte poverených zamestnancov.
         {" "}Upozornenie e-mailom pošle aplikácia len vtedy, ak je nastavená premenná <code>ORDER_WEBHOOK_URL</code>.
       </p>
       <div className="filters">
@@ -64,6 +65,7 @@ export default function OrdersPanel() {
                   <td><span className={`pill ${STATUS[o.status].cls}`}>{STATUS[o.status].label}</span></td>
                   <td>
                     <div className="row-actions">
+                      {onCreateOrg && o.status !== "done" && <button className="mbtn" onClick={() => onCreateOrg(o)}>Založiť firmu</button>}
                       {o.status !== "contacted" && <button className="mbtn" onClick={() => setStatus(o.id, "contacted")}>Oslovená</button>}
                       {o.status !== "done" && <button className="mbtn" onClick={() => setStatus(o.id, "done")}>Vybavená</button>}
                       {o.status === "done" && <button className="mbtn" onClick={() => setStatus(o.id, "new")}>Otvoriť znova</button>}

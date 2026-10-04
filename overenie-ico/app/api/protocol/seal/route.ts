@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { handler, requireUser } from "@/lib/auth/guard";
+import { handler, orgScope, requireUser } from "@/lib/auth/guard";
+import { getOrg } from "@/lib/orgs";
 import { sealProtocol } from "@/lib/seal";
 
 export const runtime = "nodejs";
@@ -11,6 +12,9 @@ export const dynamic = "force-dynamic";
  */
 export const POST = handler(async (req) => {
   const me = await requireUser();
+  const orgId = orgScope(me, new URL(req.url).searchParams.get("org"));
+  const org = me.org && me.org.id === orgId ? me.org : await getOrg(orgId);
+  if (!org) return NextResponse.json({ error: "Firma neexistuje." }, { status: 404 });
   const b = await req.json().catch(() => null);
   if (!b || typeof b.scanId !== "string" || typeof b.ico !== "string" || typeof b.scannedAt !== "string" || !b.verdict || !Array.isArray(b.checks))
     return NextResponse.json({ error: "Neúplný obsah protokolu." }, { status: 400 });
@@ -33,6 +37,8 @@ export const POST = handler(async (req) => {
       verdictLevel: String(b.verdict.level || ""),
       score: Number(b.verdict.score ?? 0),
       by: me.name || "poverený zamestnanec",
+      orgId,
+      orgName: org.name,
     });
     return NextResponse.json(seal);
   } catch (e) {

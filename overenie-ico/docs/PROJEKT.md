@@ -26,6 +26,16 @@ používateľov spravujú administrátori.
 | Demo mená | Vo všetkých ukážkach, demo dátach (`DEMO_DATA=1`), testoch a snímkach sa používa **Janko Mrkvička** (štatutár/spoločník/zamestnanec), bývalý spoločník Ferko Mrkvička, kolegyňa Janka Mrkvičková – nikdy skutočné mená ani e-maily. |
 | Testovacie IČO | **47244895** – URBAN & PARTNERS s.r.o. (predtým URBAN GAŠPEREC BOŠANSKÝ, URBAN STEINECKER GAŠPEREC BOŠANSKÝ); médiá musia nájsť články z r. 2022 (NAKA, korupcia) → očakávaný verdikt S VÝHRADOU |
 
+## Firmy a používatelia (od v2.0.0)
+
+| Rola | Kto | Vznik | Vidí |
+|---|---|---|---|
+| Správca platformy (`role: admin`, bez firmy) | prevádzkovateľ, 2 – 3 účty | len `ADMIN_EMAILS` + prvé prihlásenie kódom `ADMIN_SETUP_CODE`; nikdy objednávkou ani v aplikácii | všetky firmy; pracuje v mene firmy zvolenej v hornej lište (`?org=`) |
+| Firma (`Org`) | klient | správca po podpise zmluvy (Administrácia → Firmy, aj z objednávky) | len vlastné dáta: používatelia, preverenia, databáza preverení, kontakty, protokol činností |
+| Používateľ (`role: user`, `orgId`) | poverený zamestnanec klienta | správca pridá e-mail do firmy (do výšky miest), zamestnanec si nastaví heslo kódom | len vlastnú firmu; parameter `org` sa preňho ignoruje |
+
+Pravidlo: každý zápis a čítanie firemných dát ide cez `orgScope(me, requested)` a kľúče `orgKey(orgId, …)`. Balík Štandard / Rozšírené je na firme (`org.mode`), nie na používateľovi.
+
 ## Technológie
 
 Next.js 16 (App Router, route handlers, `proxy.ts` ako middleware, `after()`, `instrumentation.ts`), React 19,
@@ -39,6 +49,9 @@ Lokálne bez internetu: `DEMO_DATA=1 npm run dev`.
 
 | Súbor | Úloha |
 |---|---|
+| `lib/orgs.ts` | firmy (klienti): model, CRUD, `orgKey`, `effectiveMode`, prechod na viacfiremný režim (`LEGACY_ORG`) |
+| `lib/auth/guard.ts` | `requireUser` (vracia aj firmu), `orgScope` – jediné miesto, ktoré určuje, s ktorou firmou API pracuje |
+| `app/components/OrgsPanel.tsx`, `app/components/org.ts` | panel Firmy v administrácii; zvolená firma správcu v prehliadači (`withOrg`) |
 | `lib/scan.ts` | spustí všetky zdroje naraz, limit 25 s (`DEADLINE_MS`), každý výsledok hneď odošle cez `onProgress`; `runOne()` zopakuje jeden zdroj (tlačidlo „Skúsiť znova“); `APP_VERSION` |
 | `lib/sources/meta.ts` | názvy, kategórie a adresy automatických zdrojov, `pendingCheck()` |
 | `lib/sources/rpo.ts` | RPO (api.statistics.sk): identita, štatutári, vlastníci, činnosti, dátumy zmien, zrušenie/likvidácia (kritické) |

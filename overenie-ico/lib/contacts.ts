@@ -1,9 +1,10 @@
 import { audit } from "./audit";
 import { kv } from "./auth/kv";
+import { LEGACY_ORG, orgKey } from "./orgs";
 
 /**
  * Kontaktná karta partnera (podľa IČO): s kým u partnera komunikujeme a kto z našich zamestnancov je za neho zodpovedný.
- * Ukladá sa v databáze, zdieľa ju celá firma a zobrazí sa pri každom ďalšom preverení toho istého IČO.
+ * Ukladá sa oddelene pre každú firmu (orgId), zdieľajú ju kolegovia v rámci firmy a zobrazí sa pri každom ďalšom preverení toho istého IČO.
  */
 export interface Contact {
   ico: string;
@@ -26,14 +27,17 @@ export interface Contact {
   updatedBy: string;
 }
 
-const key = (ico: string) => `contact:${ico}`;
+const key = (orgId: string, ico: string) => orgKey(orgId, `contact:${ico}`);
+const legacyKey = (ico: string) => `contact:${ico}`;
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
-export async function getContact(ico: string): Promise<Contact | null> {
-  return kv().get<Contact>(key(ico));
+export async function getContact(orgId: string, ico: string): Promise<Contact | null> {
+  const c = await kv().get<Contact>(key(orgId, ico));
+  if (c || orgId !== LEGACY_ORG) return c;
+  return kv().get<Contact>(legacyKey(ico)); // karty spred viacfiremného režimu
 }
 
-export async function saveContact(ico: string, input: Partial<Contact>, by: string, allowedOwners: string[]): Promise<Contact> {
+export async function saveContact(orgId: string, ico: string, input: Partial<Contact>, by: string, allowedOwners: string[]): Promise<Contact> {
   const email = str(input.email, 120);
   if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) throw new Error("Neplatný e-mail kontaktnej osoby.");
   const phone = str(input.phone, 40);
@@ -54,10 +58,11 @@ export async function saveContact(ico: string, input: Partial<Contact>, by: stri
     updatedAt: new Date().toISOString(),
     updatedBy: by,
   };
-  await kv().set(key(ico), c);
+  await kv().set(key(orgId, ico), c);
   await audit({
     type: "contact_saved",
     by,
+    orgId,
     ico,
     detail: [c.active ? "komunikujeme" : "nekomunikujeme", c.personName, c.phone, c.email, owners.length ? `zodpovední: ${owners.join(", ")}` : ""]
       .filter(Boolean)

@@ -5,4 +5,7 @@ import { toPublic } from "@/lib/auth/users";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const GET = handler(async () => NextResponse.json(toPublic(await requireUser())));
+export const GET = handler(async () => {
+  const me = await requireUser();
+  return NextResponse.json(toPublic(me, me.org));
+});

@@ -1,5 +1,6 @@
 "use client";
 
+import { selectedOrg, withOrg } from "../components/org";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applyManual, computeVerdict, type ManualAnswers } from "@/lib/scoring";
 import { CATEGORIES, type CategoryId, type CheckResult, type ScanReport } from "@/lib/types";
@@ -130,7 +131,7 @@ export default function Page() {
         setLoading(false);
         return;
       }
-      const r = await fetch(`/api/check?ico=${v}&stream=1${asOf}`);
+      const r = await fetch(withOrg(`/api/check?ico=${v}&stream=1${asOf}`));
       if (r.status === 401) {
         location.href = `/login?next=${encodeURIComponent(`/app?ico=${v}`)}`;
         return;
@@ -168,7 +169,7 @@ export default function Page() {
           buf = buf.slice(nl + 1);
           if (!line) continue;
           const ev = JSON.parse(line);
-          if (ev.type === "start") live = { ...live, scannedBy: ev.scannedBy, ai: ev.ai };
+          if (ev.type === "start") live = { ...live, scannedBy: ev.scannedBy, orgName: ev.orgName, ai: ev.ai };
           else if (ev.type === "check") {
             const i = live.checks.findIndex((c) => c.id === ev.check.id);
             const checksNext = i >= 0 ? live.checks.map((c, k) => (k === i ? ev.check : c)) : [...live.checks, ev.check];
@@ -247,7 +248,7 @@ export default function Page() {
     setSealing(true);
     setSealErr("");
     try {
-      const r = await fetch("/api/protocol/seal", {
+      const r = await fetch(withOrg("/api/protocol/seal"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scanId: report.scanId, ico: report.ico, scannedAt: report.scannedAt, asOf: report.asOf, profile, checks, verdict, keyFacts: facts, deal, contact: contactSnap, note, author, appVersion: report.appVersion }),
@@ -380,6 +381,9 @@ export default function Page() {
               ? "Overí partnera vo verejných registroch, v závierkach a v médiách. Čo nie je verejne dostupné, aplikácia ponúkne poverenému zamestnancovi na manuálne overenie s odkazom na register. Výsledkom je hodnotenie rizika a protokol s časom preverenia."
               : "Zadajte IČO a do pol minúty uvidíte, či je spoločnosť bezpečný partner: obchodný register, dane a DPH, poisťovne, konkurzy, závierky aj médiá. Výsledok si uložíte ako PDF."}
           </p>
+          {me?.role === "admin" && !selectedOrg() && (
+            <div className="err" style={{ marginBottom: 12 }}>Ako správca platformy najprv v hornej lište zvoľte firmu, v mene ktorej preverujete – preverenie sa zapíše do jej databázy a protokolu.</div>
+          )}
           <form
             className="search"
             onSubmit={(e) => {
@@ -450,7 +454,7 @@ export default function Page() {
                 <div className="ph-co">{p.name || "Neznámy subjekt"} · IČO {p.ico}</div>
               </div>
               {report.asOf && <div className="ph-retro">Spätné preverenie vyhotovené {fmtDate(report.scannedAt)} k rozhodnému dátumu začiatku spolupráce {new Date(report.asOf).toLocaleDateString("sk-SK")}</div>}
-              <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.scannedBy ? ` · Preveril ${report.scannedBy}` : ""} · {lawyer ? "rozšírené overenie" : "štandardné overenie"}</div>
+              <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.orgName ? ` · Preverila ${report.orgName}` : ""}{report.scannedBy ? ` (${report.scannedBy})` : ""} · {lawyer ? "rozšírené overenie" : "štandardné overenie"}</div>
             </div>
 
             {pendingCount > 0 ? (

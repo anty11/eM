@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 export const GET = handler(async (req) => {
   await requireUser({ admin: true });
   const p = new URL(req.url).searchParams;
-  const events = await listAudit({ limit: Number(p.get("limit")) || 500, type: p.get("type") || undefined, q: p.get("q") || undefined });
+  // ?org=<id> protokol firmy, bez parametra protokol platformy
+  const events = await listAudit({ orgId: p.get("org") || undefined, limit: Number(p.get("limit")) || 500, type: p.get("type") || undefined, q: p.get("q") || undefined });
   if (p.get("format") === "csv") {
     const cols = ["at", "type", "by", "ico", "company", "verdict", "score", "scanId", "target", "detail"] as const;
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;

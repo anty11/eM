@@ -4,6 +4,7 @@ import { listAudit } from "../lib/audit";
 import { useMemoryKV } from "../lib/auth/kv";
 import { signSession, verifySession } from "../lib/auth/session";
 import { getContact, saveContact } from "../lib/contacts";
+import { createOrg, updateOrg } from "../lib/orgs";
 import {
   addUsers, directory, changePassword, deleteUser, getUser, listUsers, login, parseEmailList, resetUser, setPasswordWithCode, updateUser,
 } from "../lib/auth/users";
@@ -29,8 +30,13 @@ async function main() {
   assert.equal(admin.role, "admin");
   assert.equal((await login("antonin.cajka@publicis.no", "SilneHeslo2026!", ip)).role, "admin");
 
-  // Hromadné pridanie
-  const res = await addUsers("jana@kancelaria.sk, peter@kancelaria.sk\nzly@\nantonin.cajka@publicis.no", "user", admin.email);
+  // Firma klienta a hromadné pridanie jej používateľov (obmedzené počtom miest)
+  const org = await createOrg({ name: "Kancelária s.r.o.", ico: "12345678", mode: "firma", seats: 2 }, admin.email);
+  await rejects(addUsers("a@k.sk, b@k.sk, c@k.sk", org.id, admin.email), /miest/);
+  await rejects(addUsers("a@k.sk", "neexistuje", admin.email), /Firma neexistuje/);
+  await updateOrg(org.id, { seats: 5 });
+  const res = await addUsers("jana@kancelaria.sk, peter@kancelaria.sk\nzly@\nantonin.cajka@publicis.no", org.id, admin.email);
+  assert.equal((await getUser("jana@kancelaria.sk"))!.orgId, org.id);
   const by = (e: string) => res.find((r) => r.email === e)!;
   assert.equal(by("jana@kancelaria.sk").result, "created");
   assert.match(by("jana@kancelaria.sk").code!, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
@@ -68,47 +74,54 @@ async function main() {
   await changePassword("jana@kancelaria.sk", "NoveHesloJany26", "DalsieHeslo2026");
   await login("jana@kancelaria.sk", "DalsieHeslo2026", ip);
 
-  // Blokovanie a roly
+  // Blokovanie, pozastavenie firmy
   await updateUser("jana@kancelaria.sk", { disabled: true }, admin.email);
   await rejects(login("jana@kancelaria.sk", "DalsieHeslo2026", ip), /Nesprávny/);
   await updateUser("jana@kancelaria.sk", { disabled: false }, admin.email);
-  await updateUser("jana@kancelaria.sk", { role: "admin" }, admin.email);
-  assert.equal((await getUser("jana@kancelaria.sk"))!.role, "admin");
-  await rejects(updateUser(admin.email, { role: "user" }, admin.email), /sami seba/);
+  await updateOrg(org.id, { disabled: true });
+  await rejects(login("jana@kancelaria.sk", "DalsieHeslo2026", ip), /pozastavený/);
+  await updateOrg(org.id, { disabled: false });
+  await login("jana@kancelaria.sk", "DalsieHeslo2026", ip);
+  await rejects(updateUser(admin.email, { disabled: true }, admin.email), /sami seba/);
   await rejects(deleteUser(admin.email, admin.email), /sami seba/);
-  await updateUser("jana@kancelaria.sk", { role: "user" }, admin.email);
   await rejects(updateUser(admin.email, { disabled: true }, "jana@kancelaria.sk"), /aspoň jeden/);
   await deleteUser("peter@kancelaria.sk", admin.email);
   assert.equal(await getUser("peter@kancelaria.sk"), null);
   const list = await listUsers();
   assert.deepEqual(list.map((u) => [u.email, u.status]), [["antonin.cajka@publicis.no", "active"], ["jana@kancelaria.sk", "active"]]);
+  assert.deepEqual((await listUsers(org.id)).map((u) => u.email), ["jana@kancelaria.sk"], "zoznam firmy obsahuje len jej používateľov");
   assert.ok(!("passwordHash" in list[0]) && !("invite" in list[0]), "zoznam nesmie obsahovať hash hesla ani kód");
 
   // Obmedzenie pokusov
   for (let i = 0; i < 8; i++) await login("jana@kancelaria.sk", "zle-heslo-xx", "9.9.9.9").catch(() => {});
   await rejects(login("jana@kancelaria.sk", "DalsieHeslo2026", "9.9.9.9"), /Príliš veľa/);
 
-  // Verzia a meno
-  await updateUser("jana@kancelaria.sk", { mode: "advokat", name: "Janka Mrkvičková" }, admin.email);
+  // Verzia podľa balíka firmy; meno
+  await updateUser("jana@kancelaria.sk", { name: "Janka Mrkvičková" }, admin.email);
+  assert.equal((await listUsers()).find((u) => u.email === "jana@kancelaria.sk")!.mode, "firma", "verzia je z balíka firmy");
+  await updateOrg(org.id, { mode: "advokat" });
   assert.equal((await listUsers()).find((u) => u.email === "jana@kancelaria.sk")!.mode, "advokat");
-  assert.equal((await listUsers()).find((u) => u.email === admin.email)!.mode, "firma", "predvolená verzia je Firma");
+  assert.equal((await listUsers()).find((u) => u.email === admin.email)!.mode, "advokat", "správca platformy má Rozšírené");
 
-  // Kontaktná karta partnera
-  const dir = (await directory()).map((u) => u.email);
-  await rejects(saveContact("47244895", { email: "zly" }, admin.email, dir), /e-mail/);
+  // Kontaktná karta partnera (v rámci firmy)
+  const dir = (await directory(org.id)).map((u) => u.email);
+  await rejects(saveContact(org.id, "47244895", { email: "zly" }, admin.email, dir), /e-mail/);
   const saved = await saveContact(
+    org.id,
     "47244895",
     { active: true, personName: "Janko Mrkvička", phone: "+421 905 123 456", email: "mrkvicka@firma.sk", isStatutory: true, owners: ["jana@kancelaria.sk", "cudzi@x.sk"] },
     admin.email,
     dir,
   );
   assert.deepEqual(saved.owners, ["jana@kancelaria.sk"], "zodpovedný musí byť používateľ aplikácie");
-  assert.equal((await getContact("47244895"))!.phone, "+421 905 123 456");
+  assert.equal((await getContact(org.id, "47244895"))!.phone, "+421 905 123 456");
+  assert.equal(await getContact("inafirma", "47244895"), null, "karta inej firmy nie je viditeľná");
 
-  // Audit
-  const log = await listAudit({ limit: 1000 });
-  for (const t of ["user_added", "password_set", "login", "login_failed", "user_reset", "user_disabled", "role_changed", "user_deleted", "password_changed", "mode_changed", "contact_saved"])
-    assert.ok(log.some((e) => e.type === t), `v audite chýba ${t}`);
+  // Audit firmy
+  const log = await listAudit({ orgId: org.id, limit: 1000 });
+  for (const t of ["user_added", "password_set", "login", "login_failed", "user_reset", "user_disabled", "user_deleted", "password_changed", "contact_saved"])
+    assert.ok(log.some((e) => e.type === t), `v audite firmy chýba ${t}`);
+  assert.ok((await listAudit({ limit: 1000 })).some((e) => e.type === "password_set" && e.by === admin.email), "udalosti správcu idú do protokolu platformy");
   assert.ok((await listAudit({ type: "admin" })).every((e) => !["scan", "login", "login_failed"].includes(e.type)));
 
   console.log(`OK – testy prihlasovania prešli (${log.length} udalostí v audite).`);
