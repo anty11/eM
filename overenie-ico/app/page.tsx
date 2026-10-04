@@ -121,6 +121,22 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="s-band dark">
+        <div className="s-wrap">
+          <div className="s-head">
+            <span className="s-eyebrow">Pre koho</span>
+            <h2>Pre každú firmu, ktorá nakupuje alebo predáva.</h2>
+            <p>Od prvej objednávky u nového dodávateľa po pravidelnú kontrolu stálych partnerov.</p>
+          </div>
+          <div className="s-grid four">
+            <div className="s-card"><div className="num">1</div><h3>Nový dodávateľ</h3><p>Pred prvou objednávkou alebo zmluvou. Protokol založíte k zmluve ako doklad náležitej starostlivosti.</p></div>
+            <div className="s-card"><div className="num">2</div><h3>Odberateľ na faktúru</h3><p>Pred dodaním tovaru alebo služby s odloženou splatnosťou – nedoplatky, konkurz a záporné imanie uvidíte vopred.</p></div>
+            <div className="s-card"><div className="num">3</div><h3>Pravidelná kontrola</h3><p>Databáza preverených spoločností pripomenie, komu sa blíži 180 dní od posledného overenia. Jedným klikom preveríte znova.</p></div>
+            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia a menom zamestnanca, ktorý ho vykonal.</p></div>
+          </div>
+        </div>
+      </section>
+
       <section className="s-band warm" id="objednat">
         <div className="s-wrap">
           <div className="s-head">
@@ -159,23 +175,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="s-band dark">
-        <div className="s-wrap">
-          <div className="s-head">
-            <span className="s-eyebrow">Pre koho</span>
-            <h2>Pre každú firmu, ktorá nakupuje alebo predáva.</h2>
-            <p>Od prvej objednávky u nového dodávateľa po pravidelnú kontrolu stálych partnerov.</p>
-          </div>
-          <div className="s-grid four">
-            <div className="s-card"><div className="num">1</div><h3>Nový dodávateľ</h3><p>Pred prvou objednávkou alebo zmluvou. Protokol založíte k zmluve ako doklad náležitej starostlivosti.</p></div>
-            <div className="s-card"><div className="num">2</div><h3>Odberateľ na faktúru</h3><p>Pred dodaním tovaru alebo služby s odloženou splatnosťou – nedoplatky, konkurz a záporné imanie uvidíte vopred.</p></div>
-            <div className="s-card"><div className="num">3</div><h3>Pravidelná kontrola</h3><p>Databáza preverených spoločností pripomenie, komu sa blíži 180 dní od posledného overenia. Jedným klikom preveríte znova.</p></div>
-            <div className="s-card"><div className="num">4</div><h3>Daňová kontrola</h3><p>Pri otázke „čo ste o partnerovi vedeli?“ predložíte protokoly s časom preverenia a menom zamestnanca, ktorý ho vykonal.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="s-band" id="co">
+      <section className="s-band alt" id="co">
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">Čo overujeme</span>
@@ -195,7 +195,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="s-band alt">
+      <section className="s-band">
         <div className="s-wrap">
           <div className="s-head">
             <span className="s-eyebrow">Ako to funguje</span>
