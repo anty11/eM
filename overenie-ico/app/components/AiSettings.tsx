@@ -20,6 +20,7 @@ interface Status {
   updatedAt?: string;
   updatedBy?: string;
   defaults: Record<string, string>;
+  jev?: { hasKey: boolean; origin: "env" | "admin" | null; keyHint?: string; enabled: boolean; active: boolean; minConfidence: number; envLocked: boolean; adminKeyAllowed: boolean };
 }
 
 /** Administrácia → Nastavenia AI (kľúč Claude / OpenAI pre záložné vyhľadávanie). */
@@ -33,6 +34,9 @@ export default function AiSettings() {
   const [noApi, setNoApi] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [jevKey, setJevKey] = useState("");
+  const [jevOn, setJevOn] = useState(true);
+  const [jevMin, setJevMin] = useState(0.85);
 
   const apply = (s: Status) => {
     setSt(s);
@@ -40,6 +44,10 @@ export default function AiSettings() {
     setModel(s.providers?.[s.provider]?.customModel || "");
     setSpeed(s.speed || "standard");
     setAuto(s.auto);
+    if (s.jev) {
+      setJevOn(s.jev.enabled);
+      setJevMin(s.jev.minConfidence);
+    }
     setNoApi(s.noApiSources);
   };
   /** Pri prepnutí poskytovateľa v rozhraní sa zobrazí jeho model a kľúč */
@@ -68,6 +76,30 @@ export default function AiSettings() {
     } finally {
       setBusy(false);
     }
+  }
+  async function saveJev(extra: object = {}) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/admin/ai", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jev: { enabled: jevOn, minConfidence: jevMin, key: jevKey, ...extra } }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      apply(j);
+      setJevKey("");
+      setMsg({ ok: true, text: "Nastavenie Jev uložené." });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function testJev() {
+    setBusy(true);
+    setMsg(null);
+    const r = await fetch("/api/admin/ai/test?jev=1", { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    setMsg(j.ok ? { ok: true, text: `Jev funguje – ${j.model} odpovedal za ${j.ms} ms.` } : { ok: false, text: `Test Jev zlyhal: ${j.error || r.status}` });
+    setBusy(false);
   }
   async function test() {
     setBusy(true);
@@ -171,6 +203,47 @@ export default function AiSettings() {
         {cur.hasKey && cur.origin === "admin" && <button className="btn ghost" disabled={busy} onClick={() => confirm(`Zmazať uložený kľúč pre ${cur.label}?`) && save({ clearKey: true })}>Zmazať kľúč</button>}
       </div>
       <p className="hint">Prepnutie poskytovateľa platí hneď pre všetky ďalšie overenia cez AI. Kľúče zadané tu sa ukladajú šifrovane a znova sa nezobrazia; pre produkciu ich nastavte v premenných prostredia.</p>
+
+      {st.jev && (
+        <div style={{ borderTop: "1px solid var(--line)", marginTop: 16, paddingTop: 14 }}>
+          <h3 style={{ margin: "0 0 4px" }}>Rýchle vyhodnotenie výsledku – Jev (TypeSafe)</h3>
+          <p className="hint" style={{ marginTop: 0 }}>
+            Pri registroch za formulárom server sám vyplní IČO a odošle vyhľadávanie; stránku s výsledkom potom za zlomok sekundy vyhodnotí Jev.
+            Ak s istotou nad prahom určí „bez záznamu“ (a server to potvrdí podľa textu stránky), overenie končí bez volania LLM. Nález alebo nižšia
+            istota → pokračuje Claude/OpenAI. Jev pomáha aj pri automatickom preverení (Union, Obchodný vestník), keď pevné pravidlá nestačia.
+          </p>
+          <p>
+            Stav:{" "}
+            {st.jev.active ? (
+              <span className="pill s-ok">Aktívny · kľúč {st.jev.keyHint}{st.jev.origin === "env" ? " · z premenných prostredia" : ""} · istota ≥ {Math.round(st.jev.minConfidence * 100)} %</span>
+            ) : st.jev.hasKey ? (
+              <span className="pill s-manual">Vypnutý</span>
+            ) : (
+              <span className="pill s-manual">Bez kľúča – nastavte TYPESAFE_API_KEY vo Verceli</span>
+            )}
+          </p>
+          <div className="contact-grid">
+            <div className="field">
+              <label htmlFor="jev-min">Minimálna istota pre „bez záznamu“ ({Math.round(jevMin * 100)} %)</label>
+              <input id="jev-min" type="range" min={0.6} max={0.99} step={0.01} value={jevMin} onChange={(e) => setJevMin(Number(e.target.value))} />
+            </div>
+            <div className="field">
+              <label htmlFor="jev-k">API kľúč Jev{st.jev.hasKey ? ` (uložený ${st.jev.keyHint}${st.jev.envLocked ? ", z premenných prostredia" : ""})` : ""}</label>
+              {!st.jev.envLocked && st.jev.adminKeyAllowed ? (
+                <input id="jev-k" type="password" autoComplete="off" value={jevKey} onChange={(e) => setJevKey(e.target.value)} placeholder="kľúč z console.typesafe.ai" />
+              ) : (
+                <p className="hint" style={{ margin: 0 }}>{st.jev.envLocked ? "Kľúč je v premenných prostredia (TYPESAFE_API_KEY) – zmeny robte tam." : "V produkcii sa kľúč zadáva v premenných prostredia na Verceli: TYPESAFE_API_KEY."}</p>
+              )}
+            </div>
+          </div>
+          <label className="check-row"><input type="checkbox" checked={jevOn} onChange={(e) => setJevOn(e.target.checked)} /><span>Používať Jev na vyhodnotenie výsledku</span></label>
+          <div className="toolbar">
+            <button className="btn" disabled={busy} onClick={() => saveJev()}>Uložiť Jev</button>
+            <button className="btn ghost" disabled={busy || !st.jev.active} onClick={testJev}>Otestovať Jev</button>
+            {st.jev.origin === "admin" && <button className="btn ghost" disabled={busy} onClick={() => confirm("Zmazať uložený kľúč Jev?") && saveJev({ clearKey: true })}>Zmazať kľúč</button>}
+          </div>
+        </div>
+      )}
       {msg && <div className={msg.ok ? "okmsg" : "err"}>{msg.text}</div>}
     </section>
   );

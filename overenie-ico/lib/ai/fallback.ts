@@ -3,6 +3,7 @@ import type { CheckResult, CompanyProfile, Finding, Severity } from "../types";
 import type { AiConfig } from "./config";
 import { browserAvailable, type LiveEvent } from "../browser/session";
 import { runBrowserAgent, serverQuote, verifyAgentClaims, type AgentResult } from "./agent";
+import { getJevConfig } from "./jev";
 import { callLlm, type LlmResponse } from "./llm";
 import { AI_SPECS } from "./specs";
 
@@ -130,6 +131,11 @@ async function aiCheckOnce(
   if (spec.disabled) throw new Error(spec.disabled);
 
   const urls = spec.urls(ico, profile);
+  const jevFor = async () => {
+    if (!spec.jev) return undefined;
+    const jc = await getJevConfig().catch(() => null);
+    return jc ? { cfg: jc, register: spec.jev.register, ico, companyName: profile.name, negative: spec.jev.negative, routine: spec.jev.routine } : undefined;
+  };
   const user = `${spec.task(ico, profile)}
 
 Začni týmito odkazmi (oficiálny zdroj):
@@ -161,7 +167,7 @@ Povolené domény: ${spec.domains.join(", ")}.
 Dnešný dátum: ${new Date().toISOString().slice(0, 10)}.
 
 ${FORMAT(spec.dataPoints)}`;
-      agent = await runBrowserAgent(cfg, { onEvent, user: agentUser, allowedHosts: spec.domains, timeoutMs: 240000, prelude: { url: urls[0], ico, dateFromYearsBack: spec.id === "ov" ? 3 : undefined } });
+      agent = await runBrowserAgent(cfg, { onEvent, user: agentUser, allowedHosts: spec.domains, timeoutMs: 240000, prelude: { url: urls[0], ico, dateFromYearsBack: spec.id === "ov" ? 3 : undefined }, jev: await jevFor() });
       res = agent;
     } else {
       note = `Prehliadač na serveri nie je k dispozícii (${b.error || b.mode}) – použité len webové vyhľadávanie.`;
@@ -195,8 +201,8 @@ ${FORMAT(spec.dataPoints)}`;
   else if (verified) emit("ok", `Overené: ${out.result === "clean" ? "bez záznamu" : "záznam nájdený"} (dôkaz zo stránky ${(() => { try { return new URL(evidence[0].url).hostname; } catch { return "registra"; } })()})`);
   else emit("warn", "AI výsledok nepotvrdila – ostáva manuálne overenie.");
   const aiMeta = {
-    provider: cfg.provider,
-    model: cfg.model,
+    provider: agent?.decidedBy ? "typesafe" : cfg.provider,
+    model: agent?.decidedBy ? agent.decidedBy.model : cfg.model,
     at: new Date().toISOString(),
     evidence,
     rawResult: out.result,
@@ -205,7 +211,7 @@ ${FORMAT(spec.dataPoints)}`;
     mode,
     steps: agent?.steps,
     trace: agent?.log.map((l) => `${l.ok ? "✓" : "✗"} ${l.action}${l.note ? ` – ${l.note}` : ""}`).slice(0, 30),
-    note,
+    note: [note, agent?.decidedBy ? `Výsledok stránky vyhodnotil Jev (TypeSafe) s istotou ${Math.round(agent.decidedBy.confidence * 100)} % za ${agent.decidedBy.ms} ms; formulár vyplnil server, tvrdenie overil server podľa textu stránky.` : agent?.jevHint ? `Odhad Jev: ${agent.jevHint.choice} (${Math.round(agent.jevHint.confidence * 100)} %).` : ""].filter(Boolean).join(" ") || undefined,
   };
   const label = cfg.provider === "openai" ? "AI (OpenAI)" : "AI (Claude)";
   const verifyUrl = evidence[0]?.url || original.verifyUrl;

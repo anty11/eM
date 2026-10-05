@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAiConfig } from "@/lib/ai/config";
+import { getJevConfig, pingJev } from "@/lib/ai/jev";
 import { isModelError } from "@/lib/ai/fallback";
 import { pingLlm } from "@/lib/ai/llm";
 import { handler, requireUser } from "@/lib/auth/guard";
@@ -7,8 +8,19 @@ import { handler, requireUser } from "@/lib/auth/guard";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const POST = handler(async () => {
+export const POST = handler(async (req) => {
   await requireUser({ admin: true });
+  // test kľúča Jev (TypeSafe)
+  if (new URL(req.url).searchParams.get("jev") === "1") {
+    const jc = await getJevConfig();
+    if (!jc) return NextResponse.json({ ok: false, error: "Jev nie je nastavený alebo je vypnutý." }, { status: 409 });
+    try {
+      const r = await pingJev(jc);
+      return NextResponse.json({ ok: true, provider: "Jev (TypeSafe)", model: r.model, ms: r.ms, reply: "OK" });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502 });
+    }
+  }
   const cfg = await getAiConfig();
   if (!cfg) return NextResponse.json({ ok: false, error: "AI nie je nastavená." }, { status: 409 });
   const t0 = Date.now();

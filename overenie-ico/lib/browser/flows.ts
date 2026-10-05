@@ -1,4 +1,6 @@
 import { classifyNotice } from "../sources/ov";
+import { getJevConfig, jevJudgeResult } from "../ai/jev";
+import { AI_SPECS } from "../ai/specs";
 import { BrowserSession, renderSnapshot, type Snapshot } from "./session";
 
 /**
@@ -26,6 +28,27 @@ export function fieldKey(name?: string): string {
   const last = name.split(/[$.:/\[\]]/).filter(Boolean).pop() || name;
   const noPrefix = last.replace(/^(txt|tb|tbx|inp|input|fld|field|ctl|ed|edt)(?=[A-Z_-])/, "");
   return fold(noPrefix.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ")).trim();
+}
+
+/**
+ * Keď pevné pravidlá výsledok nevedia určiť („unknown“), skúsi ho rýchlo vyhodnotiť Jev (ak je nastavený). Prijme sa len „bez záznamu“
+ * s istotou nad prahom a len ak sa na stránke IČO nevyskytuje pri údajoch o dlhu/zázname; nález vždy ostáva na AI/manuálne (detaily).
+ */
+async function withJev(r: Pick<FlowResult, "verdict" | "rows" | "evidence">, id: "union" | "ov", snap: Snapshot, ico: string): Promise<Pick<FlowResult, "verdict" | "rows" | "evidence"> & { jev?: string }> {
+  if (r.verdict !== "unknown") return r;
+  const spec = AI_SPECS[id]?.jev;
+  const cfg = spec ? await getJevConfig().catch(() => null) : null;
+  if (!spec || !cfg) return r;
+  try {
+    const v = await jevJudgeResult(cfg, { register: spec.register, ico, snapshot: snap, negativeMeans: spec.negative, routineMeans: spec.routine });
+    const i = snap.text.indexOf(ico);
+    const nearRecord = i >= 0 && /dlh|pohľadáv|nedoplat|likvid|konkurz|dražb|€|eur/i.test(snap.text.slice(Math.max(0, i - 160), i + 160));
+    if (v.choice === "clean" && v.confidence >= cfg.minConfidence && !nearRecord)
+      return { verdict: "clean", rows: [], evidence: `vyhodnotil Jev (TypeSafe), istota ${Math.round(v.confidence * 100)} %`, jev: `${v.model} ${v.ms} ms` };
+    return { ...r, jev: `${v.choice} ${Math.round(v.confidence * 100)} %` };
+  } catch {
+    return r;
+  }
 }
 
 const skDate = (d: Date) => `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
@@ -85,7 +108,7 @@ export async function ovFlow(ico: string, opts: { diag?: boolean } = {}): Promis
     await s.open(url);
     const { snap, done } = await searchPrelude(s, ico, { dateFromYearsBack: 3 });
     if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined };
-    return { ...judgeOv(snap, ico), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined };
+    return { ...(await withJev(judgeOv(snap, ico), "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined };
   } catch (e) {
     return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300) };
   } finally {
@@ -134,7 +157,7 @@ export async function unionFlow(ico: string, opts: { diag?: boolean } = {}): Pro
     snap = btn ? await s.click(btn.ref) : await s.pressEnter(field.ref);
     // výsledky sa načítavajú na pozadí – počkáme, kým zmizne pôvodný zoznam alebo sa objaví hlásenie / počet
     for (let i = 0; i < 6 && !settled(snap, ico); i++) snap = await s.wait(1000);
-    return { ...judgeUnion(snap, ico), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined };
+    return { ...(await withJev(judgeUnion(snap, ico), "union", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined };
   } catch (e) {
     return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300) };
   } finally {

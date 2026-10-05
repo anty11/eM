@@ -1,4 +1,5 @@
 import { searchPrelude } from "../browser/flows";
+import { jevJudgeResult, type JevConfig } from "./jev";
 import { BrowserSession, renderSnapshot, type LiveEvent, type SessionLog, type Snapshot } from "../browser/session";
 import type { AiConfig } from "./config";
 import type { LlmResponse } from "./llm";
@@ -52,6 +53,10 @@ export interface AgentResult extends LlmResponse {
   searched: boolean;
   lastUrl?: string;
   steps: number;
+  /** Výsledok rozhodol rýchly klasifikátor Jev (bez LLM) */
+  decidedBy?: { engine: "jev"; model: string; confidence: number; ms: number };
+  /** Odhad Jev, aj keď rozhodol LLM */
+  jevHint?: { choice: string; confidence: number; ms: number };
 }
 
 async function execTool(s: BrowserSession, name: string, args: Record<string, any>): Promise<string> {
@@ -130,6 +135,8 @@ export async function runBrowserAgent(
     allowedHosts: string[];
     timeoutMs?: number;
     prelude?: { url: string; ico?: string; dateFromYearsBack?: number };
+    /** Rýchle vyhodnotenie výsledku po úvode servera (Jev); „bez záznamu“ s vysokou istotou ukončí overenie bez LLM */
+    jev?: { cfg: JevConfig; register: string; ico: string; companyName?: string; negative: string; routine?: string };
     /** Živý priebeh (čo agent práve robí) – pre rozhranie */
     onEvent?: (e: LiveEvent) => void;
   },
@@ -156,13 +163,34 @@ export async function runBrowserAgent(
     const system = req.system || AGENT_SYSTEM;
     let text = "";
     let user = req.user;
+    let jevHint: AgentResult["jevHint"];
     // Úvod bez AI: server otvorí register a skúsi vyplniť IČO a odoslať – model dostane rovno snímku výsledku (šetrí 4 – 6 krokov a ~30 s)
     if (req.prelude) {
       emit("info", "Server najprv sám vyplní IČO a odošle vyhľadávanie (bez AI)…");
       try {
         await session.open(req.prelude.url);
         const { snap, done } = await searchPrelude(session, req.prelude.ico ?? "", { dateFromYearsBack: req.prelude.dateFromYearsBack });
-        emit(session.searched ? "ok" : "warn", session.searched ? "Vyhľadávanie odoslané – AI teraz vyhodnotí výsledok." : "Pole pre IČO sa nenašlo automaticky – pokračuje AI.");
+        emit(session.searched ? "ok" : "warn", session.searched ? "Vyhľadávanie odoslané – vyhodnocujem výsledok." : "Pole pre IČO sa nenašlo automaticky – pokračuje AI.");
+        // Rýchly klasifikátor (Jev): „bez záznamu“ s vysokou istotou → hotovo bez LLM (server výsledok ešte nezávisle overí)
+        if (session.searched && req.jev) {
+          emit("think", "Jev (TypeSafe) rýchlo vyhodnocuje stránku s výsledkom…");
+          try {
+            const v = await jevJudgeResult(req.jev.cfg, { register: req.jev.register, ico: req.jev.ico, companyName: req.jev.companyName, snapshot: snap, negativeMeans: req.jev.negative, routineMeans: req.jev.routine });
+            jevHint = { choice: v.choice, confidence: v.confidence, ms: v.ms };
+            const label = v.choice === "clean" ? "bez záznamu" : v.choice === "found" ? "záznam nájdený" : "neviem";
+            if (v.choice === "clean" && v.confidence >= req.jev.cfg.minConfidence) {
+              emit("ok", `Jev: ${label} (istota ${Math.round(v.confidence * 100)} %, ${v.ms} ms) – LLM netreba.`);
+              const quote = (snap.text.match(/.{0,80}(nena[šs]li sa [žz]iadne|[žz]iadne z[áa]znamy|nebol n[áa]jden[ýy]|neboli n[áa]jden[ée]|0 z[áa]znamov).{0,80}/i)?.[0] || snap.title).trim();
+              const out = { result: "clean", summary: `Vyhľadávanie podľa IČO ${req.jev.ico} v registri neukázalo negatívny záznam (vyhodnotil Jev, istota ${Math.round(v.confidence * 100)} %).`, findings: [], evidence: [{ url: snap.url, quote }], data: {} };
+              emit("info", "Server kontroluje výsledok podľa stránky, ktorú naozaj videl…");
+              return { text: `<json>${JSON.stringify(out)}</json>`, visited: [...session.visited], usage, log: session.log, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps: 0, decidedBy: { engine: "jev", model: v.model, confidence: v.confidence, ms: v.ms }, jevHint };
+            }
+            emit("info", `Jev: ${label} (istota ${Math.round(v.confidence * 100)} %, ${v.ms} ms) – ${v.choice === "found" ? "nález potrebuje podrobnosti" : "istota nestačí"}, pokračuje AI.`);
+            user += `\n\nRýchly klasifikátor odhadol výsledok „${v.choice}“ s istotou ${Math.round(v.confidence * 100)} % – over to sám.`;
+          } catch (e) {
+            emit("warn", `Jev nedostupný (${(e as Error).message.slice(0, 100)}) – pokračuje AI.`);
+          }
+        }
         user += `\n\nServer už register otvoril${done.length ? ` a urobil tieto kroky: ${done.join(", ")}` : ""}${session.searched ? " – formulár je odoslaný" : " – formulár sa nepodarilo vyplniť, urob to sám"}. Aktuálna snímka stránky:\n${renderSnapshot(snap)}`;
       } catch (e) {
         user += `\n\nServer skúsil register otvoriť, no zlyhalo to (${(e as Error).message.split("\n")[0]}) – postupuj sám od začiatku.`;
@@ -224,7 +252,7 @@ export async function runBrowserAgent(
       }
     }
     emit("info", "AI dokončila – server kontroluje jej tvrdenie podľa stránok, ktoré naozaj videl…");
-    return { text, visited: [...session.visited], usage, log: session.log, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps };
+    return { text, visited: [...session.visited], usage, log: session.log, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps, jevHint };
   } finally {
     await session.close();
   }

@@ -13,6 +13,7 @@ import { runBrowserAgent, verifyAgentClaims } from "../lib/ai/agent";
 import { fieldKey, searchPrelude } from "../lib/browser/flows";
 import { BrowserSession, browserAvailable, renderSnapshot } from "../lib/browser/session";
 import type { CheckResult } from "../lib/types";
+import { useMemoryKV } from "../lib/auth/kv";
 
 const page = (q: URLSearchParams) => {
   const ico = q.get("ico");
@@ -264,6 +265,76 @@ async function main() {
   assert.ok(rf.check.ai?.note?.includes("nedostupny-rychly"), "poznámka o záložnom modeli");
   assert.ok(fbEvents.some((e) => e.kind === "warn" && /skúšam štandardný m/.test(e.text)));
   console.log("OK – nedostupný rýchly model → automaticky štandardný.");
+  // Jev (TypeSafe): po úvode servera rozhodne „bez záznamu“ bez LLM; nález → pokračuje LLM
+  {
+    useMemoryKV();
+    let jevCalls = 0;
+    let lastState: any = null;
+    const jevSrv = createServer(async (req, res) => {
+      let body = "";
+      for await (const c of req) body += c;
+      jevCalls++;
+      const j = JSON.parse(body);
+      lastState = j;
+      assert.equal(req.headers.authorization, "Bearer ts-test-key-0123456789");
+      const text = JSON.stringify(j.state);
+      const choice = /Nenašli sa žiadne záznamy/.test(text) ? "clean" : /1 234,00/.test(text) ? "found" : "unknown";
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ model: "jev-1.13.0", answers: { result: { type: "choice", choice, confidence: 0.93, probabilities: { clean: choice === "clean" ? 0.96 : 0.02, found: choice === "found" ? 0.96 : 0.02, unknown: 0.02 } } }, usage: { input_tokens: 400, output_tokens: 20 } }));
+    });
+    await new Promise<void>((r) => jevSrv.listen(0, "127.0.0.1", r));
+    process.env.TYPESAFE_BASE_URL = `http://127.0.0.1:${(jevSrv.address() as AddressInfo).port}`;
+    process.env.TYPESAFE_API_KEY = "ts-test-key-0123456789";
+    // TYPESAFE_BASE_URL sa číta pri načítaní modulu → nový import
+    const jevMod = await import("../lib/ai/jev");
+    let llmCalls = 0;
+    const llmJ = mockLlm("31322832", startUrl);
+    llmJ.on("request", () => llmCalls++);
+    await new Promise<void>((r) => llmJ.listen(0, "127.0.0.1", r));
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(llmJ.address() as AddressInfo).port}`;
+    const jc = (await jevMod.getJevConfig())!;
+    assert.ok(jc, "Jev nastavený z prostredia");
+    const ev: { kind: string; text: string }[] = [];
+    const t0 = Date.now();
+    const rj = await runBrowserAgent({ provider: "anthropic", model: "m", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env", speed: "standard" }, {
+      user: "Over IČO 31322832.",
+      allowedHosts: ["127.0.0.1"],
+      prelude: { url: startUrl, ico: "31322832" },
+      jev: { cfg: jc, register: "Test register of debtors", ico: "31322832", negative: "listed as debtor" },
+      onEvent: (e) => ev.push(e),
+    });
+    assert.equal(rj.decidedBy?.engine, "jev", "rozhodol Jev");
+    assert.equal(rj.steps, 0);
+    assert.equal(llmCalls, 0, "LLM sa nevolal");
+    assert.ok(rj.text.includes('"result":"clean"'));
+    assert.equal(verifyAgentClaims(rj, "clean", "31322832"), null, "server tvrdenie potvrdil");
+    assert.ok(ev.some((e) => /Jev: bez záznamu \(istota 93 %/.test(e.text)), ev.map((e) => e.text).join(" | "));
+    assert.equal(lastState.questions.result.type, "choice");
+    assert.ok(lastState.state.page_text.includes("Nenašli sa žiadne záznamy"));
+    console.log(`OK – Jev rozhodol „bez záznamu“ bez LLM (${Date.now() - t0} ms vrátane prehliadača).`);
+    llmJ.close();
+
+    // nález → Jev nerozhoduje, pokračuje LLM (s odhadom Jev v zadaní)
+    const llmF = mockLlm("12345678", startUrl);
+    let llmF_calls = 0;
+    llmF.on("request", () => llmF_calls++);
+    await new Promise<void>((r) => llmF.listen(0, "127.0.0.1", r));
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(llmF.address() as AddressInfo).port}`;
+    const rf2 = await runBrowserAgent({ provider: "anthropic", model: "m", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env", speed: "standard" }, {
+      user: "Over IČO 12345678.",
+      allowedHosts: ["127.0.0.1"],
+      prelude: { url: startUrl, ico: "12345678" },
+      jev: { cfg: jc, register: "Test register of debtors", ico: "12345678", negative: "listed as debtor" },
+    });
+    assert.equal(rf2.decidedBy, undefined);
+    assert.equal(rf2.jevHint?.choice, "found");
+    assert.ok(llmF_calls >= 1, "pri náleze rozhoduje LLM");
+    assert.ok(rf2.text.includes('"result":"found"'));
+    llmF.close();
+    jevSrv.close();
+    delete process.env.TYPESAFE_API_KEY;
+    console.log("OK – pri náleze Jev len radí, rozhoduje LLM.");
+  }
   Object.assign(spec, saved);
   llm.close();
   reg.close();

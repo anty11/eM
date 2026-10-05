@@ -328,3 +328,16 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Vypĺňanie: neaktívne pole → okamžitá chyba „najprv zvoľ prepínač“ (predtým 8 s čakania), pole len na čítanie (výber dátumu) alebo zakryté
   → hodnota skriptom s udalosťami; klik pri zakrytom prvku skriptom; limity 3 – 4 s. Snímka označuje NEAKTÍVNE / len na čítanie.
   Predvolený model späť na **štandardný** (Haiku sa na OV zamotal: 63 s, 2× timeout dátumov) – rýchly ostáva na voľbu.
+
+## v2.7.0 – 5. 10. 2026 – Jev (TypeSafe) na rýchle vyhodnotenie výsledku
+
+- `lib/ai/jev.ts`: klient API `POST https://api.typesafe.ai/v1/systemone` (model `jev-latest`, otázka typu `choice`
+  clean / found / unknown s pravdepodobnosťami a istotou). Kľúč `TYPESAFE_API_KEY` (alebo administrácia pri AI_ALLOW_ADMIN_KEY=1),
+  v Administrácii → Nastavenia AI sekcia „Rýchle vyhodnotenie výsledku – Jev“: zapnutie, prah istoty (predvolene 85 %), test kľúča.
+- **AI overenie**: po úvode servera (vyplnené IČO, odoslaný formulár) Jev vyhodnotí stránku; „bez záznamu“ s istotou nad prahom →
+  hotovo bez LLM (server tvrdenie nezávisle overí podľa textu stránky, v protokole „Jev (TypeSafe) · server vyplnil formulár,
+  Jev vyhodnotil výsledok“). Nález alebo nižšia istota → pokračuje Claude/OpenAI s odhadom Jev v zadaní (nález potrebuje detaily).
+- **Automatické preverenie** (Union, Obchodný vestník cez prehliadač): keď pevné pravidlá výsledok neurčia, skúsi ho Jev – prijme sa
+  len „bez záznamu“ nad prahom a bez IČO pri údajoch o dlhu na stránke.
+- Popisy registrov pre Jev v `AI_SPECS[*].jev` (po anglicky – hlavný jazyk modelu; stránka je po slovensky, preto vysoký prah).
+- Testy: Jev rozhodne „bez záznamu“ bez volania LLM (LLM 0 volaní); pri náleze len radí a rozhoduje LLM.

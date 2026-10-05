@@ -26,6 +26,8 @@ export interface AiSpec {
   browser?: boolean;
   /** Doplnkové pokyny pre agenta s prehliadačom (kde je pole, ktorú časť zvoliť). */
   browserHint?: (ico: string, p: CompanyProfile) => string;
+  /** Rýchle vyhodnotenie výsledku klasifikátorom Jev (po anglicky): čo je negatívny záznam a čo sú bežné, neškodné položky. */
+  jev?: { register: string; negative: string; routine?: string };
 }
 
 const who = (ico: string, p: CompanyProfile) => `${p.name ? `„${p.name}“, ` : ""}IČO ${ico}${p.address ? `, sídlo ${p.address}` : ""}`;
@@ -130,6 +132,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"amount" (EUR alebo null)`,
     penalty: 25,
     foundText: "Dlh voči VšZP",
+    jev: { register: "VšZP list of debtors (health insurance)", negative: "the company is listed as a debtor of the health insurer (a row with its name or ID and an amount in 'Pohľadávka')" },
     browser: true,
     browserHint: (ico) => `Na stránke zoznamu dlžníkov VšZP je formulár s výberom typu platiteľa a poľom pre IČO/meno; zvoľ „Zamestnávatelia“ (resp. typ podľa subjektu), zadaj IČO ${ico} a odošli. Výsledok je tabuľka (Obchodné meno · Obec · Ulica · PSČ · Pohľadávka) alebo text „Nenašli sa žiadne záznamy.“`,
   },
@@ -142,6 +145,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"amount" (EUR alebo null)`,
     penalty: 25,
     foundText: "Dlh voči Union ZP",
+    jev: { register: "Union health insurance list of debtors", negative: "the company is listed as a debtor (a row with its ID (IČO) and an amount in 'Pohľadávka')" },
     browser: true,
     browserHint: (ico, p) => `Portál https://portal.unionzp.sk/pub/dlznici je aplikácia so zoznamom dlžníkov a vyhľadávacím poľom (hľadá podľa názvu alebo IČO). Zadaj IČO ${ico}${p.name ? ` (ak nič nenájde, skús názov „${p.name}“)` : ""}, počkaj na načítanie (wait) a prečítaj tabuľku; všimni si počet riadkov / hlásenie o prázdnom výsledku.`,
   },
@@ -155,6 +159,11 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"notices": [{"date","type","text"}]`,
     penalty: 30,
     foundText: "Negatívne oznámenie v Obchodnom vestníku",
+    jev: {
+      register: "Obchodný vestník (Slovak Commercial Bulletin) – published notices",
+      negative: "a notice about liquidation (likvidácia), bankruptcy (konkurz), restructuring (reštrukturalizácia), dissolution (zrušenie), auction (dražba), reduction of registered capital (zníženie základného imania) or a call to creditors (výzva veriteľom)",
+      routine: "'Podanie Obchodného registra', financial statements (účtovná závierka), annual reports – these are routine filings, not negative",
+    },
     browser: true,
     browserHint: (ico, p) => `Na stránke „Zverejnené formuláre“ Obchodného vestníka je vyhľadávací formulár s poľami pre IČO a obchodné meno a s výberom obdobia. Zadaj IČO ${ico}${p.name ? ` (prípadne názov „${p.name}“)` : ""}, obdobie nastav čo najširšie (posledné 3 roky) a odošli („Hľadať“/„Vyhľadať“). Prečítaj tabuľku oznámení (dátum, typ, text) a posúď, ktoré sú negatívne.`,
   },
@@ -168,6 +177,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"persons": [{"name","until","note"}]`,
     penalty: 25,
     foundText: "Štatutár je v Registri diskvalifikácií",
+    jev: { register: "Register of disqualifications (Ministry of Justice)", negative: "a person (statutory body) of the company is listed with a disqualification" },
     browser: true,
     browserHint: () => `Register diskvalifikácií má formulár s poľami pre meno/priezvisko a IČO spoločnosti. Vyhľadaj podľa IČO aj podľa mien štatutárov. Ak stránka vráti chybu 403 / prístup odmietnutý, vráť "unknown".`,
   },
@@ -180,6 +190,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     dataPoints: `"until" (dátum konca zákazu alebo null)`,
     penalty: 15,
     foundText: "Zákaz účasti vo verejnom obstarávaní",
+    jev: { register: "ÚVO register of persons banned from public procurement", negative: "the company is listed with a ban on participation in public procurement (Osoba so zákazom)" },
     browser: true,
     browserHint: (ico, p) => `Otvor prvý odkaz (globálne vyhľadávanie ÚVO so zvoleným typom „Osoba so zákazom“ a IČO v poli). Prečítaj hlásenie („Zadaný výraz nebol nájdený.“ alebo počet záznamov). Potom skús aj obchodné meno${p.name ? ` „${p.name}“` : ""} v tom istom poli s typom „Osoba so zákazom“, lebo register môže hľadať len podľa názvu.`,
   },

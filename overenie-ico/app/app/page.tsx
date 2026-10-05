@@ -391,7 +391,7 @@ export default function Page() {
       <div className="ai-note">
         <span className={`pill ${c.status === "manual" ? "s-manual" : "s-ai"}`}>{c.status === "manual" ? "AI nevedela overiť" : "Overené AI"}</span>{" "}
         <span className="src">
-          {c.ai.provider === "openai" ? "OpenAI" : "Claude"} · {c.ai.model} · {c.ai.mode === "browser" ? `agent s prehliadačom (${c.ai.steps ?? 0} krokov)` : "webové vyhľadávanie"} · {new Date(c.ai.at).toLocaleTimeString("sk-SK")}
+          {c.ai.provider === "typesafe" ? "Jev (TypeSafe)" : c.ai.provider === "openai" ? "OpenAI" : "Claude"} · {c.ai.model} · {c.ai.provider === "typesafe" ? "server vyplnil formulár, Jev vyhodnotil výsledok" : c.ai.mode === "browser" ? `agent s prehliadačom (${c.ai.steps ?? 0} krokov)` : "webové vyhľadávanie"} · {new Date(c.ai.at).toLocaleTimeString("sk-SK")}
           {c.ai.rejected ? ` · ${c.ai.rejected}` : ""}
         </span>
         {c.ai.note && <div className="src">{c.ai.note}</div>}

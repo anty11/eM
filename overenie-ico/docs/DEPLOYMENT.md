@@ -91,6 +91,7 @@ Set **only one** of the two keys.
 | `ANTHROPIC_WORKSPACE_ID` | `wrkspc_…` | Only when the key is an organisation key not scoped to a workspace (API error "not scoped to a workspace"); otherwise create the key inside a workspace |
 | `BROWSER_WS_ENDPOINT` | `wss://…` | Optional remote Chromium (CDP) for the AI browser agent – e.g. a provider with Slovak IPs when a register blocks data-centre addresses; on Vercel the bundled @sparticuz/chromium is used by default |
 | `BROWSER_DISABLED` | `1` | Turns the AI browser agent off (web search only) |
+| `TYPESAFE_API_KEY` | key from console.typesafe.ai | Optional: Jev classifier judges the register result page after the server submitted the form; confident "no record" ends the AI check without an LLM call |
 | `OPENAI_API_KEY` | `sk-…` | OpenAI with web search |
 | `AI_PROVIDER` | `anthropic` / `openai` | Only needed if both keys are set |
 | `AI_MODEL` | empty | Empty = `claude-sonnet-5` / `gpt-5.5` |
