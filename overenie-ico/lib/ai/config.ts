@@ -116,7 +116,8 @@ function keyFor(p: Provider, s: Stored): { key: string; origin: "env" | "admin" 
   return null;
 }
 
-const speedOf = (s: Stored): Speed => s.speed || (process.env.AI_SPEED === "standard" ? "standard" : "fast");
+// Predvolene štandardný model – rýchly (Haiku) sa v praxi na Obchodnom vestníku zamotal (v2.6.0 → v2.6.1); rýchly ostáva na voľbu
+const speedOf = (s: Stored): Speed => s.speed || (process.env.AI_SPEED === "fast" ? "fast" : "standard");
 
 /** Model: vlastný model zo správy → (ak správca rýchlosť nevolil) AI_MODEL z prostredia → podľa rýchlosti (predvolene rýchly). */
 function modelFor(p: Provider, s: Stored): string {

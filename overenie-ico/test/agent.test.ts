@@ -10,6 +10,7 @@ import type { AddressInfo } from "node:net";
 import { aiCheck } from "../lib/ai/fallback";
 import { AI_SPECS } from "../lib/ai/specs";
 import { runBrowserAgent, verifyAgentClaims } from "../lib/ai/agent";
+import { fieldKey, searchPrelude } from "../lib/browser/flows";
 import { BrowserSession, browserAvailable, renderSnapshot } from "../lib/browser/session";
 import type { CheckResult } from "../lib/types";
 
@@ -115,6 +116,19 @@ async function main() {
   const reg = createServer((req, res) => {
     const u = new URL(req.url || "/", "http://x");
     res.setHeader("content-type", "text/html; charset=utf-8");
+    // formulár v štýle ASP.NET (Obchodný vestník): popisy v susednej bunke, technické názvy polí, bez <label>
+    if (u.pathname === "/aspx") {
+      const q = u.searchParams;
+      const sent = q.get("ctl00$CphMain$txtIco");
+      return res.end(`<!doctype html><html><head><title>Webový portál – test</title></head><body><form method="get" action="/aspx"><table>
+        <tr><td>Obchodné meno:</td><td><input type="text" name="ctl00$CphMain$txtObchodneMeno"></td></tr>
+        <tr><td>IČO:</td><td><input type="text" name="ctl00$CphMain$txtIco"></td></tr>
+        <tr><td>Kód:</td><td><input type="text" name="ctl00$CphMain$txtKod"></td></tr>
+        <tr><td>Spisová značka:</td><td><input type="text" disabled name="ctl00$CphMain$txtSpis"></td></tr>
+        <tr><td>Dátum zverejnenia:</td><td>od <input type="text" readonly name="ctl00$CphMain$txtDatumZverejneniaOd"> do <input type="text" name="ctl00$CphMain$txtDatumZverejneniaDo"></td></tr>
+        <tr><td colspan="2"><input type="submit" name="ctl00$CphMain$btnHladat" value="Vyhľadať"></td></tr>
+      </table></form>${sent ? `<p>Hľadané IČO ${sent}, od ${q.get("ctl00$CphMain$txtDatumZverejneniaOd")}</p><table><tr><th>#</th><th>Typ podania</th></tr><tr><td>1</td><td>Podanie Obchodného registra</td></tr></table>` : ""}</body></html>`);
+    }
     res.end(page(u.searchParams));
   });
   await new Promise<void>((r) => reg.listen(0, "127.0.0.1", r));
@@ -147,6 +161,29 @@ async function main() {
   await assert.rejects(s.open("https://www.example.com/"), /Doména nie je povolená/);
   await s.close();
   console.log("OK – sedenie prehliadača (snímka, formulár, tabuľka, povolené domény).");
+
+  // 1b) Úvod bez AI na formulári ASP.NET: pole IČO podľa technického názvu / susednej bunky, dátum „od“, odoslanie
+  assert.equal(fieldKey("ctl00$ctl00$CphMain$CphMain$txtIco"), "ico");
+  assert.equal(fieldKey("ctl00$CphMain$txtDatumZverejneniaOd"), "datum zverejnenia od");
+  const sa = await BrowserSession.open(["127.0.0.1"]);
+  await sa.open(`http://127.0.0.1:${regPort}/aspx`);
+  const pre = await searchPrelude(sa, "36736694", { dateFromYearsBack: 3 });
+  assert.ok(sa.searched, `formulár odoslaný (${pre.done.join(", ")})`);
+  assert.ok(pre.done.some((d) => d.startsWith("IČO → IČO")), `pole IČO s popisom z bunky (${pre.done.join(", ")})`);
+  assert.ok(pre.done.some((d) => d.startsWith("dátum od")), "dátum od vyplnený");
+  assert.ok(/Hľadané IČO 36736694, od \d{2}\.\d{2}\.\d{4}/.test(pre.snap.text), pre.snap.text.slice(0, 200));
+  assert.ok(!/txtKod=36736694/.test(pre.snap.url), "pole Kód sa nezamení");
+  // neaktívne pole: rýchla zrozumiteľná chyba (nie 8 s čakania); v snímke označené
+  await sa.open(`http://127.0.0.1:${regPort}/aspx`);
+  const snapA = await sa.snapshot();
+  const spis = snapA.elements.find((e) => e.name?.endsWith("txtSpis"))!;
+  assert.equal(spis.disabled, true);
+  assert.ok(renderSnapshot(snapA).includes("NEAKTÍVNE"));
+  const tD = Date.now();
+  await assert.rejects(sa.fill(spis.ref, "x"), /neaktívne/);
+  assert.ok(Date.now() - tD < 2500, `neaktívne pole odmietnuté hneď (${Date.now() - tD} ms)`);
+  await sa.close();
+  console.log("OK – úvod bez AI na formulári ASP.NET (Obchodný vestník).");
 
   // 2) Agent s oboma poskytovateľmi (simulovaný model) – „bez záznamu“ aj „nájdený“
   const cases: [string, "anthropic" | "openai", "clean" | "found"][] = [

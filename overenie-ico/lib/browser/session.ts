@@ -19,7 +19,7 @@ export interface Snapshot {
   title: string;
   text: string;
   tables: string[][][];
-  elements: { ref: string; kind: "input" | "button" | "select" | "link" | "checkbox" | "radio"; label: string; name?: string; value?: string; placeholder?: string; options?: string[]; href?: string }[];
+  elements: { ref: string; kind: "input" | "button" | "select" | "link" | "checkbox" | "radio"; label: string; name?: string; value?: string; placeholder?: string; options?: string[]; href?: string; disabled?: boolean; readonly?: boolean }[];
   truncated: boolean;
 }
 
@@ -119,7 +119,13 @@ const SNAPSHOT_BODY = `
     const wrap = el.closest("label");
     const prev = el.previousElementSibling;
     const prevText = prev && /^(label|span|b|strong|td|th|div)$/i.test(prev.tagName) && (prev.textContent || "").length < 80 ? prev.textContent : "";
-    return clean((byFor && byFor.textContent) || aria || (wrap && wrap.textContent) || el.getAttribute("title") || prevText).slice(0, 80);
+    // tabuľkový formulár (ASP.NET a pod.): popis je v predchádzajúcej bunke riadku
+    const td = el.closest("td, th");
+    const prevCell = td && td.previousElementSibling && (td.previousElementSibling.textContent || "").trim().length < 80 ? td.previousElementSibling.textContent : "";
+    // text tesne pred poľom v tom istom rodičovi (napr. „IČO: <input>“)
+    let before = "";
+    for (let n = el.previousSibling; n && !before; n = n.previousSibling) if (n.nodeType === 3 && (n.textContent || "").trim()) before = n.textContent;
+    return clean((byFor && byFor.textContent) || aria || (wrap && wrap.textContent) || el.getAttribute("title") || prevText || prevCell || (before.length < 80 ? before : "")).slice(0, 80);
   };
   document.querySelectorAll("[data-oi-ref]").forEach((e) => e.removeAttribute("data-oi-ref"));
   const els = [];
@@ -135,10 +141,10 @@ const SNAPSHOT_BODY = `
     el.setAttribute("data-oi-ref", ref);
     const name = el.getAttribute("name") || el.getAttribute("id") || undefined;
     if (tag === "input" && (type === "checkbox" || type === "radio")) {
-      els.push({ ref, kind: type, label: labelFor(el) || name || "", name, value: el.checked ? "zaškrtnuté" : "nezaškrtnuté" });
+      els.push({ ref, kind: type, label: labelFor(el) || name || "", name, value: el.checked ? "zaškrtnuté" : "nezaškrtnuté", disabled: el.disabled || undefined });
     } else if (tag === "input" || tag === "textarea") {
       if (type === "submit" || type === "button" || type === "image") els.push({ ref, kind: "button", label: clean(el.value || el.getAttribute("title")) || name || "odoslať", name });
-      else els.push({ ref, kind: "input", label: labelFor(el), name, placeholder: el.getAttribute("placeholder") || undefined, value: clean(el.value).slice(0, 80) || undefined });
+      else els.push({ ref, kind: "input", label: labelFor(el), name, placeholder: el.getAttribute("placeholder") || undefined, value: clean(el.value).slice(0, 80) || undefined, disabled: el.disabled || undefined, readonly: el.readOnly || undefined });
     } else if (tag === "select") {
       els.push({ ref, kind: "select", label: labelFor(el), name, value: clean(el.selectedOptions[0] ? el.selectedOptions[0].textContent : ""), options: Array.from(el.options).slice(0, 30).map((o) => clean(o.textContent)) });
     } else if (tag === "button" || el.getAttribute("role") === "button" || el.hasAttribute("onclick")) {
@@ -268,8 +274,21 @@ export class BrowserSession {
     const el = this.locator(ref);
     this.say("act", `Vypĺňam pole „${this.labelOf(ref)}“: ${short(text, 40)}`);
     try {
-      await el.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-      await el.fill(text, { timeout: 8000 });
+      await el.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+      // neaktívne pole sa nevyplní (prehliadač by ho ani neodoslal) – rýchla a zrozumiteľná chyba namiesto 8 s čakania
+      const st = await el.evaluate((n: any) => ({ disabled: Boolean(n.disabled), readonly: Boolean(n.readOnly) })).catch(() => ({ disabled: false, readonly: false }));
+      if (st.disabled) throw new Error("pole je neaktívne (disabled) – najprv zvoľ prepínač alebo možnosť, ktorá ho povolí");
+      try {
+        if (st.readonly) throw new Error("readonly");
+        await el.fill(text, { timeout: 3000 });
+      } catch {
+        // pole len na čítanie (výber dátumu) alebo zakryté iným prvkom: hodnota sa nastaví skriptom s udalosťami input/change
+        await el.evaluate((n: any, v: string) => {
+          n.value = v;
+          n.dispatchEvent(new Event("input", { bubbles: true }));
+          n.dispatchEvent(new Event("change", { bubbles: true }));
+        }, text);
+      }
       this.filled = true;
       this.record(`fill ${ref} ← ${text}`, true);
     } catch (e) {
@@ -289,8 +308,13 @@ export class BrowserSession {
         const abs = new URL(href, this.page.url()).toString();
         if (!this.hostAllowed(abs)) throw new Error(`odkaz vedie mimo povolených domén (${abs})`);
       }
-      await el.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-      await Promise.all([this.page.waitForLoadState("domcontentloaded", { timeout: 3000 }).catch(() => {}), el.click({ timeout: 8000 })]);
+      await el.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+      try {
+        await Promise.all([this.page.waitForLoadState("domcontentloaded", { timeout: 3000 }).catch(() => {}), el.click({ timeout: 4000 })]);
+      } catch {
+        // prvok zakrytý (lišta cookies, prekrytie) – klik skriptom
+        await el.evaluate((n: any) => n.click());
+      }
       if (this.filled) this.searched = true;
       this.record(`click ${ref}`, true);
     } catch (e) {
@@ -367,7 +391,7 @@ export function renderSnapshot(s: Snapshot): string {
   if (s.elements.length) {
     lines.push("PRVKY:");
     for (const e of s.elements) {
-      const parts = [`${e.ref} [${e.kind}]`, e.label || "", e.name ? `name=${e.name}` : "", e.placeholder ? `placeholder=„${e.placeholder}“` : "", e.value ? `hodnota=„${e.value}“` : "", e.options ? `možnosti: ${e.options.join(" | ")}` : "", e.href && e.kind === "link" ? `→ ${e.href}` : ""];
+      const parts = [`${e.ref} [${e.kind}]`, e.label || "", e.name ? `name=${e.name}` : "", e.placeholder ? `placeholder=„${e.placeholder}“` : "", e.value ? `hodnota=„${e.value}“` : "", e.options ? `možnosti: ${e.options.join(" | ")}` : "", e.href && e.kind === "link" ? `→ ${e.href}` : "", e.disabled ? "NEAKTÍVNE (najprv zvoľ prepínač, ktorý ho povolí)" : "", e.readonly ? "len na čítanie (výber dátumu – vyplní sa skriptom)" : ""];
       lines.push("  " + parts.filter(Boolean).join(" · "));
     }
   }

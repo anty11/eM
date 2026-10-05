@@ -27,7 +27,7 @@ export default function AiSettings() {
   const [st, setSt] = useState<Status | null>(null);
   const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
   const [model, setModel] = useState("");
-  const [speed, setSpeed] = useState<Speed>("fast");
+  const [speed, setSpeed] = useState<Speed>("standard");
   const [key, setKey] = useState("");
   const [auto, setAuto] = useState(false);
   const [noApi, setNoApi] = useState(false);
@@ -38,7 +38,7 @@ export default function AiSettings() {
     setSt(s);
     setProvider(s.provider);
     setModel(s.providers?.[s.provider]?.customModel || "");
-    setSpeed(s.speed || "fast");
+    setSpeed(s.speed || "standard");
     setAuto(s.auto);
     setNoApi(s.noApiSources);
   };
@@ -132,8 +132,8 @@ export default function AiSettings() {
         <label>Rýchlosť overenia (platí pre oboch poskytovateľov)</label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
           {([
-            ["fast", "Rýchly model (odporúčané)", `${st.providers.anthropic.fastModel} / ${st.providers.openai.fastModel} · 2 – 3× rýchlejší a lacnejší; na prechod registrom stačí, výsledok aj tak kontroluje server`],
-            ["standard", "Štandardný model", `${st.providers.anthropic.defaultModel} / ${st.providers.openai.defaultModel} · pomalší, presnejší pri neprehľadných stránkach`],
+            ["fast", "Rýchly model", `${st.providers.anthropic.fastModel} / ${st.providers.openai.fastModel} · rýchlejší a lacnejší na jednoduché stránky; pri zložitejších formulároch sa môže zamotať`],
+            ["standard", "Štandardný model (odporúčané)", `${st.providers.anthropic.defaultModel} / ${st.providers.openai.defaultModel} · spoľahlivejší pri formulároch s prepínačmi a dátumami`],
           ] as [Speed, string, string][]).map(([v, title, desc]) => (
             <label key={v} style={{ border: `1px solid ${speed === v ? "var(--brand)" : "var(--line)"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", display: "grid", gap: 2 }}>
               <input type="radio" name="ai-speed" checked={speed === v} onChange={() => setSpeed(v)} style={{ display: "none" }} />

@@ -17,6 +17,17 @@ export interface FlowResult {
 }
 
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+/**
+ * Kľúč poľa z technického názvu: posledný segment (ASP.NET „ctl00$CphMain$txtIco“ → „txtIco“), bez typických predpôn (txt, tb, inp …),
+ * malými písmenami s oddelením slov – „ico“, „datum zverejnenia od“. Umožní nájsť pole aj bez viditeľného popisu.
+ */
+export function fieldKey(name?: string): string {
+  if (!name) return "";
+  const last = name.split(/[$.:/\[\]]/).filter(Boolean).pop() || name;
+  const noPrefix = last.replace(/^(txt|tb|tbx|inp|input|fld|field|ctl|ed|edt)(?=[A-Z_-])/, "");
+  return fold(noPrefix.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ")).trim();
+}
+
 const skDate = (d: Date) => `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
 
 /**
@@ -33,12 +44,18 @@ export async function searchPrelude(s: BrowserSession, ico: string, opts: { date
     done.push("súhlas s cookies");
   }
   const icoRe = opts.icoField || /(^|[^a-z])ico([^a-z]|$)|identifikacne cislo/;
-  const field = snap.elements.find((e) => e.kind === "input" && icoRe.test(fold(`${e.label} ${e.name || ""} ${e.placeholder || ""}`)));
+  const field = snap.elements.find((e) => e.kind === "input" && (icoRe.test(fold(`${e.label} ${e.placeholder || ""}`)) || icoRe.test(fieldKey(e.name))));
   if (!field) return { snap, done };
   snap = await s.fill(field.ref, ico);
   done.push(`IČO → ${field.label || field.name || field.ref}`);
   if (opts.dateFromYearsBack) {
-    const from = snap.elements.find((e) => e.kind === "input" && /(datum|zverejn|date).*(od|from)|(^|\s)od(\s|$)|from/.test(fold(`${e.label} ${e.name || ""} ${e.placeholder || ""}`)) && !/\bdo\b|\bto\b/.test(fold(e.label)));
+    const from = snap.elements.find(
+      (e) =>
+        e.kind === "input" &&
+        e.ref !== field.ref &&
+        (/(datum|zverejn|date).*(od|from)|(^|\s)od(\s|$)|from/.test(fold(`${e.label} ${e.placeholder || ""}`)) || /(datum|date|zverejn).*\b(od|from)$|^(od|from)$/.test(fieldKey(e.name))) &&
+        !/\bdo\b|\bto\b/.test(fold(e.label)),
+    );
     if (from) {
       const d = new Date();
       d.setFullYear(d.getFullYear() - opts.dateFromYearsBack);

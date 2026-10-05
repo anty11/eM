@@ -323,3 +323,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   zopakuje so štandardným modelom – v živom priebehu „Rýchly model … nie je dostupný – skúšam štandardný …“, v protokole poznámka.
   „Otestovať spojenie“ v takom prípade otestuje aj štandardný model a zobrazí upozornenie. Chyby API obsahujú typ chyby (not_found_error…).
 - Text v nastaveniach AI opisuje agenta s prehliadačom (predtým zastarané „AI vypnutá pre formuláre“, „30 – 90 s“).
+- **v2.6.1** – Úvod bez AI našiel pole IČO aj na formulári Obchodného vestníka (ASP.NET: bez `<label>`, popis v susednej bunke, názov
+  `ctl00$…$txtIco`) – `fieldKey()` odvodí kľúč z technického názvu, snímka berie popis aj z predchádzajúcej bunky / textu pred poľom.
+  Vypĺňanie: neaktívne pole → okamžitá chyba „najprv zvoľ prepínač“ (predtým 8 s čakania), pole len na čítanie (výber dátumu) alebo zakryté
+  → hodnota skriptom s udalosťami; klik pri zakrytom prvku skriptom; limity 3 – 4 s. Snímka označuje NEAKTÍVNE / len na čítanie.
+  Predvolený model späť na **štandardný** (Haiku sa na OV zamotal: 63 s, 2× timeout dátumov) – rýchly ostáva na voľbu.
