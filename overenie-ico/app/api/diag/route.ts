@@ -94,6 +94,28 @@ export const GET = handler(async (req) => {
       }
       return NextResponse.json({ ...result, ms: Date.now() - t0 });
     }
+    // 0a) Obchodný register SR (orsr.sk) – záloha identifikácie pri nedostupnom RPO: surové HTML + rozpoznané údaje
+    if (source === "orsr") {
+      const { orsrExtractLinks, parseOrsrExtract } = await import("@/lib/sources/orsr");
+      const get = async (u: string) => {
+        const t = Date.now();
+        const r = await fetchWithTimeout(u, { timeoutMs: 15000, headers: { Accept: "text/html" } });
+        const html = new TextDecoder(/utf-?8/i.test(r.headers.get("content-type") || "") ? "utf-8" : "windows-1250").decode(await r.arrayBuffer());
+        return { status: r.status, ms: Date.now() - t, html };
+      };
+      try {
+        const s1 = await get(`https://www.orsr.sk/hladaj_ico.asp?ICO=${ico}&SID=0`);
+        const links = orsrExtractLinks(s1.html);
+        result.search = { status: s1.status, ms: s1.ms, links, raw: s1.html.slice(0, 3000) };
+        if (links[0]) {
+          const s2 = await get(links[0]);
+          result.extract = { status: s2.status, ms: s2.ms, parsed: parseOrsrExtract(s2.html, links[0]), raw: s2.html.slice(0, 6000) };
+        }
+      } catch (e) {
+        result.error = (e as Error).message;
+      }
+      return NextResponse.json({ ...result, ms: Date.now() - t0 });
+    }
     // 0b) Obchodný vestník cez prehliadač (skript): vyplnenie IČO + dátum od, odoslanie, roztriedenie tabuľky
     if (source === "ov-browser") {
       const { ovFlow } = await import("@/lib/browser/flows");

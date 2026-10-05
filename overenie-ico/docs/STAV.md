@@ -303,3 +303,10 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   a registre bez API, na meno čakajú len FS, médiá, ÚVO a diskvalifikácie – najviac 14 s, potom sa použije názov a sídlo z RÚZ.
   RÚZ čaká na údaje RPO najviac 6 s, výpis z RPO má limit 12 s. V karte „Preverujem…“ beží čas a po 12 s vysvetlenie pomalých registrov.
   Test: pri RPO oneskorenom o 3 s prídu Sociálna poisťovňa a REPLIK skôr.
+- **v2.5.2** – Register právnických osôb: vyhľadanie so „zabezpečeným“ opakovaním (druhá súbežná požiadavka po 5 s, limit 18 s; predtým
+  2× 11 s za sebou → „Časový limit vypršal (11s)“). **Záloha z Obchodného registra SR (orsr.sk)** – `lib/sources/orsr.ts`: vyhľadanie podľa
+  IČO a aktuálny výpis (windows-1250) → obchodné meno, sídlo, právna forma, deň zápisu, oddiel/vložka, štatutárny orgán, spoločníci/akcionár,
+  výmaz/likvidácia. Spustí sa, keď RPO neodpovie do 7 s alebo zlyhá; ak odpovie a RPO stále mešká, po 3 s sa použije (karta uvedie
+  „podľa Obchodného registra SR (RPO neodpovedalo včas)“; história zmien štatutárov/vlastníkov sa vtedy nehodnotí). Pri chybe RPO
+  odkaz „Otvoriť“ vedie na vyhľadanie IČO v orsr.sk. Diagnostika: zdroj „Obchodný register SR (orsr.sk)“ (surové HTML + rozpoznané údaje).
+  Testy `test/orsr.test.ts` (výpis vo windows-1250, chyba RPO, pomalé RPO → záloha po ~10 s, obe nedostupné).

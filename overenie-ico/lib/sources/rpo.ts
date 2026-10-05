@@ -1,6 +1,7 @@
 import { runCheck, statusFromFindings } from "../check";
 import { riskJurisdiction } from "../deal";
 import { fold, getJson } from "../http";
+import { orsrIdentify, type OrsrResult } from "./orsr";
 import type { CheckResult, Ctx, Finding } from "../types";
 
 const BASE = "https://api.statistics.sk/rpo/v1";
@@ -9,6 +10,68 @@ type Valid = { validFrom?: string; validTo?: string; [k: string]: any };
 const current = <T extends Valid>(arr?: T[]): T[] => (arr || []).filter((x) => !x.validTo);
 /** Položky platné k danému dňu (validFrom ≤ deň < validTo). */
 const validAt = <T extends Valid>(arr: T[] | undefined, day: string): T[] => (arr || []).filter((x) => (!x.validFrom || x.validFrom <= day) && (!x.validTo || x.validTo > day));
+/**
+ * Vyhľadanie v RPO so „zabezpečeným“ (hedged) opakovaním: ak prvá požiadavka neodpovie do 5 s, pošle sa druhá súbežne a použije sa
+ * tá, ktorá odpovie skôr (API ŠÚ SR občas jednotlivé požiadavky zdrží). Celkový limit 18 s – predtým 2× 11 s za sebou.
+ */
+async function hedgedSearch(url: string): Promise<{ results?: any[] }> {
+  const one = () => getJson<{ results?: any[] }>(url, { timeoutMs: 18000 });
+  return new Promise((resolve, reject) => {
+    let pending = 1;
+    let done = false;
+    let lastErr: unknown;
+    const settle = (p: Promise<{ results?: any[] }>) =>
+      p.then(
+        (v) => {
+          if (!done) {
+            done = true;
+            resolve(v);
+          }
+        },
+        (e) => {
+          lastErr = e;
+          if (--pending === 0 && !done) reject(lastErr);
+        },
+      );
+    settle(one());
+    setTimeout(() => {
+      if (done) return;
+      pending++;
+      settle(one());
+    }, 5000);
+  });
+}
+
+/** Výsledok kontroly z Obchodného registra (orsr.sk), keď RPO neodpovedalo – základná identifikácia bez histórie zmien. */
+function fromOrsr(ctx: Ctx, o: OrsrResult, rpoError: string) {
+  Object.assign(ctx.profile, {
+    name: o.name,
+    address: o.address,
+    legalForm: o.legalForm,
+    established: o.established,
+    terminated: o.terminated,
+    registrationNumber: o.registrationNumber,
+    statutory: o.statutory,
+    owners: o.owners,
+  });
+  const f: Finding[] = [];
+  if (o.terminated) f.push({ severity: "critical", text: `Subjekt bol vymazaný z obchodného registra (${o.terminated})`, penalty: 100 });
+  if (o.inLiquidation) f.push({ severity: "critical", text: "Spoločnosť je v likvidácii (obchodný register)", penalty: 70 });
+  if (/v konkurze/i.test(o.name)) f.push({ severity: "critical", text: "Spoločnosť je v konkurze", penalty: 90 });
+  const age = yearsSince(o.established);
+  if (age < 1) f.push({ severity: "warning", text: `Veľmi krátka história – subjekt vznikol ${o.established} (menej ako 1 rok)`, penalty: 15 });
+  else if (age < 2) f.push({ severity: "warning", text: `Krátka história – subjekt vznikol ${o.established} (menej ako 2 roky)`, penalty: 6 });
+  else if (age >= 5) f.push({ severity: "positive", text: `Stabilná história – na trhu od ${o.established?.slice(0, 4)}`, penalty: -3 });
+  f.push({ severity: "info", text: `Údaje z Obchodného registra SR (orsr.sk) – Register právnických osôb neodpovedal (${rpoError}); história zmien štatutárov a vlastníkov sa nehodnotila`, penalty: 0 });
+  return {
+    status: statusFromFindings(f),
+    summary: `${o.name}${o.legalForm ? `, ${o.legalForm}` : ""}, zápis ${o.established || "?"}${o.registrationNumber ? `, ${o.registrationNumber}` : ""} – podľa Obchodného registra SR (RPO neodpovedalo včas).`,
+    findings: f,
+    verifyUrl: o.url,
+    data: { via: "orsr", dissolution: Boolean(o.terminated || o.inLiquidation) },
+  };
+}
+
 const yearsSince = (d?: string) => (d ? (Date.now() - new Date(d).getTime()) / (365.25 * 864e5) : NaN);
 
 /**
@@ -50,6 +113,13 @@ function fmtAddress(a: any): string {
  * Živnostenského registra a ďalších zdrojových registrov.
  */
 export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
+  const r = await checkRpoInner(ctx);
+  // pri chybe odkaz na vyhľadanie podľa IČO v obchodnom registri (úvodná stránka RPO je aplikácia bez predvyplnenia)
+  if (r.status === "error") r.verifyUrl = `https://www.orsr.sk/hladaj_ico.asp?ICO=${ctx.ico}&SID=0`;
+  return r;
+}
+
+async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
   return runCheck(
     {
       id: "rpo",
@@ -59,10 +129,47 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       sourceUrl: "https://rpo.statistics.sk",
     },
     async () => {
-      // RPO občas odpovedá pomaly – jeden opakovaný pokus s kratším limitom
-      const search = await getJson<{ results?: any[] }>(`${BASE}/search?identifier=${ctx.ico}`, { timeoutMs: 11000 }).catch(() =>
-        getJson<{ results?: any[] }>(`${BASE}/search?identifier=${ctx.ico}`, { timeoutMs: 11000 }),
-      );
+      // RPO občas odpovedá pomaly: zabezpečené opakovanie, a ak do 7 s nič, súbežne záloha z Obchodného registra (orsr.sk)
+      const t0 = Date.now();
+      let rpoSettled = false;
+      let orsrP: Promise<OrsrResult | null> | null = null;
+      const startOrsr = () => (orsrP ??= orsrIdentify(ctx.ico, Math.max(4000, Math.min(8000, 22000 - (Date.now() - t0)) / 2)).catch(() => null));
+      const searchP = hedgedSearch(`${BASE}/search?identifier=${ctx.ico}`).finally(() => (rpoSettled = true));
+      const timer = setTimeout(() => !rpoSettled && startOrsr(), 7000);
+      let search: { results?: any[] };
+      try {
+        // Ak záloha z orsr.sk odpovie a RPO stále mešká, počká sa ešte 3 s (RPO má bohatšie údaje) a potom sa použije záloha
+        const ORSR_WON = Symbol("orsr");
+        let orsrWon: OrsrResult | null = null;
+        const orsrRace = new Promise<typeof ORSR_WON>((resolve) => {
+          const poll = setInterval(() => {
+            if (rpoSettled) return clearInterval(poll);
+            if (!orsrP) return;
+            clearInterval(poll);
+            orsrP.then((o) => {
+              if (!o || rpoSettled) return;
+              setTimeout(() => {
+                if (!rpoSettled) {
+                  orsrWon = o;
+                  resolve(ORSR_WON);
+                }
+              }, 3000);
+            });
+          }, 250);
+        });
+        const first = await Promise.race([searchP, orsrRace]);
+        clearTimeout(timer);
+        if (first === ORSR_WON && orsrWon && !ctx.asOf) {
+          searchP.catch(() => undefined);
+          return fromOrsr(ctx, orsrWon, "neodpovedal včas");
+        }
+        search = first as { results?: any[] };
+      } catch (err) {
+        clearTimeout(timer);
+        const o = ctx.asOf ? null : await startOrsr();
+        if (o) return fromOrsr(ctx, o, (err as Error).message);
+        throw new Error(`${(err as Error).message}${ctx.asOf ? "" : "; záloha z Obchodného registra (orsr.sk) tiež nepomohla"}`);
+      }
       const hit = search.results?.[0];
       if (!hit) {
         ctx.profile.notFound = true;
@@ -76,7 +183,8 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       }
       let e: any = hit;
       try {
-        e = await getJson(`${BASE}/entity/${hit.id}?showHistoricalData=true&showOrganizationUnits=false`, { timeoutMs: 12000 });
+        // výpis s históriou – v rámci zvyšku 23 s (limit kontroly je 25 s)
+        e = await getJson(`${BASE}/entity/${hit.id}?showHistoricalData=true&showOrganizationUnits=false`, { timeoutMs: Math.max(4000, Math.min(12000, 23000 - (Date.now() - t0))) });
       } catch {
         /* detail nie je nevyhnutný, pokračujeme s výsledkom vyhľadávania */
       }
