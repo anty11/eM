@@ -9,6 +9,9 @@ import { BrowserSession, renderSnapshot, type Snapshot } from "./session";
  * Výsledok má rovnaký tvar ako pokus v probe(): verdict + rows + evidence + výňatok stránky.
  */
 export interface FlowResult {
+  /** Záznam pre administráciu (akcie a snímky stránok) */
+  actions?: import("./session").SessionLog[];
+  pages?: import("./session").PageTrace[];
   verdict: "found" | "clean" | "unknown";
   rows: string[];
   evidence?: string;
@@ -107,10 +110,10 @@ export async function ovFlow(ico: string, opts: { diag?: boolean } = {}): Promis
     s = await BrowserSession.open(["justice.gov.sk"]);
     await s.open(url);
     const { snap, done } = await searchPrelude(s, ico, { dateFromYearsBack: 3 });
-    if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined };
-    return { ...(await withJev(judgeOv(snap, ico), "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined };
+    if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
+    return { ...(await withJev(judgeOv(snap, ico), "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
   } catch (e) {
-    return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300) };
+    return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
   } finally {
     await s?.close();
   }
@@ -151,15 +154,15 @@ export async function unionFlow(ico: string, opts: { diag?: boolean } = {}): Pro
     s = await BrowserSession.open(["unionzp.sk"]);
     let snap = await s.open(url);
     const field = snap.elements.find((e) => e.kind === "input" && /ico|icˇo|obchodn/i.test(fold(e.placeholder || e.label || "")));
-    if (!field) return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: "vyhľadávacie pole sa nenašlo", rendered: opts.diag ? renderSnapshot(snap) : undefined };
+    if (!field) return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: "vyhľadávacie pole sa nenašlo", rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
     snap = await s.fill(field.ref, ico);
     const btn = snap.elements.find((e) => e.kind === "button" && /hladat/.test(fold(e.label)));
     snap = btn ? await s.click(btn.ref) : await s.pressEnter(field.ref);
     // výsledky sa načítavajú na pozadí – počkáme, kým zmizne pôvodný zoznam alebo sa objaví hlásenie / počet
     for (let i = 0; i < 6 && !settled(snap, ico); i++) snap = await s.wait(1000);
-    return { ...(await withJev(judgeUnion(snap, ico), "union", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined };
+    return { ...(await withJev(judgeUnion(snap, ico), "union", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
   } catch (e) {
-    return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300) };
+    return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
   } finally {
     await s?.close();
   }

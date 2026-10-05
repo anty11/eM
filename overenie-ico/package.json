@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/offline.test.ts && tsx test/auth.test.ts && tsx test/ai.test.ts && tsx test/companies.test.ts && tsx test/orders.test.ts && tsx test/deal.test.ts && tsx test/seal.test.ts && tsx test/retro.test.ts && tsx test/orgs.test.ts && tsx test/scoring.test.ts && tsx test/public.test.ts && tsx test/agent.test.ts && tsx test/orsr.test.ts && tsx test/access.test.ts"
+    "test": "tsx test/offline.test.ts && tsx test/auth.test.ts && tsx test/ai.test.ts && tsx test/companies.test.ts && tsx test/orders.test.ts && tsx test/deal.test.ts && tsx test/seal.test.ts && tsx test/retro.test.ts && tsx test/orgs.test.ts && tsx test/scoring.test.ts && tsx test/public.test.ts && tsx test/agent.test.ts && tsx test/orsr.test.ts && tsx test/access.test.ts && tsx test/ailog.test.ts"
   },
   "dependencies": {
     "@sparticuz/chromium": "^153.0.0",

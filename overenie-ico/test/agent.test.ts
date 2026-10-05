@@ -304,6 +304,13 @@ async function main() {
       onEvent: (e) => ev.push(e),
     });
     assert.equal(rj.decidedBy?.engine, "jev", "rozhodol Jev");
+    // záznam pre administráciu: akcie so stabilným popisom prvku a snímky stránok
+    const fillA = rj.log.find((l) => l.action.startsWith("fill"))!;
+    assert.equal(fillA.target?.name, "ico");
+    assert.equal(fillA.target?.label, "IČO alebo obchodné meno");
+    assert.equal(fillA.value, "31322832");
+    assert.ok(rj.log.some((l) => l.action.startsWith("click") && l.target?.label === "Hľadať"));
+    assert.ok(rj.pages.length >= 2 && rj.pages[rj.pages.length - 1].text.includes("Nenašli sa žiadne záznamy"), "snímka stránky s výsledkom");
     assert.equal(rj.steps, 0);
     assert.equal(llmCalls, 0, "LLM sa nevolal");
     assert.ok(rj.text.includes('"result":"clean"'));

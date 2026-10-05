@@ -1,6 +1,6 @@
 import { searchPrelude } from "../browser/flows";
 import { jevJudgeResult, type JevConfig } from "./jev";
-import { BrowserSession, renderSnapshot, type LiveEvent, type SessionLog, type Snapshot } from "../browser/session";
+import { BrowserSession, renderSnapshot, type LiveEvent, type PageTrace, type SessionLog, type Snapshot } from "../browser/session";
 import type { AiConfig } from "./config";
 import type { LlmResponse } from "./llm";
 
@@ -48,6 +48,8 @@ Pravidlá:
 
 export interface AgentResult extends LlmResponse {
   log: SessionLog[];
+  /** Stručné snímky navštívených stránok (záznam AI overení v administrácii) */
+  pages: PageTrace[];
   /** Texty stránok videných počas sedenia (na nezávislú kontrolu) */
   texts: { url: string; text: string }[];
   searched: boolean;
@@ -184,7 +186,7 @@ export async function runBrowserAgent(
               const quote = (snap.text.match(/.{0,80}(nena[šs]li sa [žz]iadne|[žz]iadne z[áa]znamy|nebol n[áa]jden[ýy]|neboli n[áa]jden[ée]|0 z[áa]znamov).{0,80}/i)?.[0] || snap.title).trim();
               const out = { result: "clean", summary: `Vyhľadávanie podľa IČO ${req.jev.ico} v registri neukázalo negatívny záznam (vyhodnotil Jev, istota ${Math.round(v.confidence * 100)} %).`, findings: [], evidence: [{ url: snap.url, quote }], data: {} };
               emit("info", "Server kontroluje výsledok podľa stránky, ktorú naozaj videl…");
-              return { text: `<json>${JSON.stringify(out)}</json>`, visited: [...session.visited], usage, log: session.log, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps: 0, decidedBy: { engine: "jev", model: v.model, confidence: v.confidence, ms: v.ms }, jevHint };
+              return { text: `<json>${JSON.stringify(out)}</json>`, visited: [...session.visited], usage, log: session.log, pages: session.pages, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps: 0, decidedBy: { engine: "jev", model: v.model, confidence: v.confidence, ms: v.ms }, jevHint };
             }
             emit("info", `Jev: ${label} (istota ${Math.round(v.confidence * 100)} %, ${v.ms} ms) – ${v.choice === "found" ? "nález potrebuje podrobnosti" : "istota nestačí"}, pokračuje AI.`);
             user += `\n\nRýchly klasifikátor odhadol výsledok „${v.choice}“ s istotou ${Math.round(v.confidence * 100)} % – over to sám.`;
@@ -253,7 +255,7 @@ export async function runBrowserAgent(
       }
     }
     emit("info", "AI dokončila – server kontroluje jej tvrdenie podľa stránok, ktoré naozaj videl…");
-    return { text, visited: [...session.visited], usage, log: session.log, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps, jevHint };
+    return { text, visited: [...session.visited], usage, log: session.log, pages: session.pages, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps, jevHint };
   } finally {
     await session.close();
   }

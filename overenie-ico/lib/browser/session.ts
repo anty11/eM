@@ -62,6 +62,18 @@ export interface SessionLog {
   url?: string;
   ok: boolean;
   note?: string;
+  /** Stabilný popis prvku (name / popis / druh) – z neho sa dá postup zopakovať bez AI */
+  target?: { kind?: string; name?: string; label?: string; placeholder?: string };
+  value?: string;
+}
+
+/** Záznam stránky počas sedenia (na diagnostiku AI overení a prevod na automatický dopyt). */
+export interface PageTrace {
+  url: string;
+  title: string;
+  elements: string[];
+  tables: string[][][];
+  text: string;
 }
 
 const MAX_TEXT = 7000;
@@ -180,6 +192,8 @@ export class BrowserSession {
   readonly visited = new Set<string>();
   /** Texty všetkých zobrazených snímok – server podľa nich nezávisle kontroluje tvrdenia modelu. */
   readonly texts: { url: string; text: string }[] = [];
+  /** Stručné snímky navštívených stránok (max. 15) */
+  readonly pages: PageTrace[] = [];
   /** Vyplnil a odoslal sa formulár? (podmienka pre „bez záznamu“) */
   searched = false;
   private filled = false;
@@ -230,8 +244,8 @@ export class BrowserSession {
     }
   }
 
-  private record(action: string, ok: boolean, note?: string) {
-    this.log.push({ at: new Date().toISOString(), action, url: this.page.url(), ok, note });
+  private record(action: string, ok: boolean, note?: string, extra?: Pick<SessionLog, "target" | "value">) {
+    this.log.push({ at: new Date().toISOString(), action, url: this.page.url(), ok, note, ...(extra || {}) });
     if (!ok) this.say("warn", `Nepodarilo sa: ${short(note || action, 120)}`);
   }
 
@@ -241,6 +255,11 @@ export class BrowserSession {
     } catch {
       /* klient sa odpojil */
     }
+  }
+
+  private targetOf(ref: string): SessionLog["target"] {
+    const e = this.lastSnap?.elements.find((x) => x.ref === ref);
+    return e ? { kind: e.kind, name: e.name, label: e.label || undefined, placeholder: e.placeholder } : undefined;
   }
 
   /** Popis prvku podľa poslednej snímky (pre ľudský text), napr. pole „IČO“. */
@@ -298,9 +317,9 @@ export class BrowserSession {
         }, text);
       }
       this.filled = true;
-      this.record(`fill ${ref} ← ${text}`, true);
+      this.record(`fill ${ref} ← ${text}`, true, undefined, { target: this.targetOf(ref), value: text });
     } catch (e) {
-      this.record(`fill ${ref}`, false, (e as Error).message.split("\n")[0]);
+      this.record(`fill ${ref}`, false, (e as Error).message.split("\n")[0], { target: this.targetOf(ref), value: text });
       throw new Error(`Pole ${ref} sa nepodarilo vyplniť: ${(e as Error).message.split("\n")[0]}`);
     }
     await this.page.waitForTimeout(300);
@@ -324,9 +343,9 @@ export class BrowserSession {
         await el.evaluate((n: any) => n.click());
       }
       if (this.filled) this.searched = true;
-      this.record(`click ${ref}`, true);
+      this.record(`click ${ref}`, true, undefined, { target: this.targetOf(ref) });
     } catch (e) {
-      this.record(`click ${ref}`, false, (e as Error).message.split("\n")[0]);
+      this.record(`click ${ref}`, false, (e as Error).message.split("\n")[0], { target: this.targetOf(ref) });
       throw new Error(`Na prvok ${ref} sa nepodarilo kliknúť: ${(e as Error).message.split("\n")[0]}`);
     }
     await this.settle();
@@ -339,7 +358,7 @@ export class BrowserSession {
     try {
       await el.press("Enter", { timeout: 8000 });
       if (this.filled) this.searched = true;
-      this.record(`enter ${ref}`, true);
+      this.record(`enter ${ref}`, true, undefined, { target: this.targetOf(ref) });
     } catch (e) {
       this.record(`enter ${ref}`, false, (e as Error).message.split("\n")[0]);
       throw new Error(`Enter v poli ${ref} zlyhal: ${(e as Error).message.split("\n")[0]}`);
@@ -353,7 +372,7 @@ export class BrowserSession {
     this.say("act", `Vyberám „${short(value, 40)}“ v „${this.labelOf(ref)}“`);
     try {
       await el.selectOption({ label: value }, { timeout: 8000 }).catch(async () => el.selectOption(value, { timeout: 8000 }));
-      this.record(`select ${ref} = ${value}`, true);
+      this.record(`select ${ref} = ${value}`, true, undefined, { target: this.targetOf(ref), value });
     } catch (e) {
       this.record(`select ${ref}`, false, (e as Error).message.split("\n")[0]);
       throw new Error(`Výber v ${ref} zlyhal: ${(e as Error).message.split("\n")[0]}`);
@@ -378,6 +397,18 @@ export class BrowserSession {
     const truncated = raw.text.length > MAX_TEXT;
     const snap: Snapshot = { url, title: raw.title, text: raw.text.slice(0, MAX_TEXT), tables: raw.tables, elements: raw.els, truncated };
     this.texts.push({ url, text: raw.text.slice(0, 60000) });
+    const trace: PageTrace = {
+      url,
+      title: raw.title,
+      elements: raw.els.slice(0, 40).map((e) => [e.kind, e.label || "", e.name ? `name=${e.name}` : "", e.placeholder ? `placeholder=${e.placeholder}` : "", e.value ? `=${e.value}` : "", e.disabled ? "disabled" : "", e.readonly ? "readonly" : "", e.options ? `[${e.options.slice(0, 8).join("|")}]` : ""].filter(Boolean).join(" ")),
+      tables: raw.tables.slice(0, 3).map((t) => t.slice(0, 12)),
+      text: raw.text.slice(0, 2500),
+    };
+    const prevT = this.pages[this.pages.length - 1];
+    if (!prevT || prevT.url !== trace.url || prevT.text !== trace.text) {
+      this.pages.push(trace);
+      if (this.pages.length > 15) this.pages.splice(1, 1); // prvú (vstupnú) stránku ponecháme
+    }
     this.lastSnap = snap;
     const seen = describeSnapshot(snap);
     if (seen !== this.lastSeen) {

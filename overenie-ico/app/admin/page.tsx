@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Header, { useMe } from "../components/Header";
 import AccessPanel from "../components/AccessPanel";
+import AiLogPanel from "../components/AiLogPanel";
 import AiSettings from "../components/AiSettings";
 import DiagPanel from "../components/DiagPanel";
 import OrdersPanel from "../components/OrdersPanel";
@@ -283,6 +284,7 @@ export default function AdminPage() {
         <AccessPanel />
 
         <DiagPanel />
+        <AiLogPanel />
 
         <section className="card">
           <h2>Protokol činností</h2>

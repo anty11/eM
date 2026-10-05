@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { saveRun } from "@/lib/ailog";
 import { ovFlow, unionFlow } from "@/lib/browser/flows";
 
 export const runtime = "nodejs";
@@ -20,5 +21,21 @@ export async function POST(req: Request) {
   if (!/^\d{6,8}$/.test(ico)) return NextResponse.json({ error: "bad ico" }, { status: 400 });
   if (body.source !== "union" && body.source !== "ov") return NextResponse.json({ error: "unknown source" }, { status: 400 });
   const r = body.source === "ov" ? await ovFlow(ico, { diag: Boolean(body.diag) }) : await unionFlow(ico, { diag: Boolean(body.diag) });
-  return NextResponse.json(r);
+  // záznam pre administráciu (Záznam AI overení) – aj skriptované dopyty, najmä tie neúspešné
+  await saveRun({
+    kind: "flow",
+    source: body.source,
+    ico,
+    mode: "browser",
+    result: r.verdict,
+    summary: r.evidence || r.rows?.[0],
+    error: r.error,
+    ms: r.ms,
+    jev: (r as any).jev,
+    actions: r.actions,
+    pages: r.pages,
+    evidence: r.url ? [{ url: r.url, quote: r.evidence }] : undefined,
+  }).catch(() => undefined);
+  const { actions: _a, pages: _p, ...rest } = r;
+  return NextResponse.json(body.diag ? r : rest);
 }

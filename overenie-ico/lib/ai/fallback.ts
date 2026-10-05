@@ -79,6 +79,22 @@ const sameUrl = (a: string, b: string) => {
 
 const PEN: Record<Severity, number> = { critical: 30, warning: 8, info: 0, positive: -2 };
 
+/** Podrobnosti behu pre záznam AI overení v administrácii (klientovi sa neposielajú). */
+export interface AiRunDebug {
+  actions?: AgentResult["log"];
+  pages?: AgentResult["pages"];
+  visited?: string[];
+  steps?: number;
+  decidedBy?: string;
+  jev?: string;
+  raw?: string;
+}
+export interface AiCheckResult {
+  check: CheckResult;
+  profilePatch?: Partial<CompanyProfile>;
+  debug?: AiRunDebug;
+}
+
 /** Chyba znamená, že model nie je dostupný alebo nepodporuje nástroj (nie výpadok či časový limit) → má zmysel skúsiť štandardný model. */
 export const isModelError = (msg: string) =>
   /(model|tool)/i.test(msg) && /(not.?found|does not exist|not supported|unsupported|not available|no access|do not have access|invalid|unknown)/i.test(msg);
@@ -93,7 +109,7 @@ export async function aiCheck(
   ico: string,
   profile: CompanyProfile,
   onEvent?: (e: LiveEvent) => void,
-): Promise<{ check: CheckResult; profilePatch?: Partial<CompanyProfile> }> {
+): Promise<AiCheckResult> {
   try {
     return await aiCheckOnce(cfg, original, ico, profile, onEvent);
   } catch (e) {
@@ -116,7 +132,7 @@ async function aiCheckOnce(
   ico: string,
   profile: CompanyProfile,
   onEvent?: (e: LiveEvent) => void,
-): Promise<{ check: CheckResult; profilePatch?: Partial<CompanyProfile> }> {
+): Promise<AiCheckResult> {
   const emit = (kind: LiveEvent["kind"], text: string) => {
     try {
       onEvent?.({ kind, text, at: Date.now() });
@@ -215,6 +231,15 @@ ${FORMAT(spec.dataPoints)}`;
   };
   const label = cfg.provider === "openai" ? "AI (OpenAI)" : "AI (Claude)";
   const verifyUrl = evidence[0]?.url || original.verifyUrl;
+  const debug: AiRunDebug = {
+    actions: agent?.log,
+    pages: agent?.pages,
+    visited: res.visited,
+    steps: agent?.steps,
+    decidedBy: agent?.decidedBy ? "jev" : undefined,
+    jev: agent?.jevHint ? `${agent.jevHint.choice} ${Math.round(agent.jevHint.confidence * 100)} % (${agent.jevHint.ms} ms)` : undefined,
+    raw: res.text.slice(0, 3000),
+  };
 
   if (!verified)
     return {
@@ -227,6 +252,7 @@ ${FORMAT(spec.dataPoints)}`;
         ai: aiMeta,
         durationMs: Date.now() - t0,
       },
+      debug,
     };
 
   let findings: Finding[] = (out.findings || []).map((f) => ({ severity: f.severity, text: `[AI] ${f.text}`, penalty: PEN[f.severity] }));
@@ -304,5 +330,6 @@ ${FORMAT(spec.dataPoints)}`;
       durationMs: Date.now() - t0,
     },
     profilePatch,
+    debug,
   };
 }

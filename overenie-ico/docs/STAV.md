@@ -355,3 +355,15 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - `fold` presunuté do `lib/text.ts` (klientske komponenty už neťahajú serverový `lib/http`).
 - Testy `test/access.test.ts`: lokálna proxy (CONNECT aj absolútne URL) – dopyt servera aj prehliadač idú cez ňu s prihlásením,
   iné domény priamo, vypnutie, šifrovanie, prístup k OV.
+
+## v2.9.0 – 5. 10. 2026 – Záznam AI overení so súhrnom na zdieľanie
+
+- **Administrácia → Záznam AI overení** (`lib/ailog.ts`, `/api/admin/ailog`, `AiLogPanel`): každé „Overiť cez AI“ a každý skriptovaný
+  dopyt cez prehliadač (`/api/browser/flow` – Union, Obchodný vestník) sa uloží (posledných 200): register, IČO, model / Jev, výsledok,
+  dôvod zamietnutia, čas, akcie so **stabilným popisom prvku** (name, popis, druh, vyplnená hodnota), stručné snímky navštívených stránok
+  (polia formulára, tabuľky, text), živý priebeh. Tabuľka behov s filtrom podľa registra a detailom.
+- **„Súhrn na zdieľanie“** (JSON, kopírovať / stiahnuť): za každý register počty výsledkov, priemerný čas, modely, koľkokrát rozhodol Jev,
+  posledný úspešný postup ako „recept“ (len úspešné akcie: otvoriť URL → vyplniť pole name=… → kliknúť „…“) so záverečnou stránkou
+  a posledný neúspech so všetkými stránkami a dôvodom. Podklad na prevod AI overenia na automatický dopyt bez AI (ako pri OV a Union).
+- `BrowserSession`: `log[].target/value`, `pages` (max. 15 snímok, vstupná ostáva); `aiCheck` vracia `debug` (klientovi sa neposiela).
+- Testy `test/ailog.test.ts` + kontrola cieľov akcií a snímok v teste agenta.
