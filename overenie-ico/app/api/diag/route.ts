@@ -1,3 +1,4 @@
+import { accessStatus, getOvAccess } from "@/lib/access";
 import { NextResponse } from "next/server";
 import { fetchWithTimeout } from "@/lib/http";
 import { handler, requireUser } from "@/lib/auth/guard";
@@ -184,7 +185,8 @@ export const GET = handler(async (req) => {
   }
   const out: Record<string, unknown> = {
     ovIndex: await ovMeta().catch(() => null),
-    ovConfigured: Boolean(process.env.OV_EXPORT_URL),
+    ovConfigured: Boolean(await getOvAccess().catch(() => null)),
+    proxy: await accessStatus().then((a) => a.proxy).catch(() => null),
     fsKeyConfigured: Boolean(process.env.FS_API_KEY),
     sessionSecretConfigured: (process.env.SESSION_SECRET || "").length >= 32,
   };

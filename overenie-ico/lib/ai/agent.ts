@@ -152,6 +152,7 @@ export async function runBrowserAgent(
   emit("info", "Spúšťam prehliadač na serveri…");
   const session = await BrowserSession.open(req.allowedHosts);
   session.onEvent = req.onEvent;
+  if (session.proxied) emit("info", `Register ide cez proxy ${session.proxied} (blokuje adresy dátových centier).`);
   /** Text modelu popri akciách = jeho vysvetlenie, čo robí (zobrazí sa naživo) */
   const narrate = (t: string) => {
     const line = t.replace(/<json>[\s\S]*$/i, "").replace(/\s+/g, " ").trim();

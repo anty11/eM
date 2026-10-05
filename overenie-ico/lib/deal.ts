@@ -1,4 +1,4 @@
-import { fold } from "./http";
+import { fold } from "./text";
 import type { CheckResult, Finding } from "./types";
 
 /**

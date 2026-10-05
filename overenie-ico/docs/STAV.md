@@ -341,3 +341,17 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   len „bez záznamu“ nad prahom a bez IČO pri údajoch o dlhu na stránke.
 - Popisy registrov pre Jev v `AI_SPECS[*].jev` (po anglicky – hlavný jazyk modelu; stránka je po slovensky, preto vysoký prah).
 - Testy: Jev rozhodne „bez záznamu“ bez volania LLM (LLM 0 volaní); pri náleze len radí a rozhoduje LLM.
+
+## v2.8.0 – 5. 10. 2026 – Prístupy k registrom v administrácii
+
+- Nová karta **Administrácia → Prístupy k registrom** (`lib/access.ts`, `/api/admin/access`): prehľad, prečo zvyšné registre nie sú
+  automatické a čo pomôže; **proxy pre registre blokujúce dátové centrá** (adresa `http://meno:heslo@host:port`, domény – predvolene
+  justice.gov.sk, zapnutie, test: výstupná IP a krajina + dopyt do Registra diskvalifikácií) a **prístup k exportu Obchodného vestníka**
+  (adresa s {date}, meno, heslo – použije ho nočný import). Heslá šifrovane (AES-256-GCM zo SESSION_SECRET); prostredie má prednosť
+  (`REGISTRY_PROXY_URL`, `REGISTRY_PROXY_DOMAINS`, `OV_EXPORT_URL`…).
+- Proxy používajú dopyty servera (`fetchWithTimeout` → undici `ProxyAgent` pre nastavené domény) aj prehliadač (kontext Playwright
+  s proxy, keď register patrí medzi nastavené domény; v živom priebehu „Register ide cez proxy …“). Register diskvalifikácií skúša
+  najprv priamy dopyt podľa IČO a priezvisk štatutárov (s proxy prejde), až potom Edge.
+- `fold` presunuté do `lib/text.ts` (klientske komponenty už neťahajú serverový `lib/http`).
+- Testy `test/access.test.ts`: lokálna proxy (CONNECT aj absolútne URL) – dopyt servera aj prehliadač idú cez ňu s prihlásením,
+  iné domény priamo, vypnutie, šifrovanie, prístup k OV.

@@ -1,3 +1,5 @@
+import { proxyFor } from "./access";
+
 // Bežný prehliadačový identifikátor – niektoré štátne weby odmietajú neznámych klientov
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
 
@@ -15,6 +17,17 @@ export async function fetchWithTimeout(
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    // registre blokujúce dátové centrá (justice.gov.sk) → cez proxy nastavenú v Administrácii → Prístupy k registrom
+    const px = await proxyFor(url);
+    if (px && /^https?:/.test(px.url)) {
+      const { fetch: viaProxy } = await import("undici");
+      return (await viaProxy(url, {
+        ...(rest as any),
+        signal: ctrl.signal,
+        headers: { "User-Agent": UA, "Accept-Language": "sk,en;q=0.8", ...((rest.headers as any) || {}) },
+        dispatcher: await proxyAgent(px.url),
+      })) as unknown as Response;
+    }
     return await fetch(url, {
       ...rest,
       signal: ctrl.signal,
@@ -27,6 +40,15 @@ export async function fetchWithTimeout(
   } finally {
     clearTimeout(t);
   }
+}
+
+const agents = new Map<string, unknown>();
+async function proxyAgent(url: string): Promise<any> {
+  if (!agents.has(url)) {
+    const { ProxyAgent } = await import("undici");
+    agents.set(url, new ProxyAgent(url));
+  }
+  return agents.get(url);
 }
 
 export async function getJson<T = any>(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
@@ -73,6 +95,4 @@ export function stripHtml(s: string): string {
 }
 
 /** Odstráni diakritiku a zníži písmená – na porovnávanie textov. */
-export function fold(s: string): string {
-  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
+export { fold } from "./text";

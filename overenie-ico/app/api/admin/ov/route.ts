@@ -1,3 +1,4 @@
+import { getOvAccess } from "@/lib/access";
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { handler, requireUser } from "@/lib/auth/guard";
@@ -10,7 +11,7 @@ export const maxDuration = 120;
 /** Stav indexu Obchodného vestníka. */
 export const GET = handler(async () => {
   await requireUser({ admin: true });
-  return NextResponse.json({ meta: await ovMeta(), configured: Boolean(process.env.OV_EXPORT_URL) });
+  return NextResponse.json({ meta: await ovMeta(), configured: Boolean(await getOvAccess()) });
 });
 
 /**

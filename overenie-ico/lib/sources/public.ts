@@ -359,6 +359,9 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       const base = "https://www.justice.gov.sk/registre/registerDiskvalifikacii/";
       return {
         attempts: [
+          // priamo – s proxy z Administrácie → Prístupy k registrom prejde (bez nej rýchle 403)
+          { url: `${base}?ico=${ico}&pageNum=1&size=50`, label: "priamo / cez proxy" },
+          ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50`, label: "priamo / cez proxy" })),
           { url: `${base}?pageNum=1&size=10`, viaEdge: true },
           { url: `${base}?ico=${ico}&pageNum=1&size=50`, viaEdge: true },
           ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50`, viaEdge: true })),

@@ -1,4 +1,5 @@
 import { kv } from "../auth/kv";
+import { getOvAccess } from "../access";
 import { fetchWithTimeout, fold } from "../http";
 import type { CheckResult, Ctx, Finding } from "../types";
 import { MANUAL } from "./manual";
@@ -143,9 +144,10 @@ export async function importOvXml(xml: string, source: string, fallbackDate?: st
  * Presný tvar adresy dá ministerstvo po registrácii; do nastavenia sa nič nesťahuje.
  */
 export async function importOvFromMinistry(days = 3): Promise<{ ok: boolean; files: number; added: number; error?: string }> {
-  const tpl = process.env.OV_EXPORT_URL;
-  if (!tpl) return { ok: false, files: 0, added: 0, error: "OV_EXPORT_URL nie je nastavené – import Obchodného vestníka nie je zapnutý." };
-  const auth: Record<string, string> = process.env.OV_USER ? { Authorization: `Basic ${Buffer.from(`${process.env.OV_USER}:${process.env.OV_PASSWORD || ""}`).toString("base64")}` } : {};
+  const acc = await getOvAccess();
+  const tpl = acc?.exportUrl;
+  if (!tpl) return { ok: false, files: 0, added: 0, error: "Prístup k exportu Obchodného vestníka nie je nastavený (Administrácia → Prístupy k registrom, alebo OV_EXPORT_URL) – import nie je zapnutý." };
+  const auth: Record<string, string> = acc?.user ? { Authorization: `Basic ${Buffer.from(`${acc.user}:${acc.password || ""}`).toString("base64")}` } : {};
   let files = 0, added = 0;
   for (let i = 0; i < days; i++) {
     const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);

@@ -361,3 +361,5 @@ textarea { width: 100%; min-height: 80px; }
 
 /* diagnostika zdrojov – výstup JSON */
 .diag-out { margin-top: 12px; max-height: 520px; overflow: auto; font-size: 12px; line-height: 1.45; background: var(--surface-2, #f6f5fa); border: 1px solid var(--line); border-radius: 8px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
+.card table.mini th, .card table.mini td { vertical-align: top; padding: 6px 10px 6px 0; border-top: 1px solid var(--line); text-align: left; }
+.card table.mini thead th { border-top: 0; color: var(--muted); font-weight: 600; }

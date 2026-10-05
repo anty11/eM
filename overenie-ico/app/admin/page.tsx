@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Header, { useMe } from "../components/Header";
+import AccessPanel from "../components/AccessPanel";
 import AiSettings from "../components/AiSettings";
 import DiagPanel from "../components/DiagPanel";
 import OrdersPanel from "../components/OrdersPanel";
@@ -279,6 +280,7 @@ export default function AdminPage() {
         <OrdersPanel onCreateOrg={(o: Order) => setPrefill({ name: o.company, ico: o.ico, mode: o.plan === "rozsirene" ? "advokat" : "firma", seats: o.users, orderId: o.id })} />
 
         <AiSettings />
+        <AccessPanel />
 
         <DiagPanel />
 

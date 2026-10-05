@@ -187,12 +187,20 @@ export class BrowserSession {
   constructor(private allowedHosts: string[]) {}
 
   private browser!: Browser;
+  /** Adresa proxy, ak kontext ide cez ňu (register blokuje dátové centrá) */
+  proxied?: string;
 
   static async open(allowedHosts: string[]): Promise<BrowserSession> {
     const s = new BrowserSession(allowedHosts);
     const b = await launch();
     s.browser = b;
+    // registre blokujúce dátové centrá → kontext prehliadača cez proxy (Administrácia → Prístupy k registrom)
+    const { getProxyConfig, hostMatches } = await import("../access");
+    const px = await getProxyConfig().catch(() => null);
+    const useProxy = px && allowedHosts.some((h) => hostMatches(h, px.domains));
+    if (useProxy) s.proxied = px!.server;
     s.ctx = await b.newContext({
+      ...(useProxy ? { proxy: { server: px!.server, username: px!.username, password: px!.password } } : {}),
       locale: "sk-SK",
       timezoneId: "Europe/Bratislava",
       userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
