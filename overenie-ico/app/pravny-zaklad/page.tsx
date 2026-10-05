@@ -5,7 +5,7 @@ import { CASES } from "../components/site/content";
 export const metadata: Metadata = {
   title: "Právny základ – prečo si podnikateľ musí overiť dodávateľa a odberateľa",
   description:
-    "Judikatúra Súdneho dvora EÚ (Kittel, Mahagében a Dávid, Aquila), rozhodovacia prax slovenských súdov a § 69 ods. 14 zákona o DPH: čo sa od podnikateľa očakáva pri overení obchodného partnera.",
+    "Judikatúra Súdneho dvora EÚ (Kittel, Mahagében a Dávid, Aquila), rozhodovacia prax slovenských súdov a § 69 ods. 13 zákona o DPH: čo sa od podnikateľa očakáva pri overení obchodného partnera.",
 };
 
 export default function LawPage() {
@@ -47,12 +47,14 @@ export default function LawPage() {
 
             <h2>2. Slovenská úprava: ručenie za daň a zoznamy Finančnej správy</h2>
             <p>
-              Zákon č. 222/2004 Z. z. o dani z pridanej hodnoty v <b>§ 69 ods. 14</b> ustanovuje, že platiteľ, ktorému je alebo má byť dodaný tovar alebo služba,
+              Zákon č. 222/2004 Z. z. o dani z pridanej hodnoty v <b>§ 69 ods. 13</b> ustanovuje, že platiteľ, ktorému je alebo má byť dodaný tovar alebo služba,
               <b> ručí za daň z predchádzajúceho stupňa</b>, ak dodávateľ daň nezaplatil a odberateľ v čase vzniku daňovej povinnosti <b>vedel alebo na základe
-              dostatočných dôvodov vedieť mal alebo vedieť mohol</b>, že daň nebude zaplatená. Zákon uvádza, kedy dostatočné dôvody sú – napríklad ak je
-              protihodnota bez ekonomického opodstatnenia neprimerane vysoká či nízka, ak je dodávateľ personálne prepojený s odberateľom, alebo ak bol dodávateľ
-              v čase plnenia <b>zverejnený v zozname platiteľov, u ktorých nastali dôvody na zrušenie registrácie</b> podľa § 69 ods. 15 (zoznam vedie Finančná správa SR).
-              Od roku 2022 pribudol dôvod platby na bankový účet, ktorý dodávateľ neoznámil Finančnej správe.
+              dostatočných dôvodov vedieť mal alebo vedieť mohol</b>, že daň nebude zaplatená; postup pri uplatnení ručenia upravuje § 69b. Zákon uvádza, kedy sa
+              to predpokladá: ak je protihodnota bez ekonomického opodstatnenia <b>neprimerane vysoká alebo nízka</b> (písm. a)), ak je dodávateľ s odberateľom
+              <b>personálne prepojený</b> cez štatutárny orgán alebo spoločníkov (písm. b)), alebo ak odberateľ platí na <b>bankový účet, ktorý nie je zverejnený
+              v zozname účtov oznámených Finančnej správe</b> (písm. c)). Dôležitým varovným signálom je aj <b>zoznam platiteľov DPH, u ktorých nastali dôvody
+              na zrušenie registrácie</b>, ktorý zverejňuje Finančná správa SR. Odberateľ sa ručeniu môže vyhnúť osobitným spôsobom úhrady dane priamo
+              správcovi dane (§ 69c).
             </p>
             <p>
               Inými slovami: slovenský zákon priamo spája ručenie odberateľa s informáciami, ktoré sú verejne dostupné. Kto si zoznamy Finančnej správy nepozrie,
@@ -80,7 +82,7 @@ export default function LawPage() {
             <ul>
               <li><b>Overenie v registroch pred obchodom</b> – obchodný register, registrácia pre DPH a zoznamy Finančnej správy (dlžníci, dôvody na zrušenie registrácie, index spoľahlivosti), Sociálna poisťovňa, konkurzy a likvidácie, účtovné závierky, register partnerov verejného sektora, médiá.</li>
               <li><b>Vyhodnotenie indícií</b> – záporné vlastné imanie, nepodaná závierka, čerstvá zmena konateľa či vlastníka, veľmi mladá spoločnosť, negatívne správy v médiách o spoločnosti alebo jej štatutároch.</li>
-              <li><b>Posúdenie indikátorov rizika obchodu</b> podľa Bulletinu Slovenskej komory daňových poradcov 03/2024 – cena, platby v hotovosti, preprava, sprostredkovatelia, tlak na čas, zapojenie ďalších osôb; overenie účtu partnera v zozname bankových účtov Finančnej správy (§ 69 ods. 14 písm. c) ZDPH).</li>
+              <li><b>Posúdenie indikátorov rizika obchodu</b> podľa Bulletinu Slovenskej komory daňových poradcov 03/2024 – cena, platby v hotovosti, preprava, sprostredkovatelia, tlak na čas, zapojenie ďalších osôb; overenie účtu partnera v zozname bankových účtov Finančnej správy (§ 69 ods. 13 písm. c) ZDPH).</li>
               <li><b>Preukázateľný záznam</b> – protokol s časom preverenia, menom povereného zamestnanca, výsledkami a odkazmi na zdroje, zapečatený odtlačkom SHA-256 s verejnou overovacou stránkou; databáza preverení s pripomienkou po 180 dňoch. Pri existujúcej spolupráci spätné preverenie k dátumu jej začiatku – protokol vždy uvádza skutočný dátum vyhotovenia.</li>
             </ul>
             <p>
@@ -94,7 +96,7 @@ export default function LawPage() {
             </div>
             <p style={{ fontSize: 13, color: "var(--s-muted)", marginTop: 28 }}>
               Zdroje: rozsudky Súdneho dvora EÚ C‑439/04 a C‑440/04 (Kittel a Recolta Recycling), C‑80/11 a C‑142/11 (Mahagében a Dávid), C‑277/14 (PPUH Stehcemp),
-              C‑610/19 (Vikingo), C‑281/20 (Ferimet), C‑512/21 (Aquila Part Prod Com); zákon č. 222/2004 Z. z. o DPH, § 49 – 51 a § 69 ods. 14 a 15; rozhodnutia NS SR / NSS SR
+              C‑610/19 (Vikingo), C‑281/20 (Ferimet), C‑512/21 (Aquila Part Prod Com); zákon č. 222/2004 Z. z. o DPH, § 49 – 51, § 69 ods. 13, § 69b a § 69c (znenie účinné od 1. 1. 2026); rozhodnutia NS SR / NSS SR
               sp. zn. 6Sžfk/52/2020 a 10Sžfk/26/2021. Text je informatívny a zodpovedá stavu právnej úpravy k dátumu zverejnenia.
             </p>
           </article>

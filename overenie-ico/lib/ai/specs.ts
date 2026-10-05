@@ -71,7 +71,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
     domains: ["financnasprava.sk", "www.financnasprava.sk", "opendata.financnasprava.sk", "ec.europa.eu"],
     urls: (ico) => ["https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy", `https://ec.europa.eu/taxation_customs/vies/`],
     task: (ico, p) =>
-      `Over DPH status subjektu ${who(ico, p)}${p.dic ? `, DIČ ${p.dic}` : ""}: je registrovaný platiteľ DPH (IČ DPH)? Je v zozname platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie (§ 81 ods. 4 písm. b) zákona o DPH)? Je v zozname vymazaných platiteľov DPH?`,
+      `Over DPH status subjektu ${who(ico, p)}${p.dic ? `, DIČ ${p.dic}` : ""}: je registrovaný platiteľ DPH (IČ DPH)? Je v zozname platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie (zoznam Finančnej správy SR)? Je v zozname vymazaných platiteľov DPH?`,
     dataPoints: `"registered" (bool), "icDph" (SK…), "deregistrationReasons" (bool), "deleted" (bool)`,
   },
   "fs-ids": {

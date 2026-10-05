@@ -23,7 +23,7 @@ export default function Home() {
             <h2>Náležitá starostlivosť je súčasťou podnikania. A dá sa preukázať.</h2>
             <p>
               Právo na odpočet DPH je chránené u podnikateľa, ktorý koná v dobrej viere a prijme opatrenia, ktoré od neho možno rozumne požadovať.
-              Kto o problémoch partnera <b>vedel alebo vedieť mal</b>, ochranu stráca – a podľa § 69 ods. 14 zákona o DPH môže <b>ručiť za daň, ktorú dodávateľ nezaplatil</b>.
+              Kto o problémoch partnera <b>vedel alebo vedieť mal</b>, ochranu stráca – a podľa § 69 ods. 13 zákona o DPH môže <b>ručiť za daň, ktorú dodávateľ nezaplatil</b>.
             </p>
           </div>
           <div className="s-why">

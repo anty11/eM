@@ -64,7 +64,7 @@ const DATASETS = {
   vatDeleted: { slugs: ["ds_dphv"], re: /vymazan\S* .*dph/i },
   ids: { slugs: ["ds_iz_ran", "ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
   incomeTax: { slugs: ["ds_dppos", "ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
-  /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 14 písm. c)). */
+  /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 13 písm. c)). */
   bankAccounts: { slugs: ["ds_dph_iban", "ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
 } as const;
 
@@ -299,7 +299,7 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
     if (risk.length)
       f.push({
         severity: "critical",
-        text: "Platiteľ DPH, u ktorého nastali dôvody na zrušenie registrácie (§ 81 ods. 4 písm. b) ZDPH) – riziko ručenia za DPH podľa § 69 ods. 14",
+        text: "Platiteľ DPH v zozname Finančnej správy „dôvody na zrušenie registrácie“ – varovný signál pre ručenie odberateľa za DPH (§ 69 ods. 13 ZDPH)",
         penalty: 35,
       });
     if (!vat.length && del.length) f.push({ severity: "warning", text: "Registrácia pre DPH bola zrušená (vymazaný platiteľ DPH)", penalty: 8 });

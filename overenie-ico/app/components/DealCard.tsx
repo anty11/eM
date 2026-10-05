@@ -122,7 +122,7 @@ export default function DealCard({
               : busy
                 ? "Overujem účet v zozname bankových účtov Finančnej správy…"
                 : bank
-                  ? `${bank.status === "listed" ? "✓ " : bank.status === "not_listed" ? "✕ " : ""}${bank.message}${bank.status === "not_listed" ? " Platba na neoznámený účet zakladá ručenie za DPH (§ 69 ods. 14 písm. c) ZDPH)." : ""}`
+                  ? `${bank.status === "listed" ? "✓ " : bank.status === "not_listed" ? "✕ " : ""}${bank.message}${bank.status === "not_listed" ? " Platba na neoznámený účet zakladá ručenie za DPH (§ 69 ods. 13 písm. c) ZDPH)." : ""}`
                   : ""}
             {bank?.verifyUrl && bank.status !== "listed" && (
               <> <a href={bank.verifyUrl} target="_blank" rel="noreferrer">zoznamy FS ↗</a></>

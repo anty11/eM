@@ -373,3 +373,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „od“, vyplní od (3 roky) aj do; skript prepne na 100 záznamov na stránku a číta ďalšie stránky (klik na číslo strany podľa textu),
   kým sú oznámenia novšie ako 3 roky; riadky sa filtrujú podľa dátumu; neúplné čítanie bez nálezu = „neviem“. Union: dôkaz
   „Žiadne data · 0–0 z 0“. Test `test/ovflow.test.ts` (kópia štruktúry OV: prepínač, stránkovanie, nález na 2. strane, staré oznámenie).
+- **v2.9.2** – Oprava právnych odkazov: ručenie odberateľa za DPH je v aktuálnom znení zákona č. 222/2004 Z. z. v **§ 69 ods. 13**
+  (predpoklady písm. a) neprimeraná cena, b) personálne prepojenie, c) platba na účet nezverejnený v zozname FS), postup § 69b,
+  osobitný spôsob úhrady § 69c – podľa Informácie FR SR 1/DPH/2026/I a odbornej tlače 2025/2026 (predtým § 69 ods. 14 – staré číslovanie).
+  Zoznam platiteľov s dôvodmi na zrušenie registrácie už nie je opisovaný ako zákonný predpoklad ručenia, ale ako varovný signál;
+  odstránené neisté odkazy na § 69 ods. 15 a § 81 ods. 4 písm. b). Upravené: úvod webu, Právny základ, karta právnych zdrojov,
+  zistenie FS DPH, indikátory obchodu (cena, účet), karta obchodu, zadanie AI, ZDROJE.md.

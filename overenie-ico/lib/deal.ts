@@ -25,7 +25,7 @@ export interface Indicator {
 
 export const INDICATORS: Indicator[] = [
   { id: "docs", no: "vi", title: "Neúplná, nejasná alebo chýbajúca zmluvná dokumentácia", hint: "Zmluva, objednávka, dodací list, preberací protokol – chýbajú alebo si odporujú.", severity: "warning", penalty: 8 },
-  { id: "price", no: "vii", title: "Cenová politika mimo trhu", hint: "Cena výrazne pod alebo nad obvyklou úrovňou bez ekonomického zdôvodnenia (porovnajte s § 69 ods. 14 písm. a) ZDPH).", severity: "warning", penalty: 10 },
+  { id: "price", no: "vii", title: "Cenová politika mimo trhu", hint: "Cena výrazne pod alebo nad obvyklou úrovňou bez ekonomického zdôvodnenia (porovnajte s § 69 ods. 13 písm. a) ZDPH).", severity: "warning", penalty: 10 },
   { id: "law", no: "viii", title: "Porušovanie právnych predpisov alebo nabádanie naň", hint: "Návrh fakturovať inak než sa dodáva, obísť DPH, clo, licenciu, zamestnanecké predpisy.", severity: "critical", penalty: 40 },
   { id: "cash", no: "x", title: "Platby v hotovosti namiesto bezhotovostnej úhrady", hint: "Partner požaduje alebo ponúka úhradu faktúr v hotovosti namiesto prevodu na účet – aj pod zákonným limitom (zákon č. 394/2012 Z. z. o obmedzení platieb v hotovosti), najmä opakovane alebo tesne pod limitom.", severity: "warning", penalty: 12 },
   { id: "payment", no: "x", title: "Iné nezvyčajné platobné metódy", hint: "Platba tretej osobe alebo na účet v inom štáte, krypto, zápočty s neznámymi subjektmi, platba vopred bez zabezpečenia.", severity: "warning", penalty: 10 },
@@ -150,7 +150,7 @@ export function buildDealCheck(
   if (normalizeIban(deal.iban)) {
     if (!ibanValid(deal.iban)) f.push({ severity: "warning", text: `IBAN ${normalizeIban(deal.iban)} nie je platný (kontrolný súčet) – overte číslo účtu na faktúre`, penalty: 5 });
     else if (bank?.status === "not_listed")
-      f.push({ severity: "critical", text: `Účet ${normalizeIban(deal.iban)} nie je v zozname bankových účtov oznámených Finančnej správe – platba naň zakladá ručenie za DPH podľa § 69 ods. 14 písm. c) ZDPH (indikátor x)`, penalty: 35 });
+      f.push({ severity: "critical", text: `Účet ${normalizeIban(deal.iban)} nie je v zozname bankových účtov oznámených Finančnej správe – platba naň zakladá ručenie za DPH podľa § 69 ods. 13 písm. c) ZDPH (indikátor x)`, penalty: 35 });
     else if (bank?.status === "listed") f.push({ severity: "positive", text: `Účet ${normalizeIban(deal.iban)} je v zozname bankových účtov oznámených Finančnej správe`, penalty: -2 });
     else if (bank?.status === "not_vat_payer") f.push({ severity: "info", text: `Partner nie je platiteľ DPH – zoznam bankových účtov FS sa naň nevzťahuje; účet ${normalizeIban(deal.iban)} overte zmluvne`, penalty: 0 });
     else f.push({ severity: "info", text: `Účet ${normalizeIban(deal.iban)} sa nepodarilo overiť v zozname FS – skontrolujte manuálne (${bank?.verifyUrl || "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy"})`, penalty: 0 });

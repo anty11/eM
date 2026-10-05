@@ -45,7 +45,7 @@ export const CASES: { title: string; text: string }[] = [
   { title: "PPUH Stehcemp (C‑277/14)", text: "Formálne nedostatky dodávateľa (neaktívna registrácia, chýbajúce sídlo) samy osebe odpočet nevylučujú – rozhoduje, čo odberateľ vedel a mohol zistiť." },
   { title: "Vikingo (C‑610/19), Ferimet (C‑281/20)", text: "Správca dane musí preukázať účasť na podvode objektívnymi skutočnosťami; nezrovnalosti v reťazci sú indíciou, nie automatickým dôvodom na odopretie odpočtu." },
   { title: "Aquila Part Prod Com (C‑512/21)", text: "Náležitú starostlivosť nemožno preniesť na tretiu osobu; platiteľ má vedieť preukázať vlastné overenie partnera." },
-  { title: "§ 69 ods. 14 a 15 zákona č. 222/2004 Z. z. o DPH", text: "Ručenie odberateľa za daň nezaplatenú dodávateľom, ak „vedel alebo vedieť mal a mohol“ – napr. pri partnerovi zo zverejneného zoznamu Finančnej správy alebo pri platbe na neoznámený účet (písm. c))." },
+  { title: "§ 69 ods. 13 a § 69b zákona č. 222/2004 Z. z. o DPH", text: "Ručenie odberateľa za daň nezaplatenú dodávateľom, ak „vedel alebo vedieť mal a mohol“ – predpokladá sa pri neprimeranej cene (písm. a)), personálnom prepojení (písm. b)) a platbe na účet, ktorý nie je v zozname Finančnej správy (písm. c))." },
   { title: "NS SR 6Sžfk/52/2020, NSS SR 10Sžfk/26/2021", text: "Slovenské súdy uplatňujú kritériá Súdneho dvora: očakáva sa obozretnosť primeraná okolnostiam obchodu a schopnosť preukázať ju dokumentáciou z času pred obchodom." },
 ];
 

@@ -175,7 +175,7 @@ Aplikácia skúša stĺpce v poradí `ico`, `ICO`, potom `dic` (DIČ z RÚZ) a `
 |---|---|---|---|---|
 | Daňoví dlžníci | `ds_dsdd` | „daňoví dlžníci“ | výška nedoplatku | nález: **kritická, −45** |
 | Registrovaní platitelia DPH | `ds_dphs` | „registrovaní … DPH“ | IČ DPH | registrovaný bez rizika: +2 |
-| Platitelia DPH s dôvodmi na zrušenie registrácie | `ds_dphz` | „dôvody na zrušenie“ | – | nález: **kritická, −35** (riziko ručenia za DPH podľa § 69 ods. 14 ZDPH) |
+| Platitelia DPH s dôvodmi na zrušenie registrácie | `ds_dphz` | „dôvody na zrušenie“ | – | nález: **kritická, −35** (riziko ručenia za DPH podľa § 69 ods. 13 ZDPH) |
 | Vymazaní platitelia DPH | `ds_dphv` | „vymazaní … DPH“ | – | vymazaný a nie je registrovaný: upozornenie, −8 |
 | Index daňovej spoľahlivosti | `ds_ids` | „spoľahlivý“ | hodnotenie | „menej spoľahlivý“: upozornenie, −20; „vysoko spoľahlivý“: +5 |
 | Daň z príjmov PO | `ds_dppo` | „výška dane … právnických osôb“ | rok, výška dane | informácia. Chýbajúci záznam neznamená nepodanie priznania. |
@@ -427,7 +427,7 @@ Zobrazuje sa na začiatku výsledku a v PDF (`lib/keyfacts.ts`).
 | (vii) cenová politika | posúdi poverený zamestnanec | −10 |
 | (viii) porušovanie predpisov / nabádanie | posúdi poverený zamestnanec | **kritické −40** |
 | (ix) povolenie / zápis v registri | predmet obchodu vs. zoznam regulovaných činností (`REGULATED`): PHM, lieh, tabak, odpady, finančné služby, doprava, lieky, zbrane, SBS, agentúrne zamestnávanie, stavby, VTZ, potraviny, hazard | pripomienka s odkazom na register |
-| (x) nezvyčajné platby | IBAN partnera vs. zoznam bankových účtov platiteľov DPH (FS OpenData, `bankAccounts`); úhrady faktúr v hotovosti namiesto bezhotovostného prevodu (aj pod limitom) a iné metódy posúdi zamestnanec | neoznámený účet **kritické −35** (§ 69 ods. 14 písm. c) ZDPH); hotovosť −12; iné −10; neplatný IBAN −5 |
+| (x) nezvyčajné platby | IBAN partnera vs. zoznam bankových účtov platiteľov DPH (FS OpenData, `bankAccounts`); úhrady faktúr v hotovosti namiesto bezhotovostného prevodu (aj pod limitom) a iné metódy posúdi zamestnanec | neoznámený účet **kritické −35** (§ 69 ods. 13 písm. c) ZDPH); hotovosť −12; iné −10; neplatný IBAN −5 |
 | (xi) preprava | posúdi poverený zamestnanec | −6 |
 | (xii) umelé zapojenie osôb | posúdi poverený zamestnanec | **kritické −40** |
 | (xiii) referencie len od sprostredkovateľa | posúdi poverený zamestnanec | −8 |
