@@ -91,7 +91,8 @@ async function post(url: string, headers: Record<string, string>, body: unknown,
     const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal: ctrl.signal, cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const msg: string = j?.error?.message || j?.message || `HTTP ${r.status}`;
+      const kind: string = j?.error?.type || j?.error?.code || "";
+      const msg: string = `${j?.error?.message || j?.message || `HTTP ${r.status}`}${kind && kind !== "error" ? ` (${kind})` : ""}`;
       throw new Error(r.status === 401 ? "neplatný API kľúč" : r.status === 429 ? "prekročený limit API (skúste neskôr)" : msg);
     }
     return j;

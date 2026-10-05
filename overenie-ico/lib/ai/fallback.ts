@@ -78,7 +78,38 @@ const sameUrl = (a: string, b: string) => {
 
 const PEN: Record<Severity, number> = { critical: 30, warning: 8, info: 0, positive: -2 };
 
+/** Chyba znamená, že model nie je dostupný alebo nepodporuje nástroj (nie výpadok či časový limit) → má zmysel skúsiť štandardný model. */
+export const isModelError = (msg: string) =>
+  /(model|tool)/i.test(msg) && /(not.?found|does not exist|not supported|unsupported|not available|no access|do not have access|invalid|unknown)/i.test(msg);
+
+/**
+ * AI overenie zdroja. Predvolene rýchly model; ak ho kľúč nepozná alebo nepodporuje nástroj, overenie sa raz zopakuje
+ * so štandardným modelom (a v živom priebehu sa to ukáže).
+ */
 export async function aiCheck(
+  cfg: AiConfig,
+  original: CheckResult,
+  ico: string,
+  profile: CompanyProfile,
+  onEvent?: (e: LiveEvent) => void,
+): Promise<{ check: CheckResult; profilePatch?: Partial<CompanyProfile> }> {
+  try {
+    return await aiCheckOnce(cfg, original, ico, profile, onEvent);
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (!cfg.fallbackModel || cfg.fallbackModel === cfg.model || !isModelError(msg)) throw e;
+    try {
+      onEvent?.({ kind: "warn", text: `Rýchly model ${cfg.model} nie je dostupný (${msg.slice(0, 120)}) – skúšam štandardný ${cfg.fallbackModel}…`, at: Date.now() });
+    } catch {
+      /* klient sa odpojil */
+    }
+    const r = await aiCheckOnce({ ...cfg, model: cfg.fallbackModel, fallbackModel: undefined }, original, ico, profile, onEvent);
+    if (r.check.ai) r.check.ai.note = [r.check.ai.note, `Rýchly model ${cfg.model} nebol dostupný – použitý ${cfg.fallbackModel}.`].filter(Boolean).join(" ");
+    return r;
+  }
+}
+
+async function aiCheckOnce(
   cfg: AiConfig,
   original: CheckResult,
   ico: string,

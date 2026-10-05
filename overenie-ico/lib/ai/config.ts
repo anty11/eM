@@ -14,10 +14,23 @@ export type Provider = "anthropic" | "openai";
 export const PROVIDERS: Provider[] = ["anthropic", "openai"];
 export const PROVIDER_LABEL: Record<Provider, string> = { anthropic: "Claude (Anthropic)", openai: "OpenAI" };
 
+/** Štandardný (presnejší, pomalší) model na poskytovateľa */
 export const DEFAULT_MODEL: Record<Provider, string> = {
   anthropic: "claude-sonnet-5",
   openai: "gpt-5.5",
 };
+/**
+ * Rýchly model na poskytovateľa (predvolený) – agent v registri robí jednoduché kroky (nájsť pole, kliknúť, prečítať tabuľku)
+ * a výsledok aj tak nezávisle kontroluje server, preto stačí najrýchlejší model. Ak ho kľúč nepozná alebo model nepodporuje nástroj,
+ * overenie sa automaticky zopakuje so štandardným modelom (fallbackModel).
+ * Claude Haiku 4.5 = „Fastest“ podľa platform.claude.com/docs/en/models/overview; GPT-6 Luna = „most efficient model for focused,
+ * high-volume tasks“ podľa developers.openai.com/api/docs/models (overené 10/2026).
+ */
+export const FAST_MODEL: Record<Provider, string> = {
+  anthropic: "claude-haiku-4-5-20251001",
+  openai: "gpt-6-luna",
+};
+export type Speed = "fast" | "standard";
 
 export interface AiConfig {
   provider: Provider;
@@ -28,6 +41,9 @@ export interface AiConfig {
   /** Ponúknuť AI aj pre registre bez API (inak len pri zlyhaní API). */
   noApiSources: boolean;
   origin: "env" | "admin";
+  speed: Speed;
+  /** Štandardný model na automatické zopakovanie, ak rýchly model nie je dostupný */
+  fallbackModel?: string;
 }
 
 interface StoredKey {
@@ -35,6 +51,8 @@ interface StoredKey {
   hint: string;
 }
 interface Stored {
+  /** Rýchlosť: fast = rýchly model (predvolené), standard = presnejší model */
+  speed?: Speed;
   /** Aktívny poskytovateľ zvolený správcom */
   provider?: Provider;
   /** Model na poskytovateľa (prázdne = predvolený) */
@@ -98,8 +116,12 @@ function keyFor(p: Provider, s: Stored): { key: string; origin: "env" | "admin" 
   return null;
 }
 
+const speedOf = (s: Stored): Speed => s.speed || (process.env.AI_SPEED === "standard" ? "standard" : "fast");
+
+/** Model: vlastný model zo správy → (ak správca rýchlosť nevolil) AI_MODEL z prostredia → podľa rýchlosti (predvolene rýchly). */
 function modelFor(p: Provider, s: Stored): string {
-  return s.models?.[p] || (envProvider() === p || (!envProvider() && envKey(p)) ? process.env.AI_MODEL : "") || DEFAULT_MODEL[p];
+  const envModel = !s.speed && (envProvider() === p || (!envProvider() && envKey(p))) ? process.env.AI_MODEL : "";
+  return s.models?.[p] || envModel || (speedOf(s) === "fast" ? FAST_MODEL[p] : DEFAULT_MODEL[p]);
 }
 
 function activeProvider(s: Stored): Provider | null {
@@ -113,9 +135,12 @@ export async function getAiConfig(): Promise<AiConfig | null> {
   const p = activeProvider(s);
   if (!p) return null;
   const k = keyFor(p, s)!;
+  const model = modelFor(p, s);
   return {
     provider: p,
-    model: modelFor(p, s),
+    model,
+    speed: speedOf(s),
+    fallbackModel: model !== DEFAULT_MODEL[p] && !s.models?.[p] ? DEFAULT_MODEL[p] : undefined,
     key: k.key,
     // Predvolene VYPNUTÉ – AI sa spúšťa len tlačidlom „Overiť cez AI“ (šetrí kredit)
     auto: s.auto ?? process.env.AI_AUTO_FALLBACK === "1",
@@ -131,14 +156,15 @@ export async function aiStatus() {
   const providers = Object.fromEntries(
     PROVIDERS.map((p) => {
       const k = keyFor(p, s);
-      return [p, { label: PROVIDER_LABEL[p], hasKey: Boolean(k), origin: k?.origin || null, keyHint: envKey(p) ? `…${envKey(p).slice(-4)}` : s.keys?.[p]?.hint, model: modelFor(p, s), defaultModel: DEFAULT_MODEL[p], envLocked: Boolean(envKey(p)) }];
+      return [p, { label: PROVIDER_LABEL[p], hasKey: Boolean(k), origin: k?.origin || null, keyHint: envKey(p) ? `…${envKey(p).slice(-4)}` : s.keys?.[p]?.hint, model: modelFor(p, s), defaultModel: DEFAULT_MODEL[p], fastModel: FAST_MODEL[p], customModel: s.models?.[p] || "", envLocked: Boolean(envKey(p)) }];
     }),
-  ) as Record<Provider, { label: string; hasKey: boolean; origin: "env" | "admin" | null; keyHint?: string; model: string; defaultModel: string; envLocked: boolean }>;
+  ) as Record<Provider, { label: string; hasKey: boolean; origin: "env" | "admin" | null; keyHint?: string; model: string; defaultModel: string; fastModel: string; customModel: string; envLocked: boolean }>;
   return {
     configured: Boolean(cfg),
     origin: cfg?.origin || null,
     provider: cfg?.provider || s.provider || envProvider() || "anthropic",
     model: cfg?.model || "",
+    speed: speedOf(s),
     keyHint: cfg ? providers[cfg.provider].keyHint : undefined,
     auto: cfg?.auto ?? s.auto ?? false,
     noApiSources: cfg?.noApiSources ?? s.noApiSources ?? false,
@@ -149,6 +175,7 @@ export async function aiStatus() {
     updatedAt: s.updatedAt || undefined,
     updatedBy: s.updatedBy || undefined,
     defaults: DEFAULT_MODEL,
+    fast: FAST_MODEL,
   };
 }
 
@@ -157,12 +184,13 @@ export async function aiStatus() {
  * kľúč len tam, kde nie je z prostredia a kde je zadávanie v administrácii dovolené.
  */
 export async function saveAiSettings(
-  input: { provider?: string; model?: string; key?: string; clearKey?: boolean; auto?: boolean; noApiSources?: boolean },
+  input: { provider?: string; model?: string; key?: string; clearKey?: boolean; auto?: boolean; noApiSources?: boolean; speed?: string },
   by: string,
 ) {
   const prev = await stored();
   const provider: Provider = input.provider === "openai" ? "openai" : input.provider === "anthropic" ? "anthropic" : prev.provider || "anthropic";
   const next: Stored = {
+    speed: input.speed === "standard" ? "standard" : input.speed === "fast" ? "fast" : prev.speed,
     provider,
     models: { ...(prev.models || {}) },
     keys: { ...(prev.keys || {}) },
@@ -192,6 +220,6 @@ export async function saveAiSettings(
     notes.push("kľúč zmazaný");
   }
   await kv().set(KEY, next);
-  await audit({ type: "ai_settings", by, detail: [`aktívny: ${PROVIDER_LABEL[provider]}`, next.models?.[provider] ? `model ${next.models[provider]}` : "", ...notes].filter(Boolean).join(" · ") });
+  await audit({ type: "ai_settings", by, detail: [`aktívny: ${PROVIDER_LABEL[provider]}`, `rýchlosť: ${speedOf(next) === "fast" ? "rýchly model" : "štandardný model"}`, next.models?.[provider] ? `model ${next.models[provider]}` : "", ...notes].filter(Boolean).join(" · ") });
   return aiStatus();
 }

@@ -312,3 +312,14 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Testy `test/orsr.test.ts` (výpis vo windows-1250, chyba RPO, pomalé RPO → záloha po ~10 s, obe nedostupné).
 - **v2.5.3** – Web: v hornej lište je zlaté tlačidlo „Klientska sekcia“, „Objednať“ je biele (na mobile ostáva len Klientska sekcia, užšia).
 - **v2.5.4** – Web: stránka Právny základ na celú šírku obsahu (1100 px, zarovnané s hlavičkou; predtým 800 px, úvod 720 px).
+
+## v2.6.0 – 5. 10. 2026 – rýchly model AI ako predvolený
+
+- Administrácia → Nastavenia AI: voľba **Rýchlosť overenia** – „Rýchly model (odporúčané)“ = Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
+  / OpenAI GPT-6 Luna (`gpt-6-luna`), alebo „Štandardný model“ = `claude-sonnet-5` / `gpt-5.5`. Predvolene rýchly (aj bez uloženého
+  nastavenia; `AI_SPEED=standard` v prostredí mení východiskovú hodnotu). „Vlastný model“ na poskytovateľa ostáva a voľbu prepíše.
+  `AI_MODEL` z prostredia platí len, kým správca rýchlosť nezvolí.
+- **Automatické zopakovanie**: ak kľúč rýchly model nepozná alebo model nepodporuje nástroj (napr. webové vyhľadávanie), overenie sa raz
+  zopakuje so štandardným modelom – v živom priebehu „Rýchly model … nie je dostupný – skúšam štandardný …“, v protokole poznámka.
+  „Otestovať spojenie“ v takom prípade otestuje aj štandardný model a zobrazí upozornenie. Chyby API obsahujú typ chyby (not_found_error…).
+- Text v nastaveniach AI opisuje agenta s prehliadačom (predtým zastarané „AI vypnutá pre formuláre“, „30 – 90 s“).

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAiConfig } from "@/lib/ai/config";
+import { isModelError } from "@/lib/ai/fallback";
 import { pingLlm } from "@/lib/ai/llm";
 import { handler, requireUser } from "@/lib/auth/guard";
 
@@ -15,6 +16,23 @@ export const POST = handler(async () => {
     const reply = await pingLlm(cfg);
     return NextResponse.json({ ok: true, reply, provider: cfg.provider, model: cfg.model, ms: Date.now() - t0 });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message, provider: cfg.provider, model: cfg.model }, { status: 502 });
+    const msg = (e as Error).message;
+    // rýchly model nedostupný → overíme aj štandardný, aby bolo jasné, či overenia budú fungovať (s automatickým zopakovaním)
+    if (cfg.fallbackModel && isModelError(msg)) {
+      try {
+        const reply = await pingLlm({ ...cfg, model: cfg.fallbackModel });
+        return NextResponse.json({
+          ok: true,
+          reply,
+          provider: cfg.provider,
+          model: cfg.fallbackModel,
+          ms: Date.now() - t0,
+          warning: `Rýchly model ${cfg.model} nie je pre tento kľúč dostupný (${msg.slice(0, 160)}). Overenia budú automaticky používať štandardný ${cfg.fallbackModel} – alebo prepnite na „Štandardný“, prípadne zadajte iný model.`,
+        });
+      } catch {
+        /* nižšie pôvodná chyba */
+      }
+    }
+    return NextResponse.json({ ok: false, error: msg, provider: cfg.provider, model: cfg.model }, { status: 502 });
   }
 });

@@ -65,6 +65,11 @@ function mockLlm(ico: string, startUrl: string) {
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify(o));
     };
+    if (j.model === "nedostupny-rychly") {
+      res.statusCode = 404;
+      res.setHeader("content-type", "application/json");
+      return res.end(JSON.stringify({ type: "error", error: { type: "not_found_error", message: "model: nedostupny-rychly" } }));
+    }
     if (req.url?.startsWith("/v1/messages")) {
       const msgs = j.messages as any[];
       const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
@@ -214,6 +219,14 @@ async function main() {
   assert.ok(r.check.findings.some((f) => /Dlh voči VšZP/.test(f.text)));
   assert.ok(r.check.ai?.evidence[0]?.url.startsWith(startUrl));
   assert.ok((r.check.ai?.trace || []).some((t) => t.startsWith("✓ fill")), "záznam akcií obsahuje vyplnenie");
+  // rýchly model nedostupný → automaticky štandardný model
+  const fbEvents: { kind: string; text: string }[] = [];
+  const rf = await aiCheck({ provider: "anthropic", model: "nedostupny-rychly", fallbackModel: "m", speed: "fast", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env" }, check, "12345678", { ico: "12345678", name: "Dlžník s.r.o." } as any, (e) => fbEvents.push(e));
+  assert.equal(rf.check.status, "critical", "po zopakovaní so štandardným modelom");
+  assert.equal(rf.check.ai?.model, "m");
+  assert.ok(rf.check.ai?.note?.includes("nedostupny-rychly"), "poznámka o záložnom modeli");
+  assert.ok(fbEvents.some((e) => e.kind === "warn" && /skúšam štandardný m/.test(e.text)));
+  console.log("OK – nedostupný rýchly model → automaticky štandardný.");
   Object.assign(spec, saved);
   llm.close();
   reg.close();

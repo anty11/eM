@@ -30,10 +30,18 @@ async function main() {
   assert.ok(!raw.includes("sk-ant-test"), "kľúč nesmie byť v databáze v čitateľnej podobe");
   const st = await aiStatus();
   assert.equal(st.keyHint, "…XYZ9");
-  assert.equal(st.model, "claude-sonnet-5", "stav uvádza účinný model");
+  assert.equal(st.model, "claude-haiku-4-5-20251001", "predvolene rýchly model");
+  assert.equal(st.speed, "fast");
   const cfg = (await getAiConfig())!;
   assert.equal(cfg.key, "sk-ant-test-0123456789abcdefXYZ9");
-  assert.equal(cfg.model, "claude-sonnet-5");
+  assert.equal(cfg.model, "claude-haiku-4-5-20251001");
+  assert.equal(cfg.fallbackModel, "claude-sonnet-5", "záložný štandardný model");
+  // prepnutie na štandardný model a späť
+  await saveAiSettings({ speed: "standard" }, "admin@x.sk");
+  assert.equal((await getAiConfig())!.model, "claude-sonnet-5");
+  assert.equal((await getAiConfig())!.fallbackModel, undefined);
+  await saveAiSettings({ speed: "fast" }, "admin@x.sk");
+  assert.equal((await getAiConfig())!.model, "claude-haiku-4-5-20251001");
   // premenné prostredia majú prednosť pre kľúč daného poskytovateľa a zamknú jeho zmenu v administrácii
   process.env.ANTHROPIC_API_KEY = "sk-ant-env-0000000000000000ENV1";
   assert.equal((await getAiConfig())!.origin, "env");
@@ -44,9 +52,10 @@ async function main() {
   let c2 = (await getAiConfig())!;
   assert.equal(c2.provider, "openai");
   assert.equal(c2.key, "sk-openai-test-00000000000000AB12");
-  assert.equal(c2.model, "gpt-5.5");
+  assert.equal(c2.model, "gpt-6-luna", "rýchly model OpenAI");
   await saveAiSettings({ provider: "openai", model: "gpt-5.5-mini" }, "admin@x.sk");
-  assert.equal((await getAiConfig())!.model, "gpt-5.5-mini");
+  assert.equal((await getAiConfig())!.model, "gpt-5.5-mini", "vlastný model prepíše rýchlosť");
+  assert.equal((await getAiConfig())!.fallbackModel, undefined, "pri vlastnom modeli sa nezopakuje");
   await saveAiSettings({ provider: "anthropic" }, "admin@x.sk");
   c2 = (await getAiConfig())!;
   assert.equal(c2.provider, "anthropic");

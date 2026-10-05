@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 
 type Provider = "anthropic" | "openai";
-interface ProviderStatus { label: string; hasKey: boolean; origin: "env" | "admin" | null; keyHint?: string; model: string; defaultModel: string; envLocked: boolean }
+interface ProviderStatus { label: string; hasKey: boolean; origin: "env" | "admin" | null; keyHint?: string; model: string; defaultModel: string; fastModel: string; customModel: string; envLocked: boolean }
+type Speed = "fast" | "standard";
 interface Status {
   configured: boolean;
   origin: "env" | "admin" | null;
   provider: Provider;
   model: string;
+  speed: Speed;
   keyHint?: string;
   auto: boolean;
   noApiSources: boolean;
@@ -25,6 +27,7 @@ export default function AiSettings() {
   const [st, setSt] = useState<Status | null>(null);
   const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
   const [model, setModel] = useState("");
+  const [speed, setSpeed] = useState<Speed>("fast");
   const [key, setKey] = useState("");
   const [auto, setAuto] = useState(false);
   const [noApi, setNoApi] = useState(false);
@@ -34,7 +37,8 @@ export default function AiSettings() {
   const apply = (s: Status) => {
     setSt(s);
     setProvider(s.provider);
-    setModel(s.providers?.[s.provider]?.model && s.providers[s.provider].model !== s.providers[s.provider].defaultModel ? s.providers[s.provider].model : "");
+    setModel(s.providers?.[s.provider]?.customModel || "");
+    setSpeed(s.speed || "fast");
     setAuto(s.auto);
     setNoApi(s.noApiSources);
   };
@@ -43,7 +47,7 @@ export default function AiSettings() {
     setProvider(p);
     setKey("");
     const ps = st?.providers?.[p];
-    setModel(ps && ps.model !== ps.defaultModel ? ps.model : "");
+    setModel(ps?.customModel || "");
   };
   useEffect(() => {
     fetch("/api/admin/ai").then((r) => r.json()).then(apply).catch(() => {});
@@ -53,7 +57,7 @@ export default function AiSettings() {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch("/api/admin/ai", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider, model, key, auto, noApiSources: noApi, ...extra }) });
+      const r = await fetch("/api/admin/ai", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider, model, key, auto, noApiSources: noApi, speed, ...extra }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error);
       apply(j);
@@ -70,7 +74,7 @@ export default function AiSettings() {
     setMsg(null);
     const r = await fetch("/api/admin/ai/test", { method: "POST" });
     const j = await r.json().catch(() => ({}));
-    setMsg(j.ok ? { ok: true, text: `Spojenie funguje – ${j.provider} / ${j.model} odpovedal „${j.reply}“ za ${j.ms} ms.` } : { ok: false, text: `Test zlyhal: ${j.error || r.status}` });
+    setMsg(j.ok ? { ok: !j.warning, text: `Spojenie funguje – ${j.provider} / ${j.model} odpovedal „${j.reply}“ za ${j.ms} ms.${j.warning ? ` Upozornenie: ${j.warning}` : ""}` } : { ok: false, text: `Test zlyhal: ${j.error || r.status}` });
     setBusy(false);
   }
 
@@ -87,9 +91,9 @@ export default function AiSettings() {
         Každý výsledok AI musí mať odkaz na oficiálny zdroj, inak ostane na manuálne overenie. Výsledky sú v protokole označené „Overené AI“.
       </p>
       <p className="hint" style={{ marginTop: 0 }}>
-        <b>Obmedzenie:</b> väčšina slovenských registrov sú vyhľadávacie formuláre, ktoré vyhľadávače neindexujú. AI preto musí stránku s výsledkom pre dané IČO
-        otvoriť priamo – to vie Claude (nástroj na otvorenie stránky), OpenAI má len webové vyhľadávanie a pri týchto registroch zväčša skončí „nevedela overiť“.
-        Pri registroch, kde to z povahy nejde (formulár POST, vlastné API, blokovanie), je AI vypnutá s vysvetlením. Jedno overenie trvá 30 – 90 s.
+        <b>Ako to funguje:</b> pri registroch za formulárom (VšZP, Union, Obchodný vestník, ÚVO, diskvalifikácie) AI ovláda prehliadač na serveri –
+        server sám vyplní IČO a odošle vyhľadávanie, model prečíta výsledok a v prípade potreby pokračuje (klikne, vyplní, počká). Pri ostatných
+        registroch AI vyhľadáva a otvára stránky na webe. Priebeh vidí používateľ naživo; s rýchlym modelom trvá overenie zvyčajne 10 – 30 s.
       </p>
       <p>
         Stav:{" "}
@@ -124,10 +128,27 @@ export default function AiSettings() {
         </div>
       </div>
 
+      <div className="field" style={{ marginTop: 8 }}>
+        <label>Rýchlosť overenia (platí pre oboch poskytovateľov)</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+          {([
+            ["fast", "Rýchly model (odporúčané)", `${st.providers.anthropic.fastModel} / ${st.providers.openai.fastModel} · 2 – 3× rýchlejší a lacnejší; na prechod registrom stačí, výsledok aj tak kontroluje server`],
+            ["standard", "Štandardný model", `${st.providers.anthropic.defaultModel} / ${st.providers.openai.defaultModel} · pomalší, presnejší pri neprehľadných stránkach`],
+          ] as [Speed, string, string][]).map(([v, title, desc]) => (
+            <label key={v} style={{ border: `1px solid ${speed === v ? "var(--brand)" : "var(--line)"}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", display: "grid", gap: 2 }}>
+              <input type="radio" name="ai-speed" checked={speed === v} onChange={() => setSpeed(v)} style={{ display: "none" }} />
+              <b>{title}{st.speed === v && !cur.customModel && cur.model === (v === "fast" ? cur.fastModel : cur.defaultModel) ? <span className="pill s-ok" style={{ marginLeft: 8 }}>aktívne</span> : null}</b>
+              <small className="src">{desc}</small>
+            </label>
+          ))}
+        </div>
+        <p className="hint" style={{ margin: "6px 0 0" }}>Ak rýchly model nie je pre váš kľúč dostupný, overenie sa automaticky zopakuje so štandardným modelom.</p>
+      </div>
+
       <div className="contact-grid">
         <div className="field">
-          <label htmlFor="ai-m">Model pre {cur.label} (prázdne = {cur.defaultModel})</label>
-          <input id="ai-m" style={sel} value={model} onChange={(e) => setModel(e.target.value)} placeholder={cur.defaultModel} />
+          <label htmlFor="ai-m">Vlastný model pre {cur.label} (nepovinné – prepíše voľbu rýchlosti)</label>
+          <input id="ai-m" style={sel} value={model} onChange={(e) => setModel(e.target.value)} placeholder={speed === "fast" ? cur.fastModel : cur.defaultModel} />
         </div>
         <div className="field">
           <label htmlFor="ai-k">API kľúč pre {cur.label}{cur.hasKey ? ` (uložený ${cur.keyHint}${cur.envLocked ? ", z premenných prostredia" : " – vyplňte len pri zmene"})` : ""}</label>
