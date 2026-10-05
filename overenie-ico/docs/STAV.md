@@ -367,3 +367,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   a posledný neúspech so všetkými stránkami a dôvodom. Podklad na prevod AI overenia na automatický dopyt bez AI (ako pri OV a Union).
 - `BrowserSession`: `log[].target/value`, `pages` (max. 15 snímok, vstupná ostáva); `aiCheck` vracia `debug` (klientovi sa neposiela).
 - Testy `test/ailog.test.ts` + kontrola cieľov akcií a snímok v teste agenta.
+- **v2.9.1** – Podľa prvého súhrnu záznamu AI overení: **Obchodný vestník** vyhodnocoval len prvú stranu (10 z ~130 oznámení – riadok
+  stránkovania „Aktuálna stránka: 1 2 … 13“ sa počítal ako oznámenie a stránkovanie sa nerozpoznalo) a filter „od“ sa nenastavil
+  (polia od/do sú neaktívne, kým sa nezvolí prepínač rozsahu). Teraz: úvod servera zvolí najbližší nezaškrtnutý prepínač pred poľom
+  „od“, vyplní od (3 roky) aj do; skript prepne na 100 záznamov na stránku a číta ďalšie stránky (klik na číslo strany podľa textu),
+  kým sú oznámenia novšie ako 3 roky; riadky sa filtrujú podľa dátumu; neúplné čítanie bez nálezu = „neviem“. Union: dôkaz
+  „Žiadne data · 0–0 z 0“. Test `test/ovflow.test.ts` (kópia štruktúry OV: prepínač, stránkovanie, nález na 2. strane, staré oznámenie).

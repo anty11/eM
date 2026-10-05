@@ -85,8 +85,26 @@ export async function searchPrelude(s: BrowserSession, ico: string, opts: { date
     if (from) {
       const d = new Date();
       d.setFullYear(d.getFullYear() - opts.dateFromYearsBack);
-      snap = await s.fill(from.ref, skDate(d)).catch(() => snap);
-      done.push(`dátum od ${skDate(d)}`);
+      let target = from;
+      // pole „od“ je neaktívne, kým sa nezvolí prepínač rozsahu (OV: „dňa“ / „od – do“) → najbližší nezaškrtnutý prepínač pred poľom
+      if (from.disabled) {
+        const idx = snap.elements.findIndex((e) => e.ref === from.ref);
+        const radio = snap.elements.slice(0, idx).reverse().find((e) => e.kind === "radio" && e.value !== "zaškrtnuté" && !e.disabled);
+        if (radio) {
+          snap = await s.click(radio.ref).catch(() => snap);
+          done.push("prepínač rozsahu dátumov");
+          target = snap.elements.find((e) => e.name && e.name === from.name) || from;
+        }
+      }
+      if (!target.disabled) {
+        snap = await s.fill(target.ref, skDate(d)).catch(() => snap);
+        done.push(`dátum od ${skDate(d)}`);
+        const to = snap.elements.find((e) => e.kind === "input" && e.ref !== target.ref && !e.disabled && /(datum|date|zverejn).*\b(do|to)$|^(do|to)$/.test(fieldKey(e.name)));
+        if (to && !to.value) {
+          snap = await s.fill(to.ref, skDate(new Date())).catch(() => snap);
+          done.push(`dátum do ${skDate(new Date())}`);
+        }
+      } else done.push("dátum sa nedal nastaviť (pole neaktívne)");
     }
   }
   const btn = snap.elements.find((e) => e.kind === "button" && /hladat|vyhladat|search|zobraz|filtrovat/.test(fold(e.label)));
@@ -102,21 +120,91 @@ export async function searchPrelude(s: BrowserSession, ico: string, opts: { date
  * negatívne (konkurz, likvidácia, zrušenie, dražba, zníženie imania, výzva veriteľom) = záznam; len podania OR / závierky = bez záznamu.
  * Ak je výsledkov viac strán, než vidíme, vráti „unknown“ (dokončí AI agent alebo manuálne).
  */
-export async function ovFlow(ico: string, opts: { diag?: boolean } = {}): Promise<FlowResult> {
+export async function ovFlow(ico: string, opts: { diag?: boolean; url?: string; hosts?: string[] } = {}): Promise<FlowResult> {
   const t0 = Date.now();
-  const url = "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx";
+  const url = opts.url || "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx";
   let s: BrowserSession | null = null;
   try {
-    s = await BrowserSession.open(["justice.gov.sk"]);
+    s = await BrowserSession.open(opts.hosts || ["justice.gov.sk"]);
     await s.open(url);
-    const { snap, done } = await searchPrelude(s, ico, { dateFromYearsBack: 3 });
-    if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
-    return { ...(await withJev(judgeOv(snap, ico), "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
+    const prelude = await searchPrelude(s, ico, { dateFromYearsBack: 3 });
+    let snap = prelude.snap;
+    if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${prelude.done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
+    // Všetky oznámenia za 3 roky: 100 na stránku, ďalšie stránky, kým sú novšie ako hranica (zoznam je zoradený od najnovších)
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 3);
+    const all: string[][] = [];
+    let head: string[] | null = null;
+    let complete = false;
+    if (ovPager(snap).sizes.includes(100) && ovRows(snap).rows.length >= 10) snap = await s.clickLinkText("100").catch(() => snap);
+    for (let page = 1; page <= 10; page++) {
+      const { head: h, rows } = ovRows(snap);
+      if (!h) break;
+      head = h;
+      all.push(...rows);
+      const oldest = rows.map((r) => ovDate(r, h)).filter(Boolean).sort()[0];
+      const pager = ovPager(snap);
+      const hasNext = pager.pages.includes(page + 1) || (pager.more && pager.pages.length > 0);
+      if (!hasNext || (oldest && oldest < cutoff.toISOString().slice(0, 10))) {
+        complete = true;
+        break;
+      }
+      try {
+        snap = await s.clickLinkText(String(page + 1));
+      } catch {
+        break; // ďalšia stránka sa neotvorila → výsledok neúplný (unknown, ak nie je nález)
+      }
+    }
+    const judged = head ? judgeOvRows(head, all, cutoff, complete) : judgeOv(snap, ico);
+    return { ...(await withJev(judged, "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
   } catch (e) {
     return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
   } finally {
     await s?.close();
   }
+}
+
+/** Stránkovanie výsledkov OV: „Aktuálna stránka: 1 2 3 … 13 Počet záznamov na stránku: 10 20 50 100“. */
+export function ovPager(snap: Snapshot): { current: number; pages: number[]; sizes: number[]; more: boolean } {
+  const m = snap.text.match(/Aktu[áa]lna str[áa]nka:\s*([\d\s.…]+?)\s*(Po[čc]et z[áa]znamov na str[áa]nku:\s*([\d\s]+))?(?:$|[^\d\s.…])/i);
+  const pages = (m?.[1].match(/\d+/g) || []).map(Number);
+  const sizes = (m?.[3]?.match(/\d+/g) || []).map(Number);
+  // aktuálna stránka nie je odkaz – jediné číslo, ktoré medzi odkazmi chýba
+  const linkNums = new Set(snap.elements.filter((e) => e.kind === "link" && /^\d+$/.test(e.label)).map((e) => Number(e.label)));
+  const current = pages.find((n) => !linkNums.has(n)) || pages[0] || 1;
+  return { current, pages, sizes, more: /…|\.\.\./.test(m?.[1] || "") };
+}
+
+/** Dátové riadky tabuľky výsledkov OV (bez riadku so stránkovaním). */
+export function ovRows(snap: Snapshot): { head: string[] | null; rows: string[][] } {
+  const table = snap.tables.find((tb) => tb[0]?.some((h) => /typ podania|kapitol/i.test(h)) && tb[0].length >= 4);
+  if (!table) return { head: null, rows: [] };
+  const head = table[0];
+  const rows = table.slice(1).filter((r) => r.length >= 4 && r.some((c) => /\d{1,2}\.\d{1,2}\.\d{4}/.test(c)));
+  return { head, rows };
+}
+
+const ovDate = (r: string[], head: string[]) => {
+  const c = r[head.findIndex((h) => /d[áa]tum/i.test(h))] || r.find((x) => /\d{1,2}\.\d{1,2}\.\d{4}/.test(x)) || "";
+  const m = c.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : "";
+};
+
+/** Posúdenie oznámení OV za posledné 3 roky (riadky zo všetkých prečítaných stránok). */
+export function judgeOvRows(head: string[], all: string[][], cutoff: Date, complete: boolean): Pick<FlowResult, "verdict" | "rows" | "evidence"> {
+  const typeCol = head.findIndex((h) => /typ|podani/i.test(h));
+  const chapCol = head.findIndex((h) => /kapitol/i.test(h));
+  const subjCol = head.findIndex((h) => /subjekt|n[áa]zov/i.test(h));
+  const lim = cutoff.toISOString().slice(0, 10);
+  const rows = all.filter((r) => {
+    const d = ovDate(r, head);
+    return !d || d >= lim;
+  });
+  const negative = rows.map((r) => ({ r, c: classifyNotice(r[typeCol] || "", r[chapCol] || "") })).filter((x) => x.c.severity !== "info");
+  if (negative.length) return { verdict: "found", rows: negative.map((x) => `${x.c.label}: ${x.r[typeCol]} · ${ovDate(x.r, head)} · ${x.r[subjCol] || ""}`.trim()), evidence: negative[0].r.filter(Boolean).join(" | ") };
+  if (!complete) return { verdict: "unknown", rows: [] };
+  const types = [...new Set(rows.map((r) => r[typeCol]).filter(Boolean))];
+  return { verdict: "clean", rows: [], evidence: rows.length ? `${rows.length} oznámení za 3 roky (všetky strany), typy: ${types.slice(0, 4).join(", ")}` : "žiadne oznámenie za 3 roky" };
 }
 
 export function judgeOv(snap: Snapshot, ico: string): Pick<FlowResult, "verdict" | "rows" | "evidence"> {
@@ -131,11 +219,12 @@ export function judgeOv(snap: Snapshot, ico: string): Pick<FlowResult, "verdict"
   const chapCol = head.findIndex((h) => /kapitol/i.test(h));
   const dateCol = head.findIndex((h) => /d[áa]tum/i.test(h));
   const subjCol = head.findIndex((h) => /subjekt|n[áa]zov/i.test(h));
-  const rows = table.slice(1).filter((r) => r.some(Boolean));
+  const rows = table.slice(1).filter((r) => r.length >= 4 && r.some(Boolean));
   const negative = rows.map((r) => ({ r, c: classifyNotice(r[typeCol] || "", r[chapCol] || "") })).filter((x) => x.c.severity !== "info");
   // stránkovanie: ak stránka ukazuje len časť výsledkov, nevieme posúdiť zvyšok
   const pageInfo = t.match(/(\d+)\s*[–-]\s*(\d+)\s*z\s*(\d+)/) || t.match(/strana\s*(\d+)\s*z\s*(\d+)/);
-  const paged = Boolean(pageInfo) && rows.length >= 10 && !(pageInfo && pageInfo.length === 4 && Number(pageInfo[2]) === Number(pageInfo[3]));
+  const pager = ovPager(snap);
+  const paged = (pager.pages.length > 1) || (Boolean(pageInfo) && rows.length >= 10 && !(pageInfo && pageInfo.length === 4 && Number(pageInfo[2]) === Number(pageInfo[3])));
   if (negative.length) return { verdict: "found", rows: negative.map((x) => `${x.c.label}: ${x.r[typeCol]} · ${x.r[dateCol] || ""} · ${x.r[subjCol] || ""}`.trim()), evidence: negative[0].r.join(" | ") };
   if (paged) return { verdict: "unknown", rows: [] };
   return { verdict: "clean", rows: [], evidence: `${rows.length} oznámení za 3 roky, len ${[...new Set(rows.map((r) => r[typeCol]))].slice(0, 3).join(", ")}` };
@@ -190,7 +279,8 @@ export function judgeUnion(snap: Snapshot, ico: string): Pick<FlowResult, "verdi
     const dataRows = table.slice(1).filter((r) => r.some(Boolean));
     const m = t.match(/\d+[–-]\d+ z (\d+)/);
     // po hľadaní: prázdna tabuľka alebo hlásenie, alebo malý počet výsledkov bez nášho IČO (zhoda len podľa textu, nie podľa IČO)
-    if (!dataRows.length || /ziadne|nenasli|neboli najdene|0 z 0|z 0\b/.test(t)) return { verdict: "clean", rows: [], evidence: snap.text.match(/.{0,60}(žiadne|nenašli|0 z 0|z 0\b).{0,60}/i)?.[0] || "prázdny zoznam výsledkov" };
+    if (!dataRows.length || /ziadne|nenasli|neboli najdene|0 z 0|z 0\b/.test(t))
+      return { verdict: "clean", rows: [], evidence: [table[1]?.join(" ").trim(), snap.text.match(/\d+\s*[–-]\s*\d+\s*z\s*\d+/)?.[0]].filter(Boolean).join(" · ") || "prázdny zoznam výsledkov" };
     if (m && Number(m[1]) < 1000 && Number(m[1]) === dataRows.length) return { verdict: "clean", rows: [], evidence: `výsledky hľadania (${m[1]}) neobsahujú IČO ${ico}` };
   }
   return { verdict: "unknown", rows: [] };

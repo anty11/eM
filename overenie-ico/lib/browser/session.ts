@@ -352,6 +352,24 @@ export class BrowserSession {
     return this.snapshot();
   }
 
+  /**
+   * Klik na odkaz podľa presného textu (napr. stránkovanie „2“, „100“) – aj keď je mimo prvých prvkov snímky.
+   * Pre skriptované dopyty; model používa značky zo snímky.
+   */
+  async clickLinkText(text: string): Promise<Snapshot> {
+    const el = this.page.getByRole("link", { name: text, exact: true }).first();
+    this.say("act", `Klikám na „${text}“`);
+    try {
+      await el.click({ timeout: 4000 });
+      this.record(`click „${text}“`, true, undefined, { target: { kind: "link", label: text } });
+    } catch (e) {
+      this.record(`click „${text}“`, false, (e as Error).message.split("\n")[0], { target: { kind: "link", label: text } });
+      throw new Error(`Odkaz „${text}“ sa nepodarilo otvoriť: ${(e as Error).message.split("\n")[0]}`);
+    }
+    await this.settle();
+    return this.snapshot();
+  }
+
   async pressEnter(ref: string): Promise<Snapshot> {
     const el = this.locator(ref);
     this.say("act", `Odosielam formulár (Enter v poli „${this.labelOf(ref)}“)`);
