@@ -134,6 +134,17 @@ async function main() {
   assert.ok(apiCalls(before).length > 5, "fresh volá registre");
   delete process.env.CHECK_CACHE_MIN;
 
+  // 6) Pomalé RPO: ostatné zdroje podľa IČO prídu skôr, nečakajú na RPO
+  process.env.MOCK_RPO_DELAY_MS = "3000";
+  const order: string[] = [];
+  const tStart = Date.now();
+  const r5 = await scan(GOOD, (c) => { if (c.status !== "manual" || c.automated) order.push(`${c.id}@${Date.now() - tStart}`); });
+  delete process.env.MOCK_RPO_DELAY_MS;
+  const at = (id: string) => Number((order.find((o) => o.startsWith(`${id}@`)) || "x@99999").split("@")[1]);
+  assert.ok(at("socpoist") < at("rpo") && at("insolvency") < at("rpo"), `IČO zdroje pred RPO (${order.join(", ")})`);
+  assert.ok(at("rpo") >= 2900, "RPO až po oneskorení");
+  assert.equal(r5.profile.name, "URBAN & PARTNERS s.r.o., advokátska kancelária", "meno z RPO po dobehnutí");
+
   console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
 
   // Chýbajúce účtovné závierky – posudzujú sa len obdobia s uplynutou lehotou; mladá firma bez zrážky

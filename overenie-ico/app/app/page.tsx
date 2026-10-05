@@ -89,14 +89,15 @@ export default function Page() {
   const [aiErr, setAiErr] = useState<Record<string, string>>({});
   const [retrying, setRetrying] = useState<Record<string, boolean>>({});
   const [aiSince, setAiSince] = useState<Record<string, number>>({});
+  const [scanSince, setScanSince] = useState<number | null>(null);
   /** Živý priebeh AI overenia (čo agent práve robí) – zobrazí sa počas čakania */
   const [aiLive, setAiLive] = useState<Record<string, { kind: string; text: string; at: number }[]>>({});
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (!Object.values(aiBusy).some(Boolean)) return;
+    if (!Object.values(aiBusy).some(Boolean) && !loading) return;
     const t = setInterval(() => setTick((x) => x + 1), 1000);
     return () => clearInterval(t);
-  }, [aiBusy]);
+  }, [aiBusy, loading]);
   const lawyer = me?.mode === "advokat";
   const autoRan = useRef(false);
 
@@ -119,6 +120,7 @@ export default function Page() {
       return;
     }
     setLoading(true);
+    setScanSince(Date.now());
     setError(null);
     setReport(null);
     setAnswers({});
@@ -556,7 +558,11 @@ export default function Page() {
                 <div className="score"><div><div><b>{totalAuto - pendingCount}</b><br /><span>z {totalAuto}</span></div></div></div>
                 <div>
                   <p className="vlabel" style={{ color: "var(--ink)" }}>Preverujem…</p>
-                  <div className="vmeta">Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.</div>
+                  <div className="vmeta">
+                    {scanSince ? <b>{Math.round((Date.now() - scanSince) / 1000)} s · </b> : null}
+                    Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.
+                    {scanSince && Date.now() - scanSince > 12000 ? " Niektoré registre dnes odpovedajú pomaly – po 25 s sa zdroj označí ako nedostupný a dá sa skúsiť znova." : ""}
+                  </div>
                 </div>
               </section>
             ) : (

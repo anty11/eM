@@ -298,3 +298,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   v `BrowserSession` (akcie s popisom poľa/tlačidla podľa snímky, stručný popis stránky – titulok, tabuľka, počet, hlásenie o prázdnom
   výsledku), v agentovi (úvod servera, volania modelu, text modelu popri akciách) a v `aiCheck` (kontrola prehliadača, web, overenie).
   Model dostal pokyn písať pred akciami jednu krátku vetu (ide len do živého priebehu, nie do JSON výsledku).
+- **v2.5.1** – Preverenie už nečaká na Register právnických osôb: pri pomalom API ŠÚ SR (vyhľadanie 2× 11 s + výpis) bolo „0 z 10“
+  až 25 s, lebo všetky zdroje štartovali až po RPO. Teraz štartujú všetky hneď; podľa IČO idú RÚZ, Sociálna poisťovňa, REPLIK, RPVS
+  a registre bez API, na meno čakajú len FS, médiá, ÚVO a diskvalifikácie – najviac 14 s, potom sa použije názov a sídlo z RÚZ.
+  RÚZ čaká na údaje RPO najviac 6 s, výpis z RPO má limit 12 s. V karte „Preverujem…“ beží čas a po 12 s vysvetlenie pomalých registrov.
+  Test: pri RPO oneskorenom o 3 s prídu Sociálna poisťovňa a REPLIK skôr.

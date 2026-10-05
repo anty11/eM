@@ -76,6 +76,9 @@ export const CATEGORIES: Record<CategoryId, string> = {
 };
 
 export interface CompanyProfile {
+  /** Názov a sídlo z Registra účtovných závierok – záloha, keď Register právnických osôb neodpovie včas */
+  ruzName?: string;
+  ruzAddress?: string;
   ico: string;
   dic?: string;
   icDph?: string;

@@ -129,7 +129,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       const verifyUrl = `https://www.registeruz.sk/cruz-public/domain/accountingentity/simplesearch?ico=${ctx.ico}`;
       if (!list.id?.length) {
         const f: Finding[] = [];
-        await ctx.rpoDone;
+        await Promise.race([ctx.rpoDone, new Promise((r) => setTimeout(r, 6000))]); // vek/forma z RPO – nečakať dlho, ak RPO mešká
         const age = ctx.profile.established ? (Date.now() - +new Date(ctx.profile.established)) / 31557600000 : 0;
         if (age > 2 && /spolo[cč]nos[tť]|dru[zž]stvo/i.test(ctx.profile.legalForm || ""))
           f.push({ severity: "warning", text: "Obchodná spoločnosť nie je evidovaná v Registri účtovných závierok", penalty: 12 });
@@ -141,6 +141,8 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       if (!units.length) throw new Error("detail účtovnej jednotky sa nepodarilo načítať");
       const uj = units.filter((u: any) => !/zmaz/i.test(String(u.stav || ""))).sort((a: any, b: any) => (b.idUctovnychZavierok?.length || 0) - (a.idUctovnychZavierok?.length || 0))[0] || units[units.length - 1];
       if (uj.dic && !ctx.profile.dic) ctx.profile.dic = uj.dic;
+      if (uj.nazovUJ) ctx.profile.ruzName = String(uj.nazovUJ);
+      if (uj.ulica || uj.mesto) ctx.profile.ruzAddress = [uj.ulica, [uj.psc, uj.mesto].filter(Boolean).join(" ")].filter(Boolean).join(", ");
       // stačí posledných ~6 závierok (ID rastú s časom) – rýchlejšie ako sťahovať celú históriu
       const totalStatements = (uj.idUctovnychZavierok || []).length;
       uj.idUctovnychZavierok = [...(uj.idUctovnychZavierok || [])].sort((a: number, b: number) => b - a).slice(0, 6);
@@ -173,7 +175,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       }
 
       const f: Finding[] = [];
-      await ctx.rpoDone;
+      await Promise.race([ctx.rpoDone, new Promise((r) => setTimeout(r, 6000))]); // vek/forma z RPO – nečakať dlho, ak RPO mešká
       const now = new Date();
       // Závierka za rok N sa podáva do 30.6. (resp. 30.9. pri predĺžení) roku N+1
       const expected = now.getFullYear() - (now.getMonth() >= 9 ? 1 : 2);

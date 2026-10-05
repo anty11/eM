@@ -15,7 +15,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.5.0";
+export const APP_VERSION = "2.5.1";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -112,12 +112,44 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
       })),
     ]);
 
-  // Najprv identifikácia v Registri právnických osôb – ak IČO neexistuje, ostatné kontroly nemajú zmysel
+  // Všetky zdroje štartujú hneď. Podľa IČO sa pýtajú RÚZ, Sociálna poisťovňa, REPLIK, RPVS a registre bez API; na meno z RPO čakajú
+  // len kontroly, ktoré ho potrebujú (FS, médiá, ÚVO, diskvalifikácie) – a najviac 14 s: ak RPO (API ŠÚ SR) odpovedá pomaly,
+  // použije sa názov z RÚZ. Pomalý register tak nezdrží ostatné (predtým všetko čakalo na RPO až 25 s pri „0 z 10“).
   const rpoP = run("rpo", checkRpo);
   ctx.rpoDone = rpoP.catch(() => undefined);
-  const rpoFirst = await capRaw("rpo", rpoP);
+  const rpoCapped = capRaw("rpo", rpoP);
+  for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
+  const ruzP = run("ruz", checkRuz);
+  const nameFallback = () => {
+    if (!ctx.profile.name && ctx.profile.ruzName) {
+      ctx.profile.name = ctx.profile.ruzName;
+      if (!ctx.profile.address && ctx.profile.ruzAddress) ctx.profile.address = ctx.profile.ruzAddress;
+    }
+  };
+  const nameReady = Promise.race([ctx.rpoDone, sleep(14000)]).then(nameFallback);
+  // daňové kontroly: potrebujú meno a DIČ (RÚZ) – na DIČ čakajú najviac 8 s
+  const idReady = Promise.all([nameReady, Promise.race([ctx.dicReady, sleep(8000)])]);
+  const after = (id: string, fn: (c: Ctx) => Promise<CheckResult>) => idReady.then(() => run(id, fn));
+
+  // Registre bez API: server položí dopyt priamo (diskvalifikácie, ÚVO, VšZP, Union) alebo číta index Obchodného vestníka;
+  // ak odpoveď nie je jednoznačná, ostáva manuálna kontrola
+  const manualP = resolveManual({ ...ctx, rpoDone: nameReady } as Ctx, (c) => onProgress?.(c, ctx.profile), fresh);
+  const allP = Promise.all([
+    cap("rpo", rpoCapped),
+    cap("ruz", ruzP),
+    cap("fs-debtors", after("fs-debtors", checkTaxDebtors)),
+    cap("fs-vat", after("fs-vat", checkVat)),
+    cap("fs-ids", after("fs-ids", checkIds)),
+    cap("fs-dppo", after("fs-dppo", checkIncomeTax)),
+    cap("socpoist", run("socpoist", checkSocpoist)),
+    cap("insolvency", run("insolvency", checkInsolvency)),
+    cap("rpvs", run("rpvs", checkRpvs)),
+    cap("news", nameReady.then(() => run("news", checkNews))),
+  ]);
+
+  // IČO neexistuje → koniec (ostatné výsledky sa zahodia)
+  const rpoFirst = await rpoCapped;
   if (ctx.profile.notFound || (rpoFirst.data as any)?.notFound) {
-    onProgress?.(rpoFirst, ctx.profile);
     const scanId = `SK-${ico}-${scannedAt.replace(/[-:TZ.]/g, "").slice(0, 14)}`;
     return {
       scanId,
@@ -138,27 +170,8 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
       notFound: true,
     };
   }
-  for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
-  const ruzP = run("ruz", checkRuz);
-  // daňové kontroly: potrebujú meno (RPO) a DIČ (RÚZ) – na DIČ čakajú najviac 8 s
-  const idReady = Promise.all([ctx.rpoDone, Promise.race([ctx.dicReady, sleep(8000)])]);
-  const after = (id: string, fn: (c: Ctx) => Promise<CheckResult>) => idReady.then(() => run(id, fn));
-
-  // Registre bez API: server položí dopyt priamo (diskvalifikácie, ÚVO, VšZP, Union) alebo číta index Obchodného vestníka;
-  // ak odpoveď nie je jednoznačná, ostáva manuálna kontrola
-  const manualP = resolveManual(ctx, (c) => onProgress?.(c, ctx.profile), fresh);
-  const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await Promise.all([
-    cap("rpo", Promise.resolve(rpoFirst)),
-    cap("ruz", ruzP),
-    cap("fs-debtors", after("fs-debtors", checkTaxDebtors)),
-    cap("fs-vat", after("fs-vat", checkVat)),
-    cap("fs-ids", after("fs-ids", checkIds)),
-    cap("fs-dppo", after("fs-dppo", checkIncomeTax)),
-    cap("socpoist", run("socpoist", checkSocpoist)),
-    cap("insolvency", run("insolvency", checkInsolvency)),
-    cap("rpvs", run("rpvs", checkRpvs)),
-    cap("news", ctx.rpoDone.then(() => run("news", checkNews))),
-  ]);
+  const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await allP;
+  nameFallback();
 
   const manual = await Promise.race([manualP, sleep(Math.max(1000, MANUAL_DEADLINE_MS - (Date.now() - t0))).then(() => manualChecks(ctx))]);
   const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manual];

@@ -84,6 +84,8 @@ globalThis.fetch = (async (input: any, init?: any) => {
   const bad = url.includes(BAD) || url.includes("id=1&") || /entity\/1\?/.test(url) || url.includes("id=999");
 
   if (u.host === "api.statistics.sk") {
+    // pomalé RPO (test, že ostatné zdroje naň nečakajú)
+    if (process.env.MOCK_RPO_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.MOCK_RPO_DELAY_MS)));
     if (url.includes("/search")) return json({ results: icoParam === "00000000" ? [] : [rpoEntity(icoParam, icoParam === BAD)] });
     return json(rpoEntity(bad ? BAD : GOOD, bad));
   }

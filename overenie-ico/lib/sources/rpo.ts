@@ -76,7 +76,7 @@ export async function checkRpo(ctx: Ctx): Promise<CheckResult> {
       }
       let e: any = hit;
       try {
-        e = await getJson(`${BASE}/entity/${hit.id}?showHistoricalData=true&showOrganizationUnits=false`);
+        e = await getJson(`${BASE}/entity/${hit.id}?showHistoricalData=true&showOrganizationUnits=false`, { timeoutMs: 12000 });
       } catch {
         /* detail nie je nevyhnutný, pokračujeme s výsledkom vyhľadávania */
       }
