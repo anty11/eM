@@ -1,7 +1,7 @@
 import { statusFromFindings } from "../check";
 import type { CheckResult, CompanyProfile, Finding, Severity } from "../types";
 import type { AiConfig } from "./config";
-import { browserAvailable } from "../browser/session";
+import { browserAvailable, type LiveEvent } from "../browser/session";
 import { runBrowserAgent, serverQuote, verifyAgentClaims, type AgentResult } from "./agent";
 import { callLlm, type LlmResponse } from "./llm";
 import { AI_SPECS } from "./specs";
@@ -78,7 +78,20 @@ const sameUrl = (a: string, b: string) => {
 
 const PEN: Record<Severity, number> = { critical: 30, warning: 8, info: 0, positive: -2 };
 
-export async function aiCheck(cfg: AiConfig, original: CheckResult, ico: string, profile: CompanyProfile): Promise<{ check: CheckResult; profilePatch?: Partial<CompanyProfile> }> {
+export async function aiCheck(
+  cfg: AiConfig,
+  original: CheckResult,
+  ico: string,
+  profile: CompanyProfile,
+  onEvent?: (e: LiveEvent) => void,
+): Promise<{ check: CheckResult; profilePatch?: Partial<CompanyProfile> }> {
+  const emit = (kind: LiveEvent["kind"], text: string) => {
+    try {
+      onEvent?.({ kind, text, at: Date.now() });
+    } catch {
+      /* klient sa odpojil */
+    }
+  };
   const spec = AI_SPECS[original.id];
   const t0 = Date.now();
   const base = { ...original, checkedAt: new Date().toISOString() };
@@ -103,6 +116,7 @@ ${FORMAT(spec.dataPoints)}`;
   let note: string | undefined;
   let mode: "browser" | "web" = "web";
   if (spec.browser && process.env.BROWSER_DISABLED !== "1") {
+    emit("info", "Kontrolujem prehliadač na serveri…");
     const b = await browserAvailable();
     if (b.ok) {
       mode = "browser";
@@ -116,13 +130,15 @@ Povolené domény: ${spec.domains.join(", ")}.
 Dnešný dátum: ${new Date().toISOString().slice(0, 10)}.
 
 ${FORMAT(spec.dataPoints)}`;
-      agent = await runBrowserAgent(cfg, { user: agentUser, allowedHosts: spec.domains, timeoutMs: 240000, prelude: { url: urls[0], ico, dateFromYearsBack: spec.id === "ov" ? 3 : undefined } });
+      agent = await runBrowserAgent(cfg, { onEvent, user: agentUser, allowedHosts: spec.domains, timeoutMs: 240000, prelude: { url: urls[0], ico, dateFromYearsBack: spec.id === "ov" ? 3 : undefined } });
       res = agent;
     } else {
       note = `Prehliadač na serveri nie je k dispozícii (${b.error || b.mode}) – použité len webové vyhľadávanie.`;
+      emit("act", `${cfg.provider === "openai" ? "OpenAI" : "Claude"} hľadá na webe a otvára stránky registra (${spec.domains[0]})… – zvyčajne 20 – 60 s`);
       res = await callLlm(cfg, { system: SYSTEM, user, allowedDomains: [...new Set(spec.domains.map((d) => d.replace(/^www\./, "")))], maxSearches: 6 });
     }
   } else {
+    emit("act", `${cfg.provider === "openai" ? "OpenAI" : "Claude"} hľadá na webe a otvára stránky registra (${spec.domains[0]})… – zvyčajne 20 – 60 s`);
     res = await callLlm(cfg, { system: SYSTEM, user, allowedDomains: [...new Set(spec.domains.map((d) => d.replace(/^www\./, "")))], maxSearches: 6 });
   }
   const out = parseAiJson(res.text);
@@ -144,6 +160,9 @@ ${FORMAT(spec.dataPoints)}`;
   }
   if (out.result !== "unknown" && !evidence.length) rejected = rejected || "AI neuviedla overiteľný dôkaz z oficiálneho registra";
   const verified = out.result !== "unknown" && evidence.length > 0;
+  if (rejected) emit("warn", `Tvrdenie AI zamietnuté: ${rejected}`);
+  else if (verified) emit("ok", `Overené: ${out.result === "clean" ? "bez záznamu" : "záznam nájdený"} (dôkaz zo stránky ${(() => { try { return new URL(evidence[0].url).hostname; } catch { return "registra"; } })()})`);
+  else emit("warn", "AI výsledok nepotvrdila – ostáva manuálne overenie.");
   const aiMeta = {
     provider: cfg.provider,
     model: cfg.model,

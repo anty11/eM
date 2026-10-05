@@ -177,7 +177,17 @@ async function main() {
     await new Promise<void>((r) => llm.listen(0, "127.0.0.1", r));
     process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
     const cfg = { provider: "anthropic" as const, model: "m", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env" as const };
-    const r = await runBrowserAgent(cfg, { user: "Over IČO 31322832.", allowedHosts: ["127.0.0.1"], timeoutMs: 60000, prelude: { url: startUrl, ico: "31322832" } });
+    const events: { kind: string; text: string }[] = [];
+    const r = await runBrowserAgent(cfg, { user: "Over IČO 31322832.", allowedHosts: ["127.0.0.1"], timeoutMs: 60000, prelude: { url: startUrl, ico: "31322832" }, onEvent: (e) => events.push(e) });
+    // živý priebeh: ľudsky čitateľné kroky v poradí
+    const texts = events.map((e) => e.text);
+    assert.ok(texts[0].startsWith("Spúšťam prehliadač"), texts[0]);
+    assert.ok(texts.some((t) => /^Otváram 127\.0\.0\.1/.test(t)), "otvorenie stránky");
+    assert.ok(texts.some((t) => t === "Vypĺňam pole „IČO alebo obchodné meno“: 31322832"), `vyplnenie s popisom poľa (${texts.join(" | ")})`);
+    assert.ok(texts.some((t) => t === "Klikám na „Hľadať“"), "kliknutie s popisom tlačidla");
+    assert.ok(texts.some((t) => /Na stránke: .*hlásenie „Nenašli sa žiadne záznamy/.test(t)), "popis výsledku");
+    assert.ok(events.some((e) => e.kind === "think"), "AI uvažuje");
+    assert.ok(texts[texts.length - 1].startsWith("AI dokončila"));
     assert.ok(r.searched, "prelude odoslal formulár");
     assert.equal(r.steps, 0, `model nepotreboval žiadny krok (${r.steps})`);
     assert.ok(r.text.includes('"result":"clean"'));
@@ -195,8 +205,11 @@ async function main() {
   spec.domains = ["127.0.0.1"];
   spec.urls = () => [startUrl];
   const check: CheckResult = { id: "vszp", category: "insurance", name: "VšZP", source: "VšZP", sourceUrl: startUrl, status: "manual", summary: "", findings: [], checkedAt: "", durationMs: 0, automated: false };
-  const r = await aiCheck({ provider: "anthropic", model: "m", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env" }, check, "12345678", { ico: "12345678", name: "Dlžník s.r.o." } as any);
+  const checkEvents: { kind: string; text: string }[] = [];
+  const r = await aiCheck({ provider: "anthropic", model: "m", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env" }, check, "12345678", { ico: "12345678", name: "Dlžník s.r.o." } as any, (e) => checkEvents.push(e));
   assert.equal(r.check.ai?.mode, "browser");
+  assert.ok(checkEvents.some((e) => e.text.startsWith("Kontrolujem prehliadač")), "aiCheck hlási kontrolu prehliadača");
+  assert.ok(checkEvents.some((e) => e.kind === "ok" && /Overené: záznam nájdený/.test(e.text)), `aiCheck hlási výsledok overenia (${checkEvents.map((e) => e.text).join(" | ")})`);
   assert.equal(r.check.status, "critical", "nález dlhu → kritické");
   assert.ok(r.check.findings.some((f) => /Dlh voči VšZP/.test(f.text)));
   assert.ok(r.check.ai?.evidence[0]?.url.startsWith(startUrl));

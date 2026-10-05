@@ -287,3 +287,14 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **Obchodný vestník bez AI**: skriptovaný dopyt cez prehliadač (`ovFlow`) pri každom preverení, keď import vydaní nie je zapnutý –
   oznámenia sa triedia ako pri importe XML (`classifyNotice`); negatívne = záznam, len podania OR / závierky = bez záznamu; viac strán = AI/manuálne.
   Diagnostika: zdroj „Obchodný vestník cez prehliadač“.
+
+## v2.5.0 – 5. 10. 2026 – živý priebeh AI overenia
+
+- Počas „Overiť cez AI“ sa pod tlačidlom (na karte aj v okne manuálneho overenia) priebežne vypisuje, čo agent práve robí – s časom od
+  začiatku: „Otváram obchodnyvestnik.justice.gov.sk/…“, „Vypĺňam pole „IČO“: 31322832“, „Klikám na „Vyhľadať““, „Na stránke: tabuľka
+  s 11 riadkami“, „AI vyhodnocuje stránku…“, krátke vety modelu o tom, čo robí a prečo, a nakoniec výsledok serverovej kontroly
+  („Overené: bez záznamu …“ / „Tvrdenie AI zamietnuté: …“). Posledný krok je zvýraznený, hlavička ukazuje sekundy a počet akcií.
+- Technicky: `/api/ai/fallback?stream=1` vracia NDJSON (`step` → `result` / `error`, srdcový tep každých 10 s); udalosti vznikajú
+  v `BrowserSession` (akcie s popisom poľa/tlačidla podľa snímky, stručný popis stránky – titulok, tabuľka, počet, hlásenie o prázdnom
+  výsledku), v agentovi (úvod servera, volania modelu, text modelu popri akciách) a v `aiCheck` (kontrola prehliadača, web, overenie).
+  Model dostal pokyn písať pred akciami jednu krátku vetu (ide len do živého priebehu, nie do JSON výsledku).

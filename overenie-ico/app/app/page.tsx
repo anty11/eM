@@ -89,6 +89,8 @@ export default function Page() {
   const [aiErr, setAiErr] = useState<Record<string, string>>({});
   const [retrying, setRetrying] = useState<Record<string, boolean>>({});
   const [aiSince, setAiSince] = useState<Record<string, number>>({});
+  /** Živý priebeh AI overenia (čo agent práve robí) – zobrazí sa počas čakania */
+  const [aiLive, setAiLive] = useState<Record<string, { kind: string; text: string; at: number }[]>>({});
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!Object.values(aiBusy).some(Boolean)) return;
@@ -126,6 +128,7 @@ export default function Page() {
     setProfilePatch({});
     setAiBusy({});
     setAiErr({});
+    setAiLive({});
     try {
       const asOf = lawyer && coop === "existing" && coopDate ? `&asOf=${coopDate}` : "";
       if (lawyer && coop === "existing" && !coopDate) {
@@ -287,22 +290,73 @@ export default function Page() {
     setAiSince((s) => ({ ...s, [check.id]: Date.now() }));
     setAiErr((s) => ({ ...s, [check.id]: "" }));
     try {
-      const r = await fetch("/api/ai/fallback", {
+      setAiLive((s) => ({ ...s, [check.id]: [{ kind: "info", text: "Odosielam požiadavku na server…", at: Date.now() }] }));
+      const r = await fetch("/api/ai/fallback?stream=1", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ico: rep.ico, check, profile: prof }),
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `Chyba ${r.status}`);
-      setAiResults((s) => ({ ...s, [check.id]: j.check }));
-      if (j.profilePatch) setProfilePatch((s) => ({ ...s, ...j.profilePatch }));
+      if (!r.ok || !r.body) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.error || `Chyba ${r.status}`);
+      }
+      // NDJSON: kroky agenta prichádzajú priebežne, na konci výsledok
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let j: { check: CheckResult; profilePatch?: Partial<CompanyProfile> } | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const ev = JSON.parse(line);
+          if (ev.type === "step") setAiLive((s) => ({ ...s, [check.id]: [...(s[check.id] || []), { kind: ev.kind, text: ev.text, at: ev.at }].slice(-40) }));
+          else if (ev.type === "error") throw new Error(ev.error);
+          else if (ev.type === "result") j = ev;
+        }
+      }
+      if (!j) throw new Error("Spojenie so serverom sa prerušilo pred dokončením – skúste znova.");
+      setAiResults((s) => ({ ...s, [check.id]: j!.check }));
+      if (j.profilePatch) setProfilePatch((s) => ({ ...s, ...j!.profilePatch }));
       return j.profilePatch as Partial<CompanyProfile> | undefined;
     } catch (e) {
       setAiErr((s) => ({ ...s, [check.id]: (e as Error).message }));
     } finally {
       setAiBusy((s) => ({ ...s, [check.id]: false }));
+      setAiLive((s) => {
+        const n = { ...s };
+        delete n[check.id];
+        return n;
+      });
     }
   }
+
+  /** Živý priebeh AI agenta pod tlačidlom: posledné kroky, najnovší zvýraznený, s časom od začiatku. */
+  const aiLiveBox = (c: CheckResult) => {
+    const ev = aiLive[c.id];
+    if (!aiBusy[c.id] || !ev?.length) return null;
+    const t0 = aiSince[c.id] || ev[0].at;
+    const shown = ev.slice(-8);
+    return (
+      <div className="ai-live no-print" aria-live="polite">
+        <div className="ai-live-head">
+          <span className="ai-live-dot" /> AI pracuje · {Math.round((Date.now() - t0) / 1000)} s · {(() => { const n = ev.filter((e) => e.kind === "act").length; return `${n} ${n === 1 ? "akcia" : n >= 2 && n <= 4 ? "akcie" : "akcií"}`; })()}
+        </div>
+        <ol>
+          {shown.map((e, i) => (
+            <li key={`${e.at}-${i}`} className={`k-${e.kind}${i === shown.length - 1 ? " now" : ""}`}>
+              <span className="t">{Math.max(0, Math.round((e.at - t0) / 1000))} s</span> {e.text}
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  };
 
   /** Po preverení: AI automaticky doplní zdroje, ktoré zlyhali (a pri zapnutej voľbe aj registre bez API). */
   async function autoAi(rep: ScanReport) {
@@ -325,7 +379,7 @@ export default function Page() {
     if (!offer) return null;
     return (
       <button className="mbtn ai no-print" disabled={aiBusy[c.id]} onClick={() => profile && runAi(orig, report, profile)}>
-        {aiBusy[c.id] ? `AI prehľadáva register… ${Math.round((Date.now() - (aiSince[c.id] || Date.now())) / 1000)} s (zvyčajne 30–120 s)` : aiResults[c.id] ? "Overiť cez AI znova" : "Overiť cez AI"}
+        {aiBusy[c.id] ? `AI pracuje… ${Math.round((Date.now() - (aiSince[c.id] || Date.now())) / 1000)} s` : aiResults[c.id] ? "Overiť cez AI znova" : "Overiť cez AI"}
       </button>
     );
   };
@@ -675,6 +729,7 @@ export default function Page() {
                       {aiButton(c)}
                       {aiErr[c.id] && <span className="f-critical">{aiErr[c.id]}</span>}
                     </div>
+                    {aiLiveBox(c)}
                   </article>
                 ))}
               </section>
@@ -691,6 +746,7 @@ export default function Page() {
                         <a href={c.verifyUrl} target="_blank" rel="noreferrer">{c.name} ↗</a>
                         <span className="src"> – {c.summary}</span> {aiButton(c)}
                         {aiErr[c.id] && <span className="f-critical"> {aiErr[c.id]}</span>}
+                        {aiLiveBox(c)}
                       </li>
                     ))}
                   </ul>
@@ -811,6 +867,7 @@ export default function Page() {
                           {manualButtons(c)}
                           {aiButton(c)}
                         </div>
+                        {aiLiveBox(c)}
                         {aiBadge(c)}
                       </li>
                     ))}

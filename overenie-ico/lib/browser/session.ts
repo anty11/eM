@@ -23,6 +23,39 @@ export interface Snapshot {
   truncated: boolean;
 }
 
+/** Udalosť pre živý priebeh v rozhraní: act = čo sa práve robí, see = čo je na stránke, think = AI uvažuje, info/warn = poznámky. */
+export interface LiveEvent {
+  kind: "act" | "see" | "think" | "info" | "warn" | "ok";
+  text: string;
+  at: number;
+}
+
+const short = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+const hostPath = (u: string) => {
+  try {
+    const x = new URL(u);
+    return short(`${x.hostname.replace(/^www\./, "")}${x.pathname === "/" ? "" : x.pathname}`, 70);
+  } catch {
+    return short(u, 70);
+  }
+};
+
+/** Krátky ľudský popis snímky: titulok, tabuľky, hlásenie o výsledku hľadania. */
+export function describeSnapshot(s: Snapshot): string {
+  const parts: string[] = [short(s.title || hostPath(s.url), 50)];
+  const empty = s.text.match(/(nena[šs]li sa [žz]iadne z[áa]znamy|zadan[ýy] v[ýy]raz nebol n[áa]jden[ýy]|neboli n[áa]jden[ée][^.]*|[žz]iadne z[áa]znamy|0 z[áa]znamov)/i)?.[0];
+  const count = s.text.match(/\d+\s*[–-]\s*\d+\s*z\s*\d[\d\s]*/)?.[0] || s.text.match(/\b\d+\s+z[áa]znam(ov|y)?\b/i)?.[0];
+  const data = s.tables.filter((t) => t.length > 1);
+  if (data.length) parts.push(`tabuľka s ${data[0].length - 1} ${data[0].length - 1 === 1 ? "riadkom" : "riadkami"}`);
+  if (count) parts.push(count.replace(/\s+/g, " ").trim());
+  if (empty) parts.push(`hlásenie „${empty}“`);
+  if (!data.length && !empty) {
+    const inputs = s.elements.filter((e) => e.kind === "input").length;
+    if (inputs) parts.push(`${inputs} ${inputs === 1 ? "pole" : inputs < 5 ? "polia" : "polí"} formulára`);
+  }
+  return parts.join(" · ");
+}
+
 export interface SessionLog {
   at: string;
   action: string;
@@ -134,6 +167,10 @@ export class BrowserSession {
   private ctx!: BrowserContext;
   page!: Page;
   readonly log: SessionLog[] = [];
+  /** Živý priebeh pre rozhranie (nastaví volajúci) */
+  onEvent?: (e: LiveEvent) => void;
+  private lastSnap?: Snapshot;
+  private lastSeen = "";
   readonly visited = new Set<string>();
   /** Texty všetkých zobrazených snímok – server podľa nich nezávisle kontroluje tvrdenia modelu. */
   readonly texts: { url: string; text: string }[] = [];
@@ -181,6 +218,22 @@ export class BrowserSession {
 
   private record(action: string, ok: boolean, note?: string) {
     this.log.push({ at: new Date().toISOString(), action, url: this.page.url(), ok, note });
+    if (!ok) this.say("warn", `Nepodarilo sa: ${short(note || action, 120)}`);
+  }
+
+  say(kind: LiveEvent["kind"], text: string) {
+    try {
+      this.onEvent?.({ kind, text, at: Date.now() });
+    } catch {
+      /* klient sa odpojil */
+    }
+  }
+
+  /** Popis prvku podľa poslednej snímky (pre ľudský text), napr. pole „IČO“. */
+  labelOf(ref: string): string {
+    const e = this.lastSnap?.elements.find((x) => x.ref === ref);
+    if (!e) return ref;
+    return short(e.label || e.placeholder || e.name || ref, 50);
   }
 
   private async settle() {
@@ -194,6 +247,7 @@ export class BrowserSession {
       this.record(`open ${url}`, false, "doména nie je povolená");
       throw new Error(`Doména nie je povolená: ${url}. Povolené: ${this.allowedHosts.join(", ")}`);
     }
+    this.say("act", `Otváram ${hostPath(url)}`);
     try {
       await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT });
     } catch (e) {
@@ -212,6 +266,7 @@ export class BrowserSession {
 
   async fill(ref: string, text: string): Promise<Snapshot> {
     const el = this.locator(ref);
+    this.say("act", `Vypĺňam pole „${this.labelOf(ref)}“: ${short(text, 40)}`);
     try {
       await el.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
       await el.fill(text, { timeout: 8000 });
@@ -227,6 +282,7 @@ export class BrowserSession {
 
   async click(ref: string): Promise<Snapshot> {
     const el = this.locator(ref);
+    this.say("act", `Klikám na „${this.labelOf(ref)}“`);
     try {
       const href = await el.getAttribute("href").catch(() => null);
       if (href) {
@@ -247,6 +303,7 @@ export class BrowserSession {
 
   async pressEnter(ref: string): Promise<Snapshot> {
     const el = this.locator(ref);
+    this.say("act", `Odosielam formulár (Enter v poli „${this.labelOf(ref)}“)`);
     try {
       await el.press("Enter", { timeout: 8000 });
       if (this.filled) this.searched = true;
@@ -261,6 +318,7 @@ export class BrowserSession {
 
   async select(ref: string, value: string): Promise<Snapshot> {
     const el = this.locator(ref);
+    this.say("act", `Vyberám „${short(value, 40)}“ v „${this.labelOf(ref)}“`);
     try {
       await el.selectOption({ label: value }, { timeout: 8000 }).catch(async () => el.selectOption(value, { timeout: 8000 }));
       this.record(`select ${ref} = ${value}`, true);
@@ -273,6 +331,7 @@ export class BrowserSession {
   }
 
   async wait(ms: number): Promise<Snapshot> {
+    this.say("act", "Čakám, kým sa načítajú výsledky…");
     await this.page.waitForTimeout(Math.min(8000, Math.max(200, ms)));
     await this.settle();
     this.record(`wait ${ms}`, true);
@@ -287,6 +346,12 @@ export class BrowserSession {
     const truncated = raw.text.length > MAX_TEXT;
     const snap: Snapshot = { url, title: raw.title, text: raw.text.slice(0, MAX_TEXT), tables: raw.tables, elements: raw.els, truncated };
     this.texts.push({ url, text: raw.text.slice(0, 60000) });
+    this.lastSnap = snap;
+    const seen = describeSnapshot(snap);
+    if (seen !== this.lastSeen) {
+      this.lastSeen = seen;
+      this.say("see", `Na stránke: ${seen}`);
+    }
     return snap;
   }
 
