@@ -77,8 +77,8 @@ export function SiteHeader({ active }: { active?: NavKey }) {
               {NAV.map((n) => <a key={n.key} href={n.href}>{n.label}</a>)}
             </div>
           </details>
-          <a href="/objednavka" className="s-btn gold">Objednať</a>
-          <a href="/login" className="s-btn ghost">Klientska sekcia</a>
+          <a href="/objednavka" className="s-btn ghost">Objednať</a>
+          <a href="/login" className="s-btn gold">Klientska sekcia</a>
         </nav>
       </div>
     </header>

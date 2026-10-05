@@ -72,7 +72,7 @@
   .s-nav { gap: 8px; }
   .s-nav .s-btn { padding: 9px 12px; font-size: 11px; }
 }
-@media (max-width: 420px) { .s-nav .s-btn.ghost { display: none; } }
+@media (max-width: 420px) { .s-nav .s-btn.ghost { display: none; } .s-nav .s-btn { padding: 8px 10px; letter-spacing: 0.02em; } }
 
 /* úvod – svetlý, s jemnými farebnými tónmi namiesto tmavého bloku */
 .s-hero { padding: 80px 0 72px; position: relative; overflow: hidden; background: radial-gradient(ellipse 55% 70% at 85% 20%, var(--s-primary-soft) 0%, rgba(236, 230, 251, 0) 70%), radial-gradient(ellipse 45% 60% at 5% 100%, var(--s-gold-soft) 0%, rgba(246, 239, 224, 0) 70%), var(--s-bg); }

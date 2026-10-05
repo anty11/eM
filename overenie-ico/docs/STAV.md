@@ -310,3 +310,4 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „podľa Obchodného registra SR (RPO neodpovedalo včas)“; história zmien štatutárov/vlastníkov sa vtedy nehodnotí). Pri chybe RPO
   odkaz „Otvoriť“ vedie na vyhľadanie IČO v orsr.sk. Diagnostika: zdroj „Obchodný register SR (orsr.sk)“ (surové HTML + rozpoznané údaje).
   Testy `test/orsr.test.ts` (výpis vo windows-1250, chyba RPO, pomalé RPO → záloha po ~10 s, obe nedostupné).
+- **v2.5.3** – Web: v hornej lište je zlaté tlačidlo „Klientska sekcia“, „Objednať“ je biele (na mobile ostáva len Klientska sekcia, užšia).
