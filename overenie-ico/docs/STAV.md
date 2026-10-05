@@ -311,3 +311,4 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   odkaz „Otvoriť“ vedie na vyhľadanie IČO v orsr.sk. Diagnostika: zdroj „Obchodný register SR (orsr.sk)“ (surové HTML + rozpoznané údaje).
   Testy `test/orsr.test.ts` (výpis vo windows-1250, chyba RPO, pomalé RPO → záloha po ~10 s, obe nedostupné).
 - **v2.5.3** – Web: v hornej lište je zlaté tlačidlo „Klientska sekcia“, „Objednať“ je biele (na mobile ostáva len Klientska sekcia, užšia).
+- **v2.5.4** – Web: stránka Právny základ na celú šírku obsahu (1100 px, zarovnané s hlavičkou; predtým 800 px, úvod 720 px).

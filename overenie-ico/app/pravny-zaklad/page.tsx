@@ -14,7 +14,7 @@ export default function LawPage() {
       <SiteHeader active="law" />
       <section className="s-band">
         <div className="s-wrap">
-          <article className="s-article">
+          <article className="s-article wide">
             <span className="s-eyebrow">Právny základ</span>
             <h1 style={{ fontSize: "clamp(28px, 3.6vw, 40px)" }}>Právny základ overenia obchodného partnera</h1>
             <p className="s-lead" style={{ marginTop: 14 }}>
