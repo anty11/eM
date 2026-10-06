@@ -394,3 +394,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   počas behu posiela `ping` (10 s), pri prerušení sa nedokončené zdroje označia ako nedostupné s upozornením „Preverenie sa nedokončilo“,
   pečať prijme len platné číslo. Verdikt: nedostupné RPO alebo 3+ nedostupné zdroje → najviac „S výhradou“ (nie „Odporúčame“).
   PDF: okraje 2 cm zo všetkých strán (`@page margin: 20mm`), obsah sa zalamuje do šírky 170 mm (overené: okraje 19,8 / 20,8 / 20,3 mm).
+- **Prevádzka 6. 10. 2026** – Register diskvalifikácií: diagnostika potvrdila `403 Forbidden nginx` z Vercelu v regióne `fra1`
+  (priamo aj cez Edge) – blokované sú adresy dátových centier, zmena regiónu nepomáha. Proxy zo služby **Webshare**
+  (účet v [zozname proxy](https://dashboard.webshare.io/14492237/proxy/list?authenticationMethod=%22username_password%22&connectionMethod=%22direct%22&proxyControl=%220%22&removeType=%22refresh_all%22),
+  prvá adresa Poľsko/Varšava) sa zadáva v Administrácii → Prístupy; čaká sa na výsledok „Otestovať proxy“. Údaje k proxy nie sú v repozitári.

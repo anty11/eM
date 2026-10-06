@@ -470,7 +470,7 @@ veľkom orgáne len zmenu vlastníka.
 
 | Register | Spôsob | Stav |
 |---|---|---|
-| Register diskvalifikácií (justice.gov.sk) | GET dopyt – **justice.gov.sk vracia 403 pre adresy dátových centier (serverless aj Edge)** | z Vercelu nedostupný; ostáva manuálne / AI; riešením by bol proxy so slovenskou IP |
+| Register diskvalifikácií (justice.gov.sk) | GET dopyt – **justice.gov.sk vracia 403 pre adresy dátových centier (serverless aj Edge)** | z Vercelu nedostupný (aj z regiónu `fra1`); riešenie: proxy v Administrácii → Prístupy – používame **Webshare** (pozri ARCHITEKTURA.md, kap. 10 – Externé služby) |
 | Zákaz účasti vo VO (ÚVO) | globálne vyhľadávanie `?globalSearch=<IČO>&searchType=OSZ`, „N záznamov“ + bloky s IČO | overené 10/2026 |
 | Dlžníci VšZP | POST formulára (typ=1, nazov=IČO, docid=227, proceed=true) po vypnutí ochrany formulára; tabuľka Obchodné meno · … · Pohľadávka, „Nenašli sa žiadne záznamy.“ | overené 10/2026 |
 | Dlžníci Union | `POST https://portal.unionzp.sk/ehip-server/rest/debtors` (JSON: order, count, start, hľadaný text) → data[rplNazov, rplIco, suma] | názov poľa textu sa overuje diagnostikou |

@@ -374,6 +374,17 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 
 Cron (vercel.json): `/api/cron/socpoist` 04:20, `/api/cron/ov` 04:40 (UTC).
 
+### Externé služby (účty mimo kódu)
+
+| Služba | Na čo | Kde je nastavená | Stav |
+|---|---|---|---|
+| Vercel (projekt `e-m`, región `fra1` vo `vercel.json`) | beh aplikácie | `vercel.json`, Vercel → Settings | funkcie bežia v AWS Frankfurt; zmena regiónu blokáciu justice.gov.sk nerieši (403 overené 6. 10. 2026 aj z `fra1`, priamo aj cez Edge) |
+| Upstash Redis | databáza | Vercel → Storage | – |
+| **Webshare** – [zoznam proxy](https://dashboard.webshare.io/14492237/proxy/list?authenticationMethod=%22username_password%22&connectionMethod=%22direct%22&proxyControl=%220%22&removeType=%22refresh_all%22) | proxy pre registre, ktoré blokujú dátové centrá (Register diskvalifikácií na justice.gov.sk) | Administrácia → Prístupy (tvar `http://meno:heslo@IP:port`, prihlásenie meno/heslo, pripojenie „direct“) | prvá proxy: Poľsko (Varšava), 6. 10. 2026; výsledok „Otestovať proxy“ zapísať sem. Ak register vráti 403 aj cez Webshare (dátové centrum), treba rezidenčnú proxy alebo VPS u slovenského hostingu (tinyproxy). Pri výmene proxy vo Webshare (refresh) treba novú adresu uložiť v Prístupoch. |
+| Anthropic / OpenAI / TypeSafe (Jev) | AI overenie | Vercel env alebo Administrácia → AI | – |
+
+Prihlasovacie údaje sa do repozitára ani dokumentov nezapisujú – sú len v Administrácii (šifrované v Redise) alebo vo Vercel env.
+
 ---
 
 ## 11. Ako tento dokument udržiavať
