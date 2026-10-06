@@ -15,7 +15,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.9.5";
+export const APP_VERSION = "2.9.6";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -76,9 +76,12 @@ export async function invalidateCache(ico: string, id?: string) {
 
 export type Progress = (c: CheckResult, profile: Ctx["profile"]) => void;
 
-export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: string; fresh?: boolean } = {}): Promise<ScanReport> {
+/** Číslo preverenia (na protokole a pri overení pečate) – z IČO a času začiatku preverenia. */
+export const scanIdFor = (ico: string, scannedAt: string) => `SK-${ico}-${scannedAt.replace(/[-:TZ.]/g, "").slice(0, 14)}`;
+
+export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: string; fresh?: boolean; scannedAt?: string } = {}): Promise<ScanReport> {
   const t0 = Date.now();
-  const scannedAt = new Date().toISOString();
+  const scannedAt = opts.scannedAt || new Date().toISOString();
   const ctx: Ctx = { ico, profile: { ico }, asOf: opts.asOf };
   const fresh = Boolean(opts.fresh);
   const run = (id: string, fn: (c: Ctx) => Promise<CheckResult>) => cachedRun(ctx, id, () => fn(ctx), fresh);
@@ -150,7 +153,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
   // IČO neexistuje → koniec (ostatné výsledky sa zahodia)
   const rpoFirst = await rpoCapped;
   if (ctx.profile.notFound || (rpoFirst.data as any)?.notFound) {
-    const scanId = `SK-${ico}-${scannedAt.replace(/[-:TZ.]/g, "").slice(0, 14)}`;
+    const scanId = scanIdFor(ico, scannedAt);
     return {
       scanId,
       ico,
@@ -178,7 +181,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
   if (!icoChecksumValid(ico))
     rpo.findings.push({ severity: "info", text: "IČO nespĺňa kontrolný súčet (môže ísť o historické IČO) – overte správnosť", penalty: 0 });
 
-  const scanId = `SK-${ico}-${scannedAt.replace(/[-:TZ.]/g, "").slice(0, 14)}`;
+  const scanId = scanIdFor(ico, scannedAt);
   return {
     scanId,
     ico,

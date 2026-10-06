@@ -76,3 +76,16 @@ main();
   assert.equal(applyManual([check("rpo", [])], {}, {}, { rpo: "x" })[0].findings.length, 0, "bez otázky sa odpoveď nepripája");
   console.log("OK – chýbajúca závierka −15 a dôvod od partnera v protokole.");
 }
+
+// nedostupné zdroje (výpadok, prerušené spojenie): nikdy „Odporúčame“
+{
+  const { computeVerdict: cv } = require("../lib/scoring");
+  const err = (id: string) => ({ ...check(id, []), status: "error" } as CheckResult);
+  const v1 = cv([err("rpo"), check("ruz", [])]);
+  assert.equal(v1.level, "caution");
+  assert.match(v1.reasons[0], /identifikácie/);
+  const v2 = cv([err("ruz"), err("news"), err("rpvs"), check("rpo", [])]);
+  assert.equal(v2.level, "caution");
+  assert.equal(cv([err("news"), check("rpo", [])]).level, "recommended", "jeden nedostupný zdroj (nie RPO) nemení verdikt");
+  console.log("OK – nedostupné zdroje obmedzia verdikt.");
+}

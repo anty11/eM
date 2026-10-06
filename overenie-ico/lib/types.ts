@@ -137,6 +137,8 @@ export interface ScanReport {
   keyFacts: KeyFact[];
   /** IČO nebolo nájdené v registri – preverenie sa skončilo pri obchodnom registri. */
   notFound?: boolean;
+  /** Spojenie sa prerušilo pred koncom preverenia – nedokončené zdroje sú označené ako nedostupné. */
+  incomplete?: boolean;
   /** Spätné preverenie: rozhodný dátum začiatku spolupráce (protokol je vyhotovený dnes, k tomuto dátumu uvádza, čo bolo zistiteľné). */
   asOf?: string;
   /** Kto preverenie spustil – len meno povereného zamestnanca, bez e-mailu (doplní API; e-mail ostáva v audite). */

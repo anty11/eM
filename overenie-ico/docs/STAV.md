@@ -389,3 +389,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.9.5** – Chýbajúca účtovná závierka už nemôže skončiť „ODPORÚČAME“: LEXNERA Legal (závierka 2024, chýba 2025) mala
   100 − 15 + pozitíva = 92 → Odporúčame. Nové `Finding.cap = "caution"` – verdikt najviac „S výhradou“ a skóre najviac 84;
   použité pri chýbajúcej závierke za minulý rok a pri firme bez jedinej závierky v RÚZ.
+- **v2.9.6** – Protokol bez čísla preverenia („Číslo preverenia ·“, „č.“ prázdne): číslo vznikalo až na konci preverenia (udalosť `done`);
+  keď sa spojenie prerušilo skôr, rozhranie ticho ostalo pri neúplnom reporte bez čísla. Teraz server pošle číslo a čas hneď v `start`,
+  počas behu posiela `ping` (10 s), pri prerušení sa nedokončené zdroje označia ako nedostupné s upozornením „Preverenie sa nedokončilo“,
+  pečať prijme len platné číslo. Verdikt: nedostupné RPO alebo 3+ nedostupné zdroje → najviac „S výhradou“ (nie „Odporúčame“).
+  PDF: okraje 2 cm zo všetkých strán (`@page margin: 20mm`), obsah sa zalamuje do šírky 170 mm (overené: okraje 19,8 / 20,8 / 20,3 mm).

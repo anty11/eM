@@ -16,7 +16,7 @@ export const POST = handler(async (req) => {
   const org = me.org && me.org.id === orgId ? me.org : await getOrg(orgId);
   if (!org) return NextResponse.json({ error: "Firma neexistuje." }, { status: 404 });
   const b = await req.json().catch(() => null);
-  if (!b || typeof b.scanId !== "string" || typeof b.ico !== "string" || typeof b.scannedAt !== "string" || !b.verdict || !Array.isArray(b.checks))
+  if (!b || typeof b.scanId !== "string" || !/^SK-\d{6,8}-\d{14}$/.test(b.scanId) || typeof b.ico !== "string" || typeof b.scannedAt !== "string" || !b.verdict || !Array.isArray(b.checks))
     return NextResponse.json({ error: "Neúplný obsah protokolu." }, { status: 400 });
   try {
     const seal = await sealProtocol({

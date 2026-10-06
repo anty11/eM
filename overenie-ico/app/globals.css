@@ -256,7 +256,16 @@ textarea { width: 100%; min-height: 80px; }
 /* --- Tlač / PDF protokol: hustý, čiernobielo čitateľný, bez závislosti od tlače pozadia --- */
 @media print {
   :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #c8c8c8; --brand: #1f3a5f; --gold: #444; --ok: #1e7a4c; --warn: #8a5200; --crit: #b3261e; --info: #3b5b85; --manual: #5f4596; --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; --serif: "Georgia", "Times New Roman", serif; }
-  @page { size: A4; margin: 11mm 12mm 12mm; }
+  /* okraje 2 cm zo všetkých strán; obsah sa musí zmestiť do šírky 170 mm (nič nepresahuje ani sa neorezáva) */
+  @page { size: A4; margin: 20mm; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { width: auto !important; min-width: 0 !important; max-width: 100% !important; overflow: visible !important; }
+  body { overflow-wrap: anywhere; word-break: normal; }
+  .wrap, main, section, article, .card, .grid, .profile, .fact, .check { min-width: 0 !important; max-width: 100% !important; }
+  .card table { width: 100%; table-layout: fixed; }
+  .card table th, .card table td { overflow-wrap: anywhere; }
+  .ph-row { flex-wrap: wrap; }
+  .ph-co { white-space: normal; }
   html, body { font-size: 9.4px; line-height: 1.28; background: #fff; color: #000; }
   .no-print, .top, .hero { display: none !important; }
   .print-only { display: block; }

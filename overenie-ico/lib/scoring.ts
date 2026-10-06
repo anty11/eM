@@ -64,7 +64,10 @@ export function computeVerdict(checks: CheckResult[], opts: { ignore?: string[] 
   let score = Math.max(0, Math.min(100, Math.round(100 - critical - warnings + bonus)));
   const hasCritical = findings.some((f) => f.severity === "critical");
   // zistenie so stropom (napr. chýbajúca závierka) – pozitíva ho nevyvážia: najviac „S výhradou“ a skóre pod hranicou odporúčania
-  const capped = !hasCritical && findings.some((f) => f.cap === "caution");
+  // nedostupné zdroje: bez identifikácie (RPO) alebo pri 3+ nedostupných zdrojoch nemožno „Odporúčame“ – nič sa nepreverilo
+  const failed = checks.filter((c) => c.status === "error");
+  const unverified = failed.some((c) => c.id === "rpo") || failed.length >= 3;
+  const capped = !hasCritical && (findings.some((f) => f.cap === "caution") || unverified);
   if (capped) score = Math.min(score, 84);
   const pendingManual = checks.filter((c) => (c.status === "manual" || c.status === "error") && !opts.ignore?.includes(c.id)).length;
 
@@ -78,6 +81,8 @@ export function computeVerdict(checks: CheckResult[], opts: { ignore?: string[] 
     .map((f) => f.text);
   const positives = findings.filter((f) => f.severity === "positive").map((f) => f.text);
 
+  if (unverified && !hasCritical)
+    reasons.unshift(`${failed.length} ${failed.length === 1 ? "zdroj sa nepodarilo" : failed.length < 5 ? "zdroje sa nepodarilo" : "zdrojov sa nepodarilo"} overiť${failed.some((c) => c.id === "rpo") ? " (vrátane identifikácie v obchodnom registri)" : ""} – výsledok nie je úplný, skúste znova`);
   if (!reasons.length) reasons.push("Automatizované kontroly nezistili negatívne záznamy.", ...positives);
 
   return {

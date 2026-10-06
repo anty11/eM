@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { handler, orgScope, requireUser } from "@/lib/auth/guard";
 import { normalizeIco } from "@/lib/ico";
-import { scan } from "@/lib/scan";
+import { scan, scanIdFor } from "@/lib/scan";
 import { getAiConfig } from "@/lib/ai/config";
 import { recordScan } from "@/lib/companies";
 import { effectiveMode, getOrg } from "@/lib/orgs";
@@ -40,16 +40,31 @@ export const GET = handler(async (req) => {
     const enc = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (o: unknown) => controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
-        send({ type: "start", ico, scannedBy, orgName, ai: aiInfo });
+        let open = true;
+        const send = (o: unknown) => {
+          if (!open) return;
+          try {
+            controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+          } catch {
+            open = false;
+          }
+        };
+        // číslo preverenia hneď na začiatku – protokol ho má, aj keby sa spojenie prerušilo pred koncom
+        const scannedAt = new Date().toISOString();
+        send({ type: "start", ico, scanId: scanIdFor(ico, scannedAt), scannedAt, scannedBy, orgName, ai: aiInfo });
+        // srdcový tep počas dlhých dopytov (registre bez API až 55 s), aby proxy spojenie neukončila
+        const hb = setInterval(() => send({ type: "ping" }), 10000);
         try {
-          const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }), { asOf, fresh });
+          const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }), { asOf, fresh, scannedAt });
           if (!report.notFound) await recordScan(orgId, { ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
           await audit({ type: "scan", by: me.email, orgId, ico, company: report.profile.name || (report.notFound ? "IČO nenájdené" : undefined), verdict: report.notFound ? "not_found" : report.verdict.level, score: report.verdict.score, scanId: report.scanId });
           send({ type: "done", report: { ...report, scannedBy, orgName, ai: aiInfo } });
         } catch (e) {
           send({ type: "error", error: (e as Error).message });
+        } finally {
+          clearInterval(hb);
         }
+        open = false;
         controller.close();
       },
     });

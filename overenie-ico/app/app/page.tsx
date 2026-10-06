@@ -179,7 +179,8 @@ export default function Page() {
           buf = buf.slice(nl + 1);
           if (!line) continue;
           const ev = JSON.parse(line);
-          if (ev.type === "start") live = { ...live, scannedBy: ev.scannedBy, orgName: ev.orgName, ai: ev.ai };
+          if (ev.type === "ping") continue;
+          if (ev.type === "start") live = { ...live, scanId: ev.scanId || live.scanId, scannedAt: ev.scannedAt || live.scannedAt, scannedBy: ev.scannedBy, orgName: ev.orgName, ai: ev.ai };
           else if (ev.type === "check") {
             const i = live.checks.findIndex((c) => c.id === ev.check.id);
             const checksNext = i >= 0 ? live.checks.map((c, k) => (k === i ? ev.check : c)) : [...live.checks, ev.check];
@@ -189,7 +190,13 @@ export default function Page() {
           setReport(final || live);
         }
       }
-      const j = final || live;
+      // spojenie sa prerušilo pred koncom: nedokončené zdroje → nedostupné (dajú sa skúsiť znova), verdikt z toho, čo prišlo
+      const j: ScanReport = final || {
+        ...live,
+        incomplete: true,
+        checks: live.checks.map((c) => (c.status === "pending" ? { ...c, status: "error" as const, summary: "Zdroj neodpovedal – spojenie so serverom sa prerušilo pred koncom preverenia. Skúste znova alebo overte v zdroji.", findings: [], verifyUrl: c.sourceUrl } : c)),
+      };
+      if (!final) j.verdict = computeVerdict(j.checks);
       setReport(j);
       setDeal(EMPTY_DEAL);
       setBank(null);
@@ -575,6 +582,7 @@ export default function Page() {
                   <p className="vlabel">{verdict.label}</p>
                   <div className="vmeta">
                     Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}
+                    {report.incomplete ? <div className="prelim">Preverenie sa nedokončilo – spojenie so serverom sa prerušilo. Nedokončené zdroje sú označené ako nedostupné; odporúčame „Preveriť znova“.</div> : null}
                   </div>
                   <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
                   {verdict.preliminary && (
