@@ -403,3 +403,10 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „Register diskvalifikácií“ teraz pridá `browserCapture`: otvorí stránku v prehliadači cez proxy, zaznamená dopyty XHR/fetch s odpoveďami,
   skúsi hľadanie podľa IČO a priezviska štatutára. `obcan.justice.sk` ide cez proxy vždy (spolu s justice.gov.sk), ostatné justice.sk
   (REPLIK) priamo. Test `test/diskvcapture.test.ts`.
+- **v2.9.8** – Register diskvalifikácií automaticky: diagnostika v prehliadači odhalila API aplikácie Infosud
+  `GET obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia?page=1&size=10` → `{ numFound: 992, page, size, updateDate: "30.09.2026",
+  filterList, <zoznam> }`. Nový `lib/sources/diskv.ts`: celý register sa stiahne (stránkovanie, cez proxy Webshare), drží 6 h v Redise
+  a obnovuje denne cronom `/api/cron/ov`; štatutári z RPO sa porovnajú podľa mena a priezviska (bez titulov a diakritiky), firma podľa IČO.
+  Zhoda IČO → kritické −25; zhoda mena → „možná zhoda“ −25, verdikt najviac S výhradou a otázka na overenie totožnosti (RPO nemá dátum
+  narodenia); bez zhody pri úplnom registri → „Bez záznamu“ so stavom registra. Diagnostika ukáže ukážku odpovede API, skúšku parametrov
+  vyhľadávania a zhody v celom indexe. Test `test/diskv.test.ts`.

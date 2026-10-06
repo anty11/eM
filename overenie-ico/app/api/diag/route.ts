@@ -135,8 +135,41 @@ export const GET = handler(async (req) => {
         result.browserFlow = r;
         if (outcome.result === "unknown" && r.verdict !== "unknown") Object.assign(outcome, { result: r.verdict, rows: r.rows });
       }
-      // Register diskvalifikácií: stránka je aplikácia React – v prehliadači zaznamenáme dopyty na jej API (podklad pre priamy dopyt)
-      if (source === "diskv" && process.env.BROWSER_DISABLED !== "1") {
+      // Register diskvalifikácií: API aplikácie Infosud – ukážka odpovede (bez fazet), celý index a zhody pre zadané IČO a mená
+      let apiOk = false;
+      if (source === "diskv") {
+        const d = await import("@/lib/sources/diskv");
+        const api: Record<string, unknown> = {};
+        try {
+          const t1 = Date.now();
+          const r = await fetchWithTimeout(`${d.DISKV_API}?page=1&size=3`, { headers: { Accept: "application/json" }, timeoutMs: 15000 });
+          const txt = await r.text();
+          let j: any = null;
+          try { j = JSON.parse(txt); } catch {}
+          const got = d.recordsOf(j);
+          api.sample = { status: r.status, ms: Date.now() - t1, keys: j && typeof j === "object" ? Object.keys(j) : [], listKey: got.key, numFound: got.total, updateDate: got.updateDate, records: got.records.slice(0, 3), flat: got.records.slice(0, 3).map((x) => d.flatten(x)), raw: j ? undefined : txt.slice(0, 1500) };
+          // vyhľadávanie podľa textu – ktorý parameter filtruje (numFound klesne)
+          const q = names[0] ? (d.nameParts(names[0])?.surname || names[0]) : ico;
+          const tries: Record<string, unknown> = {};
+          for (const k of ["query", "q", "text", "meno", "priezvisko", "ico"]) {
+            const rr = await fetchWithTimeout(`${d.DISKV_API}?${k}=${encodeURIComponent(q)}&page=1&size=3`, { headers: { Accept: "application/json" }, timeoutMs: 10000 }).catch((e) => e as Error);
+            if (rr instanceof Error) { tries[k] = rr.message; continue; }
+            const jj = await rr.json().catch(() => null);
+            tries[k] = { status: rr.status, numFound: d.recordsOf(jj).total };
+          }
+          api.searchParams = { value: q, tries };
+          const t2 = Date.now();
+          const idx = await d.downloadDiskv();
+          const hits = idx.records.map((x) => ({ x, m: d.matchRecord(x, ico, names) })).filter((h) => h.m);
+          api.index = { ms: Date.now() - t2, total: idx.total, downloaded: idx.records.length, complete: idx.complete, updateDate: idx.updateDate, fields: Object.keys(idx.records[0] || {}), hits: hits.slice(0, 5).map((h) => ({ by: h.m!.by, who: h.m!.who, record: d.describeRecord(h.x) })) };
+          apiOk = idx.complete;
+        } catch (e) {
+          api.error = (e as Error).message;
+        }
+        result.api = api;
+      }
+      // ak API nefunguje: stránka je aplikácia React – v prehliadači zaznamenáme jej dopyty (podklad pre priamy dopyt)
+      if (source === "diskv" && !apiOk && process.env.BROWSER_DISABLED !== "1") {
         const { diskvCapture } = await import("@/lib/browser/flows");
         result.browserCapture = await Promise.race([
           diskvCapture(ico, names),

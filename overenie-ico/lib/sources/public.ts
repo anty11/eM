@@ -458,6 +458,18 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
   const { attempts, needles } = attemptsFor(id, ctx);
   if (!def || !attempts.length) return { check: null, outcome: { result: "unknown", rows: [], attempts: [] } };
   const t0 = Date.now();
+  // Register diskvalifikácií: API aplikácie Infosud (celý register v Redise, porovnanie štatutárov) – stránka sama dáta nemá
+  if (id === "diskv") {
+    try {
+      const { checkDiskv, DISKV_API } = await import("./diskv");
+      const check = await checkDiskv(ctx);
+      const attempt = { url: DISKV_API, ms: Date.now() - t0, excerpt: check?.summary || "register stiahnutý, bez rozhodnutia (chýbajú štatutári)", verdict: (check ? (check.status === "ok" ? "clean" : "found") : "unknown") as "found" | "clean" | "unknown", info: "API Infosud (celý register)" };
+      if (check) return { check, outcome: { result: attempt.verdict, rows: (check.data?.rows as string[]) || [], attempts: [attempt] } };
+      if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [attempt] } };
+    } catch (e) {
+      if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [{ url: "diskv-api", ms: Date.now() - t0, error: (e as Error).message, excerpt: "", verdict: "unknown" }] } };
+    }
+  }
   const outcome = await probe(attempts.map((a) => ({ ...a, source: id })), needles, undefined, opts);
   // Union: API portálu vyžaduje token aplikácie (401) → skriptovaný dopyt cez prehliadač na serveri (bez AI)
   if (outcome.result === "unknown" && id === "union" && process.env.BROWSER_DISABLED !== "1") {

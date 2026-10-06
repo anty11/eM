@@ -30,7 +30,7 @@ Stav k 28. 9. 2026, verzia aplikácie 1.0.0.
 | 12 | Dlžníci Union ZP | Union zdravotná poisťovňa | webový portál, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
 | 13 | Dlžníci Dôvera ZP | Dôvera zdravotná poisťovňa | webový formulár, **bez API**; automatizované overovanie výslovne zakázané | – | **len manuálne** | **nie** | `lib/sources/manual.ts` |
 | 14 | Obchodný vestník | Ministerstvo spravodlivosti SR | web, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
-| 15 | Register diskvalifikácií | Ministerstvo spravodlivosti SR | web, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
+| 15 | Register diskvalifikácií | Ministerstvo spravodlivosti SR | **API Infosud** (`obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia`) cez proxy | žiadna | automaticky (celý register, porovnanie štatutárov) | áno | `lib/sources/diskv.ts` |
 | 16 | Register osôb so zákazom účasti vo VO | Úrad pre verejné obstarávanie | web, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
 | 17 | Centrálny register exekúcií (CRE) | Slovenská komora exekútorov | spoplatnený výpis po prihlásení | účet + platba | **len manuálne** | **nie** | `lib/sources/manual.ts` |
 
@@ -470,7 +470,7 @@ veľkom orgáne len zmenu vlastníka.
 
 | Register | Spôsob | Stav |
 |---|---|---|
-| Register diskvalifikácií (justice.gov.sk) | GET dopyt – **justice.gov.sk vracia 403 pre adresy dátových centier (serverless aj Edge)** | z Vercelu nedostupný (aj z regiónu `fra1`); riešenie: proxy v Administrácii → Prístupy – používame **Webshare** (pozri ARCHITEKTURA.md, kap. 10 – Externé služby) |
+| Register diskvalifikácií (justice.gov.sk) | stránka je len obal aplikácie Infosud; dáta z JSON API `obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia?page=&size=` (`numFound` ≈ 1 000, `updateDate`). Obe domény vracajú 403 dátovým centrám | od v2.9.8 automaticky cez proxy **Webshare** (Administrácia → Prístupy; ARCHITEKTURA.md kap. 10) |
 | Zákaz účasti vo VO (ÚVO) | globálne vyhľadávanie `?globalSearch=<IČO>&searchType=OSZ`, „N záznamov“ + bloky s IČO | overené 10/2026 |
 | Dlžníci VšZP | POST formulára (typ=1, nazov=IČO, docid=227, proceed=true) po vypnutí ochrany formulára; tabuľka Obchodné meno · … · Pohľadávka, „Nenašli sa žiadne záznamy.“ | overené 10/2026 |
 | Dlžníci Union | `POST https://portal.unionzp.sk/ehip-server/rest/debtors` (JSON: order, count, start, hľadaný text) → data[rplNazov, rplIco, suma] | názov poľa textu sa overuje diagnostikou |
