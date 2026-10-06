@@ -460,7 +460,12 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
       if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [{ url: "diskv-api", ms: Date.now() - t0, error: (e as Error).message, excerpt: "", verdict: "unknown" }] } };
     }
   }
-  const outcome = await probe(attempts.map((a) => ({ ...a, source: id })), needles, undefined, opts);
+  // ÚVO: pomalý web nesmie držať celé preverenie – kratší limit na pokus a strop 15 s na celý dopyt (potom manuálne s dôvodom)
+  const probeP = probe(attempts.map((a) => ({ ...a, source: id })), needles, id === "uvo" ? 7000 : undefined, opts);
+  const outcome =
+    id === "uvo" && !opts.diag
+      ? await Promise.race([probeP, new Promise<ProbeOutcome>((res) => setTimeout(() => res({ result: "unknown", rows: [], attempts: [{ url: attempts[0].url, ms: 15000, error: "ÚVO neodpovedalo do 15 s", excerpt: "", verdict: "unknown" }] }), 15000))])
+      : await probeP;
   // Union: API portálu vyžaduje token aplikácie (401) → skriptovaný dopyt cez prehliadač na serveri (bez AI)
   if (outcome.result === "unknown" && id === "union" && process.env.BROWSER_DISABLED !== "1") {
     const r = await browserFlow("union", ctx.ico, opts.diag);

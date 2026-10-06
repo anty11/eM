@@ -15,12 +15,13 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.10.1";
+export const APP_VERSION = "2.10.2";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
 /** Registre bez API (vrátane dopytu cez prehliadač na serveri – spustenie Chromia a hľadanie trvá 5 – 15 s) majú vlastný, dlhší limit. */
-const MANUAL_DEADLINE_MS = 55000;
+/** Limit pre registre bez API (MANUAL_DEADLINE_MS len pre testy). */
+const manualDeadlineMs = () => Number(process.env.MANUAL_DEADLINE_MS) || 55000;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -136,7 +137,9 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
 
   // Registre bez API: server položí dopyt priamo (diskvalifikácie, ÚVO, VšZP, Union) alebo číta index Obchodného vestníka;
   // ak odpoveď nie je jednoznačná, ostáva manuálna kontrola
-  const manualP = resolveManual({ ...ctx, rpoDone: nameReady } as Ctx, (c) => onProgress?.(c, ctx.profile), fresh);
+  // výsledky registrov bez API, ako prichádzajú – pri vypršaní limitu sa použijú hotové a len zvyšok ostane manuálny
+  const manualDone = new Map<string, CheckResult>();
+  const manualP = resolveManual({ ...ctx, rpoDone: nameReady } as Ctx, (c) => onProgress?.(c, ctx.profile), fresh, manualDone);
   const allP = Promise.all([
     cap("rpo", rpoCapped),
     cap("ruz", ruzP),
@@ -176,7 +179,14 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
   const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await allP;
   nameFallback();
 
-  const manual = await Promise.race([manualP, sleep(Math.max(1000, MANUAL_DEADLINE_MS - (Date.now() - t0))).then(() => manualChecks(ctx))]);
+  const manual = await Promise.race([
+    manualP,
+    sleep(Math.max(1000, manualDeadlineMs() - (Date.now() - t0))).then(() =>
+      manualChecks(ctx).map(
+        (m) => manualDone.get(m.id) || { ...m, durationMs: Date.now() - t0, data: { ...(m.data || {}), autoNote: `register neodpovedal do ${Math.round(manualDeadlineMs() / 1000)} s (časový limit preverenia)` } },
+      ),
+    ),
+  ]);
   const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manual];
   if (!icoChecksumValid(ico))
     rpo.findings.push({ severity: "info", text: "IČO nespĺňa kontrolný súčet (môže ísť o historické IČO) – overte správnosť", penalty: 0 });
@@ -196,10 +206,18 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
 }
 
 /** Manuálne registre: pokus o automatické overenie; neúspech = pôvodná manuálna kontrola. Výsledky sa hlásia priebežne. */
-export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => void, fresh = false): Promise<CheckResult[]> {
+export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => void, fresh = false, sink?: Map<string, CheckResult>): Promise<CheckResult[]> {
   const base = manualChecks(ctx);
   return Promise.all(
     base.map(async (m) => {
+      const r = await resolveOne(m);
+      sink?.set(r.id, r);
+      return r;
+    }),
+  );
+
+  async function resolveOne(m: CheckResult): Promise<CheckResult> {
+      const t0 = Date.now();
       try {
         const ttl = cacheTtlSec(m.id);
         if (ttl && !fresh && !ctx.asOf) {
@@ -241,9 +259,9 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
         // ostáva manuálne; dôvod si zapamätáme pre diagnostiku
         m.data = { ...(m.data || {}), autoError: (e as Error).message.slice(0, 300) };
       }
-      return m;
-    }),
-  );
+      // čas automatického pokusu aj pri neúspechu (záťažová skúška, diagnostika – ktorý register zdržuje)
+      return { ...m, durationMs: Date.now() - t0 };
+  }
 }
 
 const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {

@@ -183,6 +183,37 @@ async function main() {
   assert.deepEqual(fsx(0, "2024-11-15"), { duePeriods: 1, firstDue: 2025, missing: 1 }, "vznik v novembri 2024 – prvé obdobie predĺžené do 2025, chýba len jedno");
   assert.equal(fsx(0, "2023-11-15").missing, 2, "vznik v novembri 2023 – splatné 2024 a 2025, chýbajú dve");
 
+  // Limit pre registre bez API: register, ktorý neodpovedá (ÚVO), ostane manuálny s dôvodom – hotové registre sa NEPREPÍŠU na manuálne
+  {
+    // register diskvalifikácií odpovedá hneď – musí ostať automaticky overený aj po limite; ÚVO visí
+    const real = globalThis.fetch;
+    const diskvJson = () => new Response(JSON.stringify({ numFound: 0, page: 0, size: 50, updateDate: "30.09.2026", filterList: [], diskvalifikaciaList: [] }), { headers: { "content-type": "application/json" } });
+    globalThis.fetch = ((input: any, init?: any) => (/ress-isu-service\/v1\/diskvalifikacia/.test(String(input)) ? Promise.resolve(diskvJson()) : real(input, init))) as typeof fetch;
+    const base = await scan(GOOD);
+    globalThis.fetch = ((input: any, init?: any) =>
+      /uvo\.gov\.sk/.test(String(input))
+        ? new Promise<Response>((_, rej) => setTimeout(() => rej(new Error("visí")), 20000))
+        : /ress-isu-service\/v1\/diskvalifikacia/.test(String(input))
+          ? Promise.resolve(diskvJson())
+          : real(input, init)) as typeof fetch;
+    process.env.MANUAL_DEADLINE_MS = "4000";
+    const t = Date.now();
+    const slow = await scan(GOOD);
+    delete process.env.MANUAL_DEADLINE_MS;
+    globalThis.fetch = real;
+    assert.ok(Date.now() - t < 12000, "preverenie skončí pri limite, nečaká na visiaci register");
+    const uvo = slow.checks.find((c) => c.id === "uvo")!;
+    assert.equal(uvo.status, "manual");
+    assert.match(String((uvo.data as any)?.autoNote || ""), /neodpovedal do 4 s/);
+    const done = base.checks.filter((x) => x.id !== "uvo" && x.automated && ["vszp", "union", "diskv", "ov"].includes(x.id));
+    console.log(`limit registrov bez API: overených ${done.length} hotových (${done.map((x) => x.id).join(", ")})`);
+    for (const c of done) {
+      const now = slow.checks.find((x) => x.id === c.id)!;
+      assert.equal(now.status, c.status, `${c.id}: hotový výsledok ostal aj po limite`);
+    }
+    assert.ok(done.some((x) => x.id === "diskv"), "register diskvalifikácií bol hotový");
+  }
+
   // IČO, ktoré v registri nie je: preverenie sa skončí pri RPO, ostatné kontroly sa nevykonajú
   const nf = await scan("00000000");
   assert.equal(nf.notFound, true);

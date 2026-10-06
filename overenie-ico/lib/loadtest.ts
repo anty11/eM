@@ -60,7 +60,7 @@ export function summarizeLoad(runs: LoadRun[]) {
       if ((s.status === "error" || s.status === "manual") && s.summary && THROTTLE_RE.test(s.summary)) {
         st.throttled++;
         if (st.samples.length < 3 && !st.samples.includes(s.summary.slice(0, 160))) st.samples.push(s.summary.slice(0, 160));
-      } else if (s.status === "error" && s.summary && st.samples.length < 3 && !st.samples.includes(s.summary.slice(0, 160))) st.samples.push(s.summary.slice(0, 160));
+      } else if ((s.status === "error" || s.status === "manual") && s.summary && st.samples.length < 3 && !st.samples.includes(s.summary.slice(0, 160))) st.samples.push(s.summary.slice(0, 160));
       if (typeof s.ms === "number") st.ms.push(s.ms);
       by.set(s.id, st);
     }

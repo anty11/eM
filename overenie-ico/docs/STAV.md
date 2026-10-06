@@ -431,3 +431,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   a auditu. Výsledok za vlnu: p50/p95/max celého preverenia, čas po prvý výsledok, počet inštancií Vercelu a región, pre každý zdroj
   OK / nedostupný / manuálne / obmedzovanie (403, 429, 503, časový limit) s ukážkou chyby. Skúška sa sama zastaví, keď registre začnú
   odmietať. „Kopírovať výsledok“ → JSON pre vývoj. Test `test/loadtest.test.ts`.
+- **v2.10.2** – Záťažová skúška 6. 10. 2026 (5 → 10 → 25 → 50 súbežných, 90 preverení naostro): 0 zlyhaní, žiadne obmedzovanie registrami,
+  7–8 inštancií vo fra1; API zdroje rýchle aj pri 50 (FS 0,15 s, RPO p95 10,6 s, RÚZ p95 6,3 s). Celé preverenie však ~50 s už pri 5 súbežných
+  → brzdí ho limit registrov bez API (55 s), nie záťaž. Oprava chyby: pri vypršaní limitu sa do výsledku dali **všetky** registre bez API
+  ako manuálne – aj tie, ktoré už boli overené (diskvalifikácie 11/50, OV, Union v skúške). Teraz ostanú hotové výsledky a manuálny je len
+  register, ktorý neodpovedal (s dôvodom „neodpovedal do 55 s“). ÚVO: 7 s na pokus, strop 15 s. Manuálne kontroly majú `durationMs`
+  a záťažová skúška ukazuje dôvod neúspechu (autoNote). Test v `test/offline.test.ts` (visiace ÚVO, limit 4 s).

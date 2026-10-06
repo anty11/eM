@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.10.1** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.10.2** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -383,6 +383,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |
 | `DISKV_API_URL` | testy | iná adresa API registra diskvalifikácií (len testy) |
+| `MANUAL_DEADLINE_MS` | testy | limit pre registre bez API (predvolene 55 000 ms) |
 | `SELF_ORIGIN`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL`, `VERCEL_REGION`, `AWS_LAMBDA_FUNCTION_NAME`, `NODE_ENV` | automaticky / lokálne | interné volania (/api/edgefetch, /api/browser/flow), detekcia prostredia, región v záťažovej skúške |
 
 Cron (vercel.json): `/api/cron/socpoist` 04:20, `/api/cron/ov` 04:40 (UTC).

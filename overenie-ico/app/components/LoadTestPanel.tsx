@@ -54,12 +54,12 @@ export default function LoadTestPanel() {
             run.region = ev.region;
           } else if (ev.type === "check" && ev.check) {
             const c = ev.check;
-            run.sources = [...run.sources.filter((s) => s.id !== c.id), { id: c.id, status: c.status, ms: c.durationMs, summary: c.summary }];
+            run.sources = [...run.sources.filter((s) => s.id !== c.id), { id: c.id, status: c.status, ms: c.durationMs, summary: c.status === "manual" && (c.data?.autoNote || c.data?.autoError) ? `${c.data.autoNote || c.data.autoError}` : c.summary }];
           } else if (ev.type === "done") {
             run.done = true;
             run.totalMs = Date.now() - run.startedAt;
             run.verdict = ev.report?.verdict?.level;
-            for (const c of ev.report?.checks || []) run.sources = [...run.sources.filter((s) => s.id !== c.id), { id: c.id, status: c.status, ms: c.durationMs, summary: c.summary }];
+            for (const c of ev.report?.checks || []) run.sources = [...run.sources.filter((s) => s.id !== c.id), { id: c.id, status: c.status, ms: c.durationMs, summary: c.status === "manual" && (c.data?.autoNote || c.data?.autoError) ? `${c.data.autoNote || c.data.autoError}` : c.summary }];
           } else if (ev.type === "error") run.error = ev.error;
         }
         flush();
