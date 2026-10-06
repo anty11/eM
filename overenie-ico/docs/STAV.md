@@ -422,3 +422,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.9.11** – Obchodný vestník (`obchodnyvestnik.justice.gov.sk`) od zapnutia proxy pre justice.gov.sk zbytočne išiel cez proxy
   (subdoména) – pomalšie a prenos dát cez platenú proxy pri každom preverení. Nové `DIRECT_HOSTS` v `lib/access.ts` (vždy priamo),
   skript OV otvára prehliadač len pre svojho hostiteľa. Cez proxy idú len www.justice.gov.sk a obcan.justice.sk (register diskvalifikácií).
+- **v2.10.0** – Archív zapečatených protokolov: Môj účet → „Archív zapečatených protokolov“ (dátum, firma, verdikt, číslo protokolu,
+  **overovací kód**, kto, odkaz na overenie). Pri pečatení sa ukladá aj zapečatený obsah (kanonický JSON, gzip, ~4–15 kB) → stránka
+  `/protokol/<číslo>/<poradie>` protokol znova zobrazí, server prepočíta odtlačok („Obsah zhodný s pečaťou“) a dá sa znova vytlačiť do PDF
+  s tou istou pečaťou. Staršie pečate sa doplnia z auditu (kód áno, obsah nie). Úložisko: Upstash Redis (pri 100 pečatiach denne ≈ 0,5 MB/deň).

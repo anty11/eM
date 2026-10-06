@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { audit } from "./audit";
 import { kv } from "./auth/kv";
+import { orgKey } from "./orgs";
 
 /**
  * Odtlačok protokolu (SHA-256) a jeho zápis na serveri = overiteľná časová stopa prvej úrovne.
@@ -39,6 +41,29 @@ const codeKey = (scanId: string) => `sealcode:${scanId}`;
 /** Ktorej firme číslo protokolu patrí – iná firma s rovnakým číslom (ten istý partner v tej istej sekunde) pečať nedostane. */
 const ownerKey = (scanId: string) => `sealorg:${scanId}`;
 const MAX = 50;
+/** Zapečatený obsah protokolu (kanonický JSON, gzip + base64) – presne to, z čoho sa počítal odtlačok; ~5–15 kB na pečať. */
+const docKey = (scanId: string, seq: number) => `sealdoc:${scanId}:${seq}`;
+/** Archív pečatí firmy (najnovšie prvé) – číslo, kód, dátum, verdikt; bez obsahu protokolu. */
+const archiveKey = (orgId: string) => orgKey(orgId, "seals");
+const ARCHIVE_MAX = 10000;
+/** Strop veľkosti uloženého obsahu (komprimovaný) – väčší protokol sa zapečatí, ale obsah sa neuloží. */
+const DOC_MAX_BYTES = 400_000;
+
+export interface ArchiveEntry {
+  scanId: string;
+  seq: number;
+  code: string;
+  sealedAt: string;
+  scannedAt: string;
+  ico: string;
+  company?: string;
+  verdict: string;
+  score: number;
+  by: string;
+  hash: string;
+  /** obsah protokolu je uložený a dá sa znova otvoriť */
+  stored: boolean;
+}
 
 /** 10 znakov z abecedy bez zameniteľných znakov (0/O, 1/I/L) – do PDF a do adresy */
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -98,7 +123,8 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
   const owner = await kv().get<string>(ownerKey(input.scanId));
   if (owner && owner !== input.orgId) throw new Error("Číslo protokolu už patrí inému prevereniu – spustite preverenie znova.");
   if (!owner) await kv().set(ownerKey(input.scanId), input.orgId);
-  const hash = sha256(canonical(protocolDigestInput(input)));
+  const canonicalJson = canonical(protocolDigestInput(input));
+  const hash = sha256(canonicalJson);
   const existing = await kv().lrange<Seal>(key(input.scanId), 0, MAX - 1);
   const code = await codeFor(input.scanId);
   const same = existing.find((s) => s.hash === hash);
@@ -121,6 +147,20 @@ export async function sealProtocol(input: Parameters<typeof protocolDigestInput>
     appVersion: input.appVersion,
   };
   await kv().lpush(key(input.scanId), seal, MAX);
+  // obsah protokolu (kanonický JSON) – komprimovaný; z neho sa protokol dá znova otvoriť a odtlačok prepočítať
+  let stored = false;
+  try {
+    const packed = gzipSync(Buffer.from(canonicalJson, "utf8"), { level: 9 }).toString("base64");
+    if (packed.length <= DOC_MAX_BYTES) {
+      await kv().set(docKey(input.scanId, seal.seq), packed);
+      stored = true;
+    }
+  } catch (e) {
+    console.error("uloženie obsahu protokolu zlyhalo", e);
+  }
+  await kv()
+    .lpush(archiveKey(input.orgId), toEntry(seal, stored), ARCHIVE_MAX)
+    .catch((e) => console.error("archív pečatí zlyhal", e));
   await audit({ type: "protocol_sealed", by: input.by, orgId: input.orgId, ico: input.ico, company: input.company, scanId: input.scanId, detail: `${hash.slice(0, 16)}… #${seal.seq}` });
   return seal;
 }
@@ -140,7 +180,66 @@ export async function verifyRateLimited(ip: string): Promise<boolean> {
   return n > 20;
 }
 
-/** Skrátený zápis odtlačku do protokolu: 4 skupiny po 4 znaky z prvých 16 + … + posledné 4 */
-export function shortHash(h: string) {
-  return `${h.slice(0, 4)} ${h.slice(4, 8)} ${h.slice(8, 12)} ${h.slice(12, 16)} … ${h.slice(-4)}`.toUpperCase();
+export { shortHash } from "./seal-shared";
+
+const toEntry = (s: Seal, stored: boolean): ArchiveEntry => ({
+  scanId: s.scanId,
+  seq: s.seq,
+  code: s.code,
+  sealedAt: s.sealedAt,
+  scannedAt: s.scannedAt,
+  ico: s.ico,
+  company: s.company,
+  verdict: s.verdict,
+  score: s.score,
+  by: s.by,
+  hash: s.hash,
+  stored,
+});
+
+/**
+ * Archív zapečatených protokolov firmy (najnovšie prvé). Pečate spred zavedenia archívu sa doplnia raz z auditu
+ * (udalosti „Pečať protokolu“) – ich obsah uložený nie je (stored = false).
+ */
+export async function listArchive(orgId: string, limit = 500): Promise<ArchiveEntry[]> {
+  const take = Math.min(Math.max(limit, 1), ARCHIVE_MAX);
+  let rows = await kv().lrange<ArchiveEntry>(archiveKey(orgId), 0, take - 1);
+  const seededKey = orgKey(orgId, "seals:seeded");
+  if (!(await kv().get<string>(seededKey))) {
+    const { listAudit } = await import("./audit");
+    const events = await listAudit({ orgId, type: "protocol_sealed", limit: 5000 });
+    const have = new Set(rows.map((r) => `${r.scanId}#${r.seq}`));
+    const old: ArchiveEntry[] = [];
+    for (const scanId of Array.from(new Set(events.map((e) => e.scanId).filter(Boolean) as string[]))) {
+      const owner = await kv().get<string>(ownerKey(scanId));
+      if (owner && owner !== orgId) continue;
+      const code = (await kv().get<string>(codeKey(scanId))) || "";
+      for (const s of await kv().lrange<Seal>(key(scanId), 0, MAX - 1)) {
+        if (have.has(`${scanId}#${s.seq}`)) continue;
+        const storedDoc = await kv().get<string>(docKey(scanId, s.seq));
+        old.push(toEntry({ ...s, code }, Boolean(storedDoc)));
+      }
+    }
+    // staršie pečate na koniec zoznamu (archív je od najnovších)
+    for (const e of old.sort((a, b) => (a.sealedAt < b.sealedAt ? 1 : -1))) await kv().lpush(archiveKey(orgId), e, ARCHIVE_MAX).catch(() => {});
+    await kv().set(seededKey, "1");
+    rows = await kv().lrange<ArchiveEntry>(archiveKey(orgId), 0, take - 1);
+  }
+  return rows.sort((a, b) => (a.sealedAt < b.sealedAt ? 1 : -1));
+}
+
+/**
+ * Uložený obsah zapečateného protokolu – len pre firmu, ktorej protokol patrí. Odtlačok sa prepočíta z uloženého obsahu
+ * (`intact` = obsah sa od zapečatenia nezmenil).
+ */
+export async function getSealedDoc(orgId: string, scanId: string, seq: number): Promise<{ seal: Seal; doc: Record<string, any>; intact: boolean } | null> {
+  if (!SCAN_ID_RE.test(scanId) || !Number.isInteger(seq) || seq < 1) return null;
+  const owner = await kv().get<string>(ownerKey(scanId));
+  if (owner !== orgId) return null;
+  const seal = (await kv().lrange<Seal>(key(scanId), 0, MAX - 1)).find((s) => s.seq === seq);
+  const packed = await kv().get<string>(docKey(scanId, seq));
+  if (!seal || !packed) return null;
+  const json = gunzipSync(Buffer.from(packed, "base64")).toString("utf8");
+  const code = (await kv().get<string>(codeKey(scanId))) || "";
+  return { seal: { ...seal, code }, doc: JSON.parse(json), intact: sha256(json) === seal.hash };
 }

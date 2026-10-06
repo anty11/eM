@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.9.11** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.10.0** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -104,6 +104,14 @@ sequenceDiagram
 
 Číslo preverenia (`scanIdFor`) posiela server hneď v udalosti `start`, počas behu každých 10 s `ping`; ak spojenie skončí bez `done`,
 rozhranie označí nedokončené zdroje ako nedostupné a report ako `incomplete`. Pečať prijme len platné číslo `SK-<IČO>-<14 číslic>`.
+
+**Pečať a archív protokolov** (`lib/seal.ts`, Upstash Redis): „Uložiť PDF protokol“ → `POST /api/protocol/seal` zapíše
+`seals:<číslo>` (pečate: čas, SHA-256, verdikt, kto), `sealcode:<číslo>` (overovací kód), `sealorg:<číslo>` (vlastník),
+`sealdoc:<číslo>:<poradie>` (zapečatený obsah = kanonický JSON, gzip + base64, ~4–15 kB; z neho sa odtlačok dá prepočítať)
+a záznam do `org:<id>:seals` (archív firmy, najviac 10 000). Bez doby platnosti. Archív: `GET /api/protocol/archive`
+(Môj účet → Archív zapečatených protokolov), obsah: `GET /api/protocol/archive/doc` → stránka `/protokol/<číslo>/<poradie>`
+(„Obsah zhodný s pečaťou“, tlač PDF znova). Pečate spred archívu sa doplnia raz z auditu (len kód, bez obsahu).
+Časti pre prehliadač (`shortHash`) sú v `lib/seal-shared.ts` (bez node:crypto/zlib).
 
 Limity: zdroj s API 25 s (potom „Zdroj neodpovedal“), registre bez API 55 s, funkcia 120 s.
 Výsledky sa **neukladajú do pamäte** – každé preverenie číta registre nanovo (`CHECK_CACHE_MIN` len ako vedomá výnimka).
@@ -326,7 +334,7 @@ flowchart LR
 | `access.test.ts` | proxy pre server aj prehliadač, prístup k OV |
 | `ailog.test.ts` | záznam behov a súhrn (recept, posledný neúspech) |
 | `ai.test.ts` | nastavenia AI, poskytovatelia, rýchlosť, šifrovanie kľúčov |
-| `auth`, `orgs`, `companies`, `orders`, `seal`, `deal` | prihlásenie, firmy, databáza preverení, objednávky, pečať protokolu, indikátory obchodu |
+| `auth`, `orgs`, `companies`, `orders`, `seal`, `deal` | prihlásenie, firmy, databáza preverení, objednávky, pečať protokolu (archív firmy, uložený obsah, prepočet odtlačku, doplnenie z auditu), indikátory obchodu |
 | `docs.test.ts` | tento dokument pokrýva všetky zdroje, zadania AI a premenné prostredia |
 
 Sandbox vývoja nevidí slovenské registre (allowlist) – **skutočné odpovede prinášajú diagnostika a záznam AI overení z produkcie**;

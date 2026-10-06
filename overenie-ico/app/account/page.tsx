@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Header, { useMe } from "../components/Header";
 import CompanyList from "../components/CompanyList";
+import SealArchive from "../components/SealArchive";
 
 export default function AccountPage() {
   const me = useMe();
@@ -36,6 +37,8 @@ export default function AccountPage() {
         </section>
 
         <CompanyList me={me} />
+
+        <SealArchive />
 
         <div className="card" style={{ maxWidth: 480 }}>
           <h2>Zmena hesla</h2>

@@ -1,7 +1,12 @@
 /** Testy pečate protokolu – kanonický JSON, odtlačok, idempotencia, zoznam. Spustenie: npm test */
 import assert from "node:assert/strict";
 import { useMemoryKV } from "../lib/auth/kv";
-import { canonical, CODE_RE, listSeals, newCode, normalizeCode, sealProtocol, sha256, shortHash } from "../lib/seal";
+import { gzipSync } from "node:zlib";
+import { kv, useMemoryKV as _m } from "../lib/auth/kv";
+import { audit } from "../lib/audit";
+import { orgKey } from "../lib/orgs";
+import { canonical, CODE_RE, getSealedDoc, listArchive, listSeals, newCode, normalizeCode, sealProtocol, sha256, shortHash } from "../lib/seal";
+void _m;
 
 async function main() {
   useMemoryKV();
@@ -35,6 +40,35 @@ async function main() {
   await assert.rejects(sealProtocol({ ...base, orgId: "firmab", orgName: "Firma B" }), /inému prevereniu/);
   assert.equal(s1.orgName, "Firma A s.r.o.");
   assert.deepEqual(await listSeals("nic", "AAAAAAAAAA"), []);
+
+  // archív firmy a uložený obsah protokolu
+  const arch = await listArchive("firmaa");
+  assert.deepEqual(arch.map((a) => a.seq), [2, 1], "archív: najnovšie prvé, bez duplicity pri rovnakom obsahu");
+  assert.equal(arch[0].code, s1.code);
+  assert.ok(arch.every((a) => a.stored));
+  assert.deepEqual(await listArchive("firmab"), [], "iná firma nevidí cudzie pečate");
+  const d = await getSealedDoc("firmaa", base.scanId, 2);
+  assert.ok(d?.intact, "obsah zhodný s odtlačkom");
+  assert.equal(d!.doc.note, "Doplnená poznámka");
+  assert.equal(d!.seal.code, s1.code);
+  assert.equal(await getSealedDoc("firmab", base.scanId, 2), null, "cudzia firma obsah nedostane");
+  const packed = await kv().get<string>(`sealdoc:${base.scanId}:2`);
+  assert.ok(packed && packed.length < 2000, `uložený obsah je malý (${packed?.length} B)`);
+  // zmenený obsah v databáze sa prezradí
+  await kv().set(`sealdoc:${base.scanId}:2`, gzipSync(Buffer.from(canonical({ ...JSON.parse(JSON.stringify(d!.doc)), note: "podvrh" }))).toString("base64"));
+  assert.equal((await getSealedDoc("firmaa", base.scanId, 2))!.intact, false);
+  // pečate spred archívu sa doplnia z auditu (bez obsahu)
+  await kv().lpush(`seals:SK-12345678-20260101120000`, { scanId: "SK-12345678-20260101120000", seq: 1, ico: "12345678", scannedAt: "2026-01-01T12:00:00Z", sealedAt: "2026-01-01T12:05:00Z", hash: "ab".repeat(32), verdict: "caution", score: 70, by: "Starý", code: "" }, 50);
+  await kv().set("sealcode:SK-12345678-20260101120000", "ABCDEFGHJK");
+  await kv().set("sealorg:SK-12345678-20260101120000", "firmac");
+  await audit({ type: "protocol_sealed", by: "Starý", orgId: "firmac", ico: "12345678", scanId: "SK-12345678-20260101120000" });
+  const old = await listArchive("firmac");
+  assert.equal(old.length, 1);
+  assert.equal(old[0].code, "ABCDEFGHJK");
+  assert.equal(old[0].stored, false);
+  assert.equal((await kv().lrange(orgKey("firmac", "seals"), 0, 10)).length, 1, "doplnenie len raz");
+  await listArchive("firmac");
+  assert.equal((await kv().lrange(orgKey("firmac", "seals"), 0, 10)).length, 1);
   console.log("OK – testy pečate protokolu prešli.");
 }
 main().catch((e) => { console.error(e); process.exit(1); });
