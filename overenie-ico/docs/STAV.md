@@ -451,3 +451,14 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Text manuálnej kontroly OV už netvrdí „import nie je zapnutý“, ale že vyhľadávanie v OV neodpovedalo včas (ochrana proti robotom)
   a odporúča AI overenie alebo ručné overenie. Prístup k exportu OV (štruktúrované údaje XML) vybavuje Monika – postup: registrácia
   na portáli OV, registračné číslo (pošta/osobne), aktivácia, žiadosť na redakciu OV, vzorka XML, rola „Export/Stiahnutie Xml podaní“.
+- **v2.11.0** – Právne obhájiteľné výsledky (podnet: protokol uvádzal „Bez záznamu – vyhodnotil Jev, istota 96 %“ a kroky „fill e26“):
+  - **Jev už nikdy nerozhoduje** – v agentovi ani v skriptoch (Union, OV) je len orientačný odhad v zázname behu; výsledok do protokolu
+    ide len s dôkazom zo stránky (pevné pravidlá alebo citát overený serverom). Predtým mohol Jev uzavrieť OV „bez záznamu“ aj z prvej
+    strany výsledkov.
+  - **AI overenie Obchodného vestníka** najprv spustí pevný postup servera (všetky strany výsledkov, triedenie podaní podľa druhu); AI
+    sa použije len keď skript nerozhodne a „bez záznamu“ od AI sa pri OV neuzná (len pevný postup po prečítaní všetkých strán).
+  - **Dôkaz OV v protokole**: „obdobie 06.10.2023 – 06.10.2026, prečítané všetky výsledky (N podaní na M stranách); druhy podaní:
+    Podanie Obchodného registra (n), …; žiadne oznámenie o likvidácii, konkurze, reštrukturalizácii, zrušení, znížení základného imania,
+    výzve veriteľom ani dražbe“; nálezy s dátumom v tvare DD.MM.RRRR.
+  - **Kroky ľudskými slovami** („Vyplnené pole „IČO“: 31322832“, „Zvolená možnosť …“, „Kliknuté na „Vyhľadať podania““) – v AI aj pri
+    skripte („Postup overenia v registri“); `lib/browser/steps.ts` (bez Chromia, použiteľné aj vo funkcii preverenia).

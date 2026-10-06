@@ -67,6 +67,8 @@ export interface SessionLog {
   value?: string;
 }
 
+export { describeStep } from "./steps";
+
 /** Záznam stránky počas sedenia (na diagnostiku AI overení a prevod na automatický dopyt). */
 export interface PageTrace {
   url: string;

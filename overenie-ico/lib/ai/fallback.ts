@@ -1,7 +1,7 @@
 import { statusFromFindings } from "../check";
 import type { CheckResult, CompanyProfile, Finding, Severity } from "../types";
 import type { AiConfig } from "./config";
-import { browserAvailable, type LiveEvent } from "../browser/session";
+import { browserAvailable, describeStep, type LiveEvent } from "../browser/session";
 import { runBrowserAgent, serverQuote, verifyAgentClaims, type AgentResult } from "./agent";
 import { getJevConfig } from "./jev";
 import { callLlm, type LlmResponse } from "./llm";
@@ -171,6 +171,37 @@ ${FORMAT(spec.dataPoints)}`;
   if (spec.browser && process.env.BROWSER_DISABLED !== "1") {
     emit("info", "Kontrolujem prehliadač na serveri…");
     const b = await browserAvailable();
+    // Obchodný vestník: najprv pevný postup bez AI (všetky strany výsledkov, triedenie podaní podľa druhu) – výsledok s dôkazom,
+    // ktorý obstojí v protokole; AI len keď skript nevie rozhodnúť
+    if (b.ok && spec.id === "ov") {
+      emit("act", "Server vyhľadáva v Obchodnom vestníku podľa IČO za 3 roky a číta všetky strany výsledkov (bez AI)…");
+      const { ovFlow } = await import("../browser/flows");
+      const r = await ovFlow(ico);
+      if (r.verdict !== "unknown") {
+        const steps = (r.actions || []).filter((l) => !/^wait/.test(l.action)).map(describeStep).slice(0, 30);
+        emit("ok", r.verdict === "clean" ? "Hotovo: žiadne negatívne oznámenie (prečítané všetky výsledky)." : `Hotovo: nájdené negatívne oznámenia (${r.rows.length}).`);
+        const pen = original.data?.penaltyIfFound as number | undefined;
+        const sev = (original.data?.severityIfFound as Severity | undefined) || "warning";
+        return {
+          check: {
+            ...base,
+            status: r.verdict === "found" ? (sev === "critical" ? "critical" : "warning") : "ok",
+            summary:
+              r.verdict === "found"
+                ? `Negatívne oznámenia v Obchodnom vestníku za posledné 3 roky (vyhľadané podľa IČO ${ico}): ${r.rows.slice(0, 3).join("; ")}.`
+                : `Bez negatívneho oznámenia v Obchodnom vestníku – vyhľadané podľa IČO ${ico} priamo vo Vestníku; ${r.evidence || ""}.`,
+            findings: r.verdict === "found" ? [{ severity: sev, text: `${original.name}: ${r.rows.slice(0, 3).join("; ")}`, penalty: pen ?? 30 }] : [],
+            verifyUrl: r.url || original.verifyUrl,
+            automated: true,
+            ai: undefined,
+            data: { ...(original.data || {}), rows: r.rows, queriedUrl: r.url, via: "browser-script", steps },
+            durationMs: Date.now() - t0,
+          },
+          debug: { actions: r.actions, pages: r.pages, visited: [r.url], raw: r.evidence || "" } as AiRunDebug,
+        };
+      }
+      emit("warn", `Pevný postup nerozhodol (${r.error || "nie všetky strany výsledkov sa dali prečítať"}) – pokračuje AI s prehliadačom.`);
+    }
     if (b.ok) {
       mode = "browser";
       const agentUser = `${spec.task(ico, profile)}
@@ -201,7 +232,10 @@ ${FORMAT(spec.dataPoints)}`;
   let rejected: string | undefined;
   if (agent) {
     // nezávislá kontrola tvrdení podľa textov stránok, ktoré server naozaj videl
-    const bad = verifyAgentClaims(agent, out.result, ico, profile.name);
+    const bad =
+      spec.id === "ov" && out.result === "clean"
+        ? "pri Obchodnom vestníku sa „bez záznamu“ uzná len po prečítaní všetkých strán výsledkov pevným postupom servera, nie podľa AI"
+        : verifyAgentClaims(agent, out.result, ico, profile.name);
     if (bad) {
       rejected = bad;
       out.result = "unknown";
@@ -226,7 +260,7 @@ ${FORMAT(spec.dataPoints)}`;
     usage: res.usage,
     mode,
     steps: agent?.steps,
-    trace: agent?.log.map((l) => `${l.ok ? "✓" : "✗"} ${l.action}${l.note ? ` – ${l.note}` : ""}`).slice(0, 30),
+    trace: agent?.log.filter((l) => !/^wait/.test(l.action)).map(describeStep).slice(0, 30),
     note: [note, agent?.decidedBy ? `Výsledok stránky vyhodnotil Jev (TypeSafe) s istotou ${Math.round(agent.decidedBy.confidence * 100)} % za ${agent.decidedBy.ms} ms; formulár vyplnil server, tvrdenie overil server podľa textu stránky.` : agent?.jevHint ? `Odhad Jev: ${agent.jevHint.choice} (${Math.round(agent.jevHint.confidence * 100)} %).` : ""].filter(Boolean).join(" ") || undefined,
   };
   const label = cfg.provider === "openai" ? "AI (OpenAI)" : "AI (Claude)";

@@ -74,7 +74,8 @@ async function main() {
   const c = await ovFlow("33333333", { url, hosts: ["127.0.0.1"] });
   assert.equal(c.verdict, "clean", JSON.stringify(c).slice(0, 400));
   assert.ok(reqs.some((r) => r.includes("DatumUverejnenia=range") && r.includes("txtOd=")), "prepínač rozsahu a dátum od");
-  assert.ok(/oznámení za 3 roky \(všetky strany\)/.test(c.evidence || ""), c.evidence);
+  assert.ok(/^obdobie \d{2}\.\d{2}\.\d{4} – \d{2}\.\d{2}\.\d{4}, prečítané všetky výsledky \(\d+ podaní na \d+ stran/.test(c.evidence || ""), c.evidence);
+  assert.ok(/Podanie Obchodného registra \(\d+\)/.test(c.evidence || "") && /žiadne oznámenie o likvidácii, konkurze/.test(c.evidence || ""), c.evidence);
   console.log(`OK – OV bez nálezu: ${c.evidence}.`);
 
   // 2) likvidácia pred 2 rokmi (pri 10 na stránku by bola až na 2. strane) → nález

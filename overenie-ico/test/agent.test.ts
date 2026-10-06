@@ -256,7 +256,8 @@ async function main() {
   assert.equal(r.check.status, "critical", "nález dlhu → kritické");
   assert.ok(r.check.findings.some((f) => /Dlh voči VšZP/.test(f.text)));
   assert.ok(r.check.ai?.evidence[0]?.url.startsWith(startUrl));
-  assert.ok((r.check.ai?.trace || []).some((t) => t.startsWith("✓ fill")), "záznam akcií obsahuje vyplnenie");
+  assert.ok((r.check.ai?.trace || []).some((t) => /^✓ Vyplnené pole „.+“: 12345678$/.test(t)), `záznam akcií ľudskými slovami: ${(r.check.ai?.trace || []).join(" | ")}`);
+  assert.ok(!(r.check.ai?.trace || []).some((t) => /\be\d+\b/.test(t)), "bez technických odkazov e12");
   // rýchly model nedostupný → automaticky štandardný model
   const fbEvents: { kind: string; text: string }[] = [];
   const rf = await aiCheck({ provider: "anthropic", model: "nedostupny-rychly", fallbackModel: "m", speed: "fast", key: "k".repeat(30), auto: false, noApiSources: false, origin: "env" }, check, "12345678", { ico: "12345678", name: "Dlžník s.r.o." } as any, (e) => fbEvents.push(e));
@@ -303,7 +304,9 @@ async function main() {
       jev: { cfg: jc, register: "Test register of debtors", ico: "31322832", negative: "listed as debtor" },
       onEvent: (e) => ev.push(e),
     });
-    assert.equal(rj.decidedBy?.engine, "jev", "rozhodol Jev");
+    // Jev je len orientačný odhad – o výsledku rozhoduje AI s dôkazom zo stránky (právny dokument nemôže stáť na „istote modelu“)
+    assert.equal(rj.decidedBy, undefined, "Jev nerozhoduje");
+    assert.equal(rj.jevHint?.choice, "clean", "odhad Jev je k dispozícii");
     // záznam pre administráciu: akcie so stabilným popisom prvku a snímky stránok
     const fillA = rj.log.find((l) => l.action.startsWith("fill"))!;
     assert.equal(fillA.target?.name, "ico");
@@ -311,14 +314,13 @@ async function main() {
     assert.equal(fillA.value, "31322832");
     assert.ok(rj.log.some((l) => l.action.startsWith("click") && l.target?.label === "Hľadať"));
     assert.ok(rj.pages.length >= 2 && rj.pages[rj.pages.length - 1].text.includes("Nenašli sa žiadne záznamy"), "snímka stránky s výsledkom");
-    assert.equal(rj.steps, 0);
-    assert.equal(llmCalls, 0, "LLM sa nevolal");
+    assert.ok(llmCalls > 0, "pokračovala AI");
     assert.ok(rj.text.includes('"result":"clean"'));
     assert.equal(verifyAgentClaims(rj, "clean", "31322832"), null, "server tvrdenie potvrdil");
-    assert.ok(ev.some((e) => /Jev: bez záznamu \(istota 93 %/.test(e.text)), ev.map((e) => e.text).join(" | "));
+    assert.ok(ev.some((e) => /Jev – orientačný odhad: bez záznamu \(istota 93 %/.test(e.text)), ev.map((e) => e.text).join(" | "));
     assert.equal(lastState.questions.result.type, "choice");
     assert.ok(lastState.state.page_text.includes("Nenašli sa žiadne záznamy"));
-    console.log(`OK – Jev rozhodol „bez záznamu“ bez LLM (${Date.now() - t0} ms vrátane prehliadača).`);
+    console.log(`OK – Jev len orientačne, rozhodla AI s dôkazom (${Date.now() - t0} ms vrátane prehliadača).`);
     llmJ.close();
 
     // nález → Jev nerozhoduje, pokračuje LLM (s odhadom Jev v zadaní)

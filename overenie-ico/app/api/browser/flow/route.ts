@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
+import { describeStep } from "@/lib/browser/steps";
 import { saveRun } from "@/lib/ailog";
 import { ovFlow, unionFlow } from "@/lib/browser/flows";
 
@@ -37,5 +38,7 @@ export async function POST(req: Request) {
     evidence: r.url ? [{ url: r.url, quote: r.evidence }] : undefined,
   }).catch(() => undefined);
   const { actions: _a, pages: _p, ...rest } = r;
-  return NextResponse.json(body.diag ? r : rest);
+  // postup ľudskými slovami do protokolu (bez snímok stránok)
+  const steps = (r.actions || []).filter((l) => !/^wait/.test(l.action)).map(describeStep).slice(0, 30);
+  return NextResponse.json(body.diag ? { ...r, steps } : { ...rest, steps });
 }

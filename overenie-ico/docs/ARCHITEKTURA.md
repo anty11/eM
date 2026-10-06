@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.10.5** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.0** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -127,9 +127,7 @@ flowchart TD
   HTTP -->|"neviem / 401 / 403"| BRW{"Je skript cez prehliadač?<br/>Union, OV"}
   BRW -->|áno| FLOW["2. Skript – flows.ts<br/>vyplní IČO, odošle, prečíta tabuľku,<br/>OV: rozsah 3 roky, 100 na stranu, všetky strany"]
   FLOW -->|"pevné pravidlá jednoznačné"| DONE
-  FLOW -->|"pravidlá: neviem"| J{"Jev nastavený?"}
-  J -->|"áno: bez záznamu, istota ≥ prah,<br/>IČO nie je pri údajoch o dlhu"| DONE
-  J -->|"nie / nález / nízka istota"| MAN["Manuálne overenie<br/>+ tlačidlo Overiť cez AI"]
+  FLOW -->|"pravidlá: neviem"| MAN["Manuálne overenie<br/>+ tlačidlo Overiť cez AI<br/>(Jev len orientačný odhad v zázname)"]
   BRW -->|nie| MAN
   OVX["OV: index z exportu MS SR<br/>(ak je prístup)"] -->|"ak existuje, má prednosť"| DONE
   PX["Proxy z administrácie<br/>pre justice.gov.sk"] -.->|"odblokuje 403"| HTTP
@@ -147,14 +145,16 @@ flowchart TD
   BTN(["Overiť cez AI"]) --> CFG{"spec.browser a prehliadač dostupný?"}
   CFG -->|"nie"| WEB["Webové vyhľadávanie<br/>Claude: web_search + web_fetch<br/>OpenAI: web_search"]
   CFG -->|"áno"| PRE["Úvod servera bez AI – searchPrelude<br/>cookies, pole IČO podľa popisu/name,<br/>prepínač dátumov, odoslanie"]
-  PRE -->|"odoslané"| JEV{"Jev: clean / found / unknown"}
-  JEV -->|"clean ≥ prah"| VER
-  JEV -->|"found / unknown / nízka istota"| LLM
+  BTN -->|"Obchodný vestník"| OVF["Pevný postup servera ovFlow<br/>všetky strany, druhy podaní"]
+  OVF -->|"rozhodol"| OK
+  OVF -->|"neviem"| CFG
+  PRE -->|"odoslané"| JEV["Jev – len orientačný odhad<br/>pre model, nerozhoduje"]
+  JEV --> LLM
   PRE -->|"pole nenájdené"| LLM["Model ovláda prehliadač<br/>open_page, fill, click, press_enter,<br/>select_option, wait, read_page"]
   LLM --> OUT["JSON: result, summary, findings, evidence, data"]
   WEB --> OUT
   OUT --> VER{"Kontrola servera<br/>verifyAgentClaims + dôkaz z oficiálnej domény"}
-  VER -->|"prešla"| OK["Overené AI / Jev<br/>s dôkazom a krokmi"]
+  VER -->|"prešla"| OK["Overené s dôkazom zo stránky<br/>a krokmi ľudskými slovami"]
   VER -->|"nie"| REJ["AI nevedela overiť – manuálne<br/>s dôvodom zamietnutia"]
   OK --> LOG[("Záznam AI overení")]
   REJ --> LOG
@@ -165,6 +165,8 @@ flowchart TD
 - Model nikdy nerozhoduje sám: „bez záznamu“ vyžaduje odoslaný formulár a IČO na stránke s výsledkom nesmie byť pri údajoch o dlhu;
   „nájdený“ vyžaduje IČO alebo názov na stránke, ktorú server naozaj videl.
 - Priebeh sa streamuje (`/api/ai/fallback?stream=1`): akcie s názvom poľa, popis stránky, vety modelu, verdikt kontroly.
+- **Právny dokument stojí na dôkaze, nie na istote modelu (v2.11.0):** Jev nikdy neuzatvára výsledok; Obchodný vestník najprv pevným
+  postupom (`ovFlow`), „bez záznamu“ od AI sa pri OV neuzná. Kroky v protokole ľudskými slovami (`lib/browser/steps.ts`).
 
 ---
 
@@ -174,9 +176,9 @@ flowchart TD
 |---|---|---|---|---|
 | Zdroje s API (RPO, RÚZ, FS, RPVS, REPLIK, Soc. poisťovňa) | **rozhoduje** | – | len záloha na tlačidlo pri výpadku | pri chybe |
 | VšZP, ÚVO (priamy dopyt) | **rozhoduje** | – | tlačidlo, ak pravidlá nevedia | áno |
-| Union, Obchodný vestník (skript v prehliadači) | **rozhoduje** | „bez záznamu“, keď pravidlá nevedia | tlačidlo | áno |
+| Union, Obchodný vestník (skript v prehliadači) | **rozhoduje** | len orientačný odhad (nerozhoduje) | tlačidlo (OV: najprv pevný postup) | áno |
 | Register diskvalifikácií | rozhoduje (s proxy) | v AI overení | agent (s proxy) | áno |
-| Vyhodnotenie stránky po úvode servera (AI tlačidlo) | kontroluje tvrdenie | **„bez záznamu“** s istotou ≥ prah | nález, nejasné stránky, navigácia | – |
+| Vyhodnotenie stránky po úvode servera (AI tlačidlo) | kontroluje tvrdenie (citát zo stránky) | orientačný odhad pre model | **výsledok s dôkazom**, navigácia | – |
 | Navigácia neznámym formulárom | úvod (IČO, dátumy, odoslanie) | – | **agent** | – |
 | Médiá – relevancia článkov | filtre mien, aliasov, štatutárov | – | – | posúdenie |
 | CRE, Dôvera | – | – | – | **len manuálne** |
@@ -355,7 +357,7 @@ flowchart LR
   B --> C["Záznam AI overení<br/>Súhrn na zdieľanie"]
   C --> D["recept: open → fill name=… → click …<br/>+ stránka s výsledkom"]
   D --> E["skript v flows.ts + judge*<br/>+ test s kópiou stránky"]
-  E --> F["automaticky pri každom preverení<br/>Jev ako záloha pravidiel"]
+  E --> F["automaticky pri každom preverení<br/>(Jev len orientačne)"]
   F --> C
 ```
 

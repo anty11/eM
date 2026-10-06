@@ -19,6 +19,8 @@ export interface FlowResult {
   ms: number;
   rendered?: string;
   error?: string;
+  /** postup ľudskými slovami (z /api/browser/flow) */
+  steps?: string[];
 }
 
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -46,9 +48,8 @@ async function withJev(r: Pick<FlowResult, "verdict" | "rows" | "evidence">, id:
     const v = await jevJudgeResult(cfg, { register: spec.register, ico, snapshot: snap, negativeMeans: spec.negative, routineMeans: spec.routine });
     const i = snap.text.indexOf(ico);
     const nearRecord = i >= 0 && /dlh|pohľadáv|nedoplat|likvid|konkurz|dražb|€|eur/i.test(snap.text.slice(Math.max(0, i - 160), i + 160));
-    if (v.choice === "clean" && v.confidence >= cfg.minConfidence && !nearRecord)
-      return { verdict: "clean", rows: [], evidence: `vyhodnotil Jev (TypeSafe), istota ${Math.round(v.confidence * 100)} %`, jev: `${v.model} ${v.ms} ms` };
-    return { ...r, jev: `${v.choice} ${Math.round(v.confidence * 100)} %` };
+    // len odhad do záznamu behu – „bez záznamu“ sa do protokolu nedá dať podľa istoty modelu, výsledok ostáva neistý (manuálne / AI s dôkazom)
+    return { ...r, jev: `${v.choice} ${Math.round(v.confidence * 100)} %${nearRecord ? " (pri IČO sú sumy/udalosti)" : ""}` };
   } catch {
     return r;
   }
@@ -137,11 +138,13 @@ export async function ovFlow(ico: string, opts: { diag?: boolean; url?: string; 
     const all: string[][] = [];
     let head: string[] | null = null;
     let complete = false;
+    let pagesRead = 0;
     if (ovPager(snap).sizes.includes(100) && ovRows(snap).rows.length >= 10) snap = await s.clickLinkText("100").catch(() => snap);
     for (let page = 1; page <= 10; page++) {
       const { head: h, rows } = ovRows(snap);
       if (!h) break;
       head = h;
+      pagesRead = page;
       all.push(...rows);
       const oldest = rows.map((r) => ovDate(r, h)).filter(Boolean).sort()[0];
       const pager = ovPager(snap);
@@ -156,7 +159,7 @@ export async function ovFlow(ico: string, opts: { diag?: boolean; url?: string; 
         break; // ďalšia stránka sa neotvorila → výsledok neúplný (unknown, ak nie je nález)
       }
     }
-    const judged = head ? judgeOvRows(head, all, cutoff, complete) : judgeOv(snap, ico);
+    const judged = head ? judgeOvRows(head, all, cutoff, complete, pagesRead) : judgeOv(snap, ico);
     return { ...(await withJev(judged, "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
   } catch (e) {
     return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
@@ -192,7 +195,7 @@ const ovDate = (r: string[], head: string[]) => {
 };
 
 /** Posúdenie oznámení OV za posledné 3 roky (riadky zo všetkých prečítaných stránok). */
-export function judgeOvRows(head: string[], all: string[][], cutoff: Date, complete: boolean): Pick<FlowResult, "verdict" | "rows" | "evidence"> {
+export function judgeOvRows(head: string[], all: string[][], cutoff: Date, complete: boolean, pagesRead?: number): Pick<FlowResult, "verdict" | "rows" | "evidence"> {
   const typeCol = head.findIndex((h) => /typ|podani/i.test(h));
   const chapCol = head.findIndex((h) => /kapitol/i.test(h));
   const subjCol = head.findIndex((h) => /subjekt|n[áa]zov/i.test(h));
@@ -202,10 +205,20 @@ export function judgeOvRows(head: string[], all: string[][], cutoff: Date, compl
     return !d || d >= lim;
   });
   const negative = rows.map((r) => ({ r, c: classifyNotice(r[typeCol] || "", r[chapCol] || "") })).filter((x) => x.c.severity !== "info");
-  if (negative.length) return { verdict: "found", rows: negative.map((x) => `${x.c.label}: ${x.r[typeCol]} · ${ovDate(x.r, head)} · ${x.r[subjCol] || ""}`.trim()), evidence: negative[0].r.filter(Boolean).join(" | ") };
+  const sk = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
+  if (negative.length) return { verdict: "found", rows: negative.map((x) => `${x.c.label}: ${x.r[typeCol]} · ${sk(ovDate(x.r, head))} · ${x.r[subjCol] || ""}`.trim()), evidence: negative[0].r.filter(Boolean).join(" | ") };
   if (!complete) return { verdict: "unknown", rows: [] };
-  const types = [...new Set(rows.map((r) => r[typeCol]).filter(Boolean))];
-  return { verdict: "clean", rows: [], evidence: rows.length ? `${rows.length} oznámení za 3 roky (všetky strany), typy: ${types.slice(0, 4).join(", ")}` : "žiadne oznámenie za 3 roky" };
+  const counts = new Map<string, number>();
+  for (const r of rows) if (r[typeCol]) counts.set(r[typeCol], (counts.get(r[typeCol]) || 0) + 1);
+  const types = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} (${n})`);
+  const period = `${skDate(cutoff)} – ${skDate(new Date())}`;
+  return {
+    verdict: "clean",
+    rows: [],
+    evidence: rows.length
+      ? `obdobie ${period}, prečítané všetky výsledky (${rows.length} podaní${pagesRead ? ` na ${pagesRead} ${pagesRead === 1 ? "strane" : "stranách"}` : ""}); druhy podaní: ${types.slice(0, 6).join(", ")}${types.length > 6 ? ` a ďalšie (${types.length - 6})` : ""}; žiadne oznámenie o likvidácii, konkurze, reštrukturalizácii, zrušení, znížení základného imania, výzve veriteľom ani dražbe`
+      : `obdobie ${period}: vyhľadávanie podľa IČO nevrátilo žiadne podanie`,
+  };
 }
 
 export function judgeOv(snap: Snapshot, ico: string): Pick<FlowResult, "verdict" | "rows" | "evidence"> {

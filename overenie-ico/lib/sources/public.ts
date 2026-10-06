@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { fetchWithTimeout, fold, stripHtml } from "../http";
 import type { CheckResult, Ctx, Finding } from "../types";
 import { MANUAL } from "./manual";
+import { describeStep } from "../browser/steps";
 
 /**
  * Registre bez API, ale s verejným vyhľadávaním (justice.gov.sk – diskvalifikácie, ÚVO – zákaz účasti, VšZP a Union – dlžníci).
@@ -446,9 +447,9 @@ export async function checkOvViaBrowser(ctx: Ctx): Promise<CheckResult | null> {
     sourceUrl: def.sourceUrl,
     verifyUrl: r.url || def.verifyUrl(ctx.ico, ctx.profile.name),
     status: r.verdict === "found" ? (def.severityIfFound === "critical" ? "critical" : "warning") : "ok",
-    summary: r.verdict === "found" ? `Negatívne oznámenia za posledné 3 roky: ${r.rows.slice(0, 3).join("; ")}` : `Bez negatívneho oznámenia za posledné 3 roky (vyhľadané podľa IČO priamo vo Vestníku; ${r.evidence || ""}).`,
+    summary: r.verdict === "found" ? `Negatívne oznámenia v Obchodnom vestníku za posledné 3 roky (vyhľadané podľa IČO ${ctx.ico}): ${r.rows.slice(0, 3).join("; ")}.` : `Bez negatívneho oznámenia v Obchodnom vestníku – vyhľadané podľa IČO ${ctx.ico} priamo vo Vestníku; ${r.evidence || ""}.`,
     findings: f,
-    data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: r.rows, queriedUrl: r.url, via: "browser" },
+    data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: r.rows, queriedUrl: r.url, via: "browser", steps: r.steps || (r.actions || []).filter((l) => !/^wait/.test(l.action)).map(describeStep).slice(0, 30) },
     checkedAt: new Date().toISOString(),
     durationMs: Date.now() - t0,
     automated: true,

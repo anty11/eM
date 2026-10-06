@@ -174,21 +174,15 @@ export async function runBrowserAgent(
         await session.open(req.prelude.url);
         const { snap, done } = await searchPrelude(session, req.prelude.ico ?? "", { dateFromYearsBack: req.prelude.dateFromYearsBack });
         emit(session.searched ? "ok" : "warn", session.searched ? "Vyhľadávanie odoslané – vyhodnocujem výsledok." : "Pole pre IČO sa nenašlo automaticky – pokračuje AI.");
-        // Rýchly klasifikátor (Jev): „bez záznamu“ s vysokou istotou → hotovo bez LLM (server výsledok ešte nezávisle overí)
+        // Rýchly klasifikátor (Jev): len orientačný odhad pre AI – sám o výsledku nerozhoduje (právny dokument potrebuje dôkaz, nie istotu modelu)
         if (session.searched && req.jev) {
           emit("think", "Jev (TypeSafe) rýchlo vyhodnocuje stránku s výsledkom…");
           try {
             const v = await jevJudgeResult(req.jev.cfg, { register: req.jev.register, ico: req.jev.ico, companyName: req.jev.companyName, snapshot: snap, negativeMeans: req.jev.negative, routineMeans: req.jev.routine });
             jevHint = { choice: v.choice, confidence: v.confidence, ms: v.ms };
             const label = v.choice === "clean" ? "bez záznamu" : v.choice === "found" ? "záznam nájdený" : "neviem";
-            if (v.choice === "clean" && v.confidence >= req.jev.cfg.minConfidence) {
-              emit("ok", `Jev: ${label} (istota ${Math.round(v.confidence * 100)} %, ${v.ms} ms) – LLM netreba.`);
-              const quote = (snap.text.match(/.{0,80}(nena[šs]li sa [žz]iadne|[žz]iadne z[áa]znamy|nebol n[áa]jden[ýy]|neboli n[áa]jden[ée]|0 z[áa]znamov).{0,80}/i)?.[0] || snap.title).trim();
-              const out = { result: "clean", summary: `Vyhľadávanie podľa IČO ${req.jev.ico} v registri neukázalo negatívny záznam (vyhodnotil Jev, istota ${Math.round(v.confidence * 100)} %).`, findings: [], evidence: [{ url: snap.url, quote }], data: {} };
-              emit("info", "Server kontroluje výsledok podľa stránky, ktorú naozaj videl…");
-              return { text: `<json>${JSON.stringify(out)}</json>`, visited: [...session.visited], usage, log: session.log, pages: session.pages, texts: session.texts, searched: session.searched, lastUrl: session.page.url(), steps: 0, decidedBy: { engine: "jev", model: v.model, confidence: v.confidence, ms: v.ms }, jevHint };
-            }
-            emit("info", `Jev: ${label} (istota ${Math.round(v.confidence * 100)} %, ${v.ms} ms) – ${v.choice === "found" ? "nález potrebuje podrobnosti" : "istota nestačí"}, pokračuje AI.`);
+            // Jev je len orientačný odhad – do protokolu ide výsledok len s dôkazom zo stránky (citát overený serverom), nie „istota modelu“
+            emit("info", `Jev – orientačný odhad: ${label} (istota ${Math.round(v.confidence * 100)} %, ${v.ms} ms); rozhoduje dôkaz zo stránky, pokračuje AI.`);
             user += `\n\nRýchly klasifikátor odhadol výsledok „${v.choice}“ s istotou ${Math.round(v.confidence * 100)} % – over to sám.`;
           } catch (e) {
             emit("warn", `Jev nedostupný (${(e as Error).message.slice(0, 100)}) – pokračuje AI.`);

@@ -736,6 +736,12 @@ export default function Page() {
                     <span className={`pill s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
                     <div className="sum">{c.summary}</div>
                     {c.status === "manual" && (c.data as any)?.autoNote && <div className="src">Automatický pokus: {String((c.data as any).autoNote)}</div>}
+                    {Array.isArray((c.data as any)?.steps) && (c.data as any).steps.length > 0 && !c.ai && (
+                      <details className="ai-trace">
+                        <summary>Postup overenia v registri</summary>
+                        <ol>{((c.data as any).steps as string[]).map((t, i) => <li key={i}>{t}</li>)}</ol>
+                      </details>
+                    )}
                     {c.findings.filter((f) => f.severity !== "info" || f.text).length > 0 && (
                       <ul>{c.findings.map((f, i) => <li key={i} className={`f-${f.severity}`}>{f.text}</li>)}</ul>
                     )}
