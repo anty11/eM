@@ -30,7 +30,7 @@ Stav k 28. 9. 2026, verzia aplikácie 1.0.0.
 | 12 | Dlžníci Union ZP | Union zdravotná poisťovňa | webový portál, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
 | 13 | Dlžníci Dôvera ZP | Dôvera zdravotná poisťovňa | webový formulár, **bez API**; automatizované overovanie výslovne zakázané | – | **len manuálne** | **nie** | `lib/sources/manual.ts` |
 | 14 | Obchodný vestník | Ministerstvo spravodlivosti SR | web, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
-| 15 | Register diskvalifikácií | Ministerstvo spravodlivosti SR | **API Infosud** (`obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia`) cez proxy | žiadna | automaticky (celý register, porovnanie štatutárov) | áno | `lib/sources/diskv.ts` |
+| 15 | Register diskvalifikácií | Ministerstvo spravodlivosti SR | **API Infosud** (`obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia`) cez proxy | žiadna | automaticky (dopyt podľa IČO a priezvisk štatutárov) | áno | `lib/sources/diskv.ts` |
 | 16 | Register osôb so zákazom účasti vo VO | Úrad pre verejné obstarávanie | web, **bez API** | žiadna | manuálne / AI | áno | `lib/sources/manual.ts` |
 | 17 | Centrálny register exekúcií (CRE) | Slovenská komora exekútorov | spoplatnený výpis po prihlásení | účet + platba | **len manuálne** | **nie** | `lib/sources/manual.ts` |
 

@@ -410,3 +410,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Zhoda IČO → kritické −25; zhoda mena → „možná zhoda“ −25, verdikt najviac S výhradou a otázka na overenie totožnosti (RPO nemá dátum
   narodenia); bez zhody pri úplnom registri → „Bez záznamu“ so stavom registra. Diagnostika ukáže ukážku odpovede API, skúšku parametrov
   vyhľadávania a zhody v celom indexe. Test `test/diskv.test.ts`.
+- **v2.9.9** – Register diskvalifikácií bez sťahovania registra: v2.9.8 sťahovala celý register (≈ 1 000 záznamov) do Redisu – zrušené.
+  Teraz každé preverenie položí API Infosud dopyt podľa IČO a podľa priezviska každého štatutára (`?<param>=…&page=1&size=50`),
+  vrátené záznamy porovná s menom a priezviskom. Ukladá sa len názov parametra vyhľadávania (zistí sa výrazom, ktorý musí vrátiť
+  `numFound = 0`). Cron `/api/cron/ov` register neobnovuje. Diagnostika ukáže parameter a odpovede dopytov podľa IČO a mien.

@@ -1,13 +1,13 @@
 /**
  * Register diskvalifikácií cez API Infosud (obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia):
- * tvar odpovede podľa diagnostiky 6. 10. 2026 ({ numFound, page od 0, size, updateDate, filterList, <zoznam> }), stránkovanie,
- * porovnanie štatutárov (tituly, poradie mien, diakritika), IČO, verdikty. Spustenie: npm test
+ * tvar odpovede podľa diagnostiky 6. 10. 2026 ({ numFound, page od 0, size, updateDate, filterList, <zoznam> }), zistenie parametra
+ * vyhľadávania, dopyt podľa IČO a priezvisk (nič sa nesťahuje celé), porovnanie štatutárov, verdikty. Spustenie: npm test
  */
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { useMemoryKV } from "../lib/auth/kv";
-import { checkDiskv, diskvIndex, flatten, matchRecord, nameParts, recordsOf } from "../lib/sources/diskv";
+import { checkDiskv, flatten, lookupDiskv, matchRecord, nameParts, recordsOf, searchParam } from "../lib/sources/diskv";
 
 const facets = [{ filterName: "sud_string", facetValueList: [{ text: "Mestský súd Košice", count: 74 }] }];
 const people = Array.from({ length: 23 }, (_, i) => ({
@@ -22,7 +22,7 @@ const people = Array.from({ length: 23 }, (_, i) => ({
 
 (async () => {
   // čisté funkcie
-  assert.deepEqual(nameParts("Ing. Gabriel Szabó, PhD."), { given: ["gabriel"], surname: "szabo" });
+  assert.deepEqual(nameParts("Ing. Gabriel Szabó, PhD."), { given: ["gabriel"], surname: "szabo", raw: "Szabó" });
   assert.equal(nameParts("Szabó"), null);
   const flat = flatten(people[15]);
   assert.equal(flat["obchodnaSpolocnost.ico"], "12345678");
@@ -37,32 +37,36 @@ const people = Array.from({ length: 23 }, (_, i) => ({
   assert.equal(r.records.length, 2);
   assert.equal(recordsOf({ numFound: 0, filterList: facets, items: [] }).records.length, 0);
 
-  // API so stránkovaním (page od 1 v dopyte, od 0 v odpovedi; server dáva najviac 10 na stranu)
+  // API: filtruje len parameter „query“ (fulltext bez diakritiky); neznáme parametre ignoruje a vráti celý register
   useMemoryKV();
-  let calls = 0;
+  const seen: string[] = [];
+  const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const srv = createServer((req, res) => {
-    calls++;
     const u = new URL(req.url || "/", "http://x");
-    const page = Number(u.searchParams.get("page") || 1);
-    const size = Math.min(10, Number(u.searchParams.get("size") || 10));
+    seen.push(u.search);
+    const q = u.searchParams.get("query");
+    const list = q == null ? people : people.filter((p) => fold(JSON.stringify(p)).includes(fold(q)));
+    const size = Number(u.searchParams.get("size") || 10);
     res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify({ numFound: people.length, page: page - 1, size, updateDate: "30.09.2026", filterList: facets, diskvalifikaciaList: people.slice((page - 1) * size, page * size) }));
+    res.end(JSON.stringify({ numFound: list.length, page: 0, size, updateDate: "30.09.2026", filterList: facets, diskvalifikaciaList: list.slice(0, size) }));
   });
   await new Promise<void>((ok) => srv.listen(0, "127.0.0.1", ok));
   process.env.DISKV_API_URL = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/diskvalifikacia`;
 
-  const idx = await diskvIndex();
-  assert.equal(idx.total, 23);
-  assert.equal(idx.records.length, 23);
-  assert.ok(idx.complete);
-  assert.equal(calls, 3, "3 strany po 10");
-  await diskvIndex();
-  assert.equal(calls, 3, "druhé volanie z pamäte");
+  assert.equal(await searchParam(), "query", "parameter zistený podľa numFound = 0");
+  assert.equal(await searchParam(), "query");
+  const probes = seen.length;
+  const l = await lookupDiskv("12345678");
+  assert.equal(l.total, 1);
+  assert.ok(l.complete);
+  assert.equal(seen.length, probes + 1, "jeden dopyt na výraz");
+  assert.ok(!seen.some((q) => /size=(100|[2-9]\d\d)/.test(q)), "nikdy sa nesťahuje celý register");
 
   const ctx = (ico: string, names: string[]) => ({ ico, profile: { ico, statutory: names.map((name) => ({ name, role: "konateľ" })) } }) as any;
   const clean = await checkDiskv(ctx("31322832", ["Ing. Ján Novák", "Mária Kováčová"]));
   assert.equal(clean?.status, "ok");
-  assert.match(clean!.summary, /Bez záznamu.*\(2\).*23 záznamov.*30\.09\.2026/);
+  assert.match(clean!.summary, /Bez záznamu.*\(2\).*30\.09\.2026/);
+  assert.ok(seen.some((q) => q.includes(`query=${encodeURIComponent("Novák")}`)), "dopyt podľa priezviska štatutára");
   const name = await checkDiskv(ctx("31322832", ["Ing. Gabriel Szabó"]));
   assert.equal(name?.status, "warning");
   assert.equal(name!.findings[0].cap, "caution", "zhoda mena = najviac S výhradou");

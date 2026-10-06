@@ -10,27 +10,18 @@ import { MANUAL } from "./manual";
  *   → { numFound, page (od 0), size, updateDate, filterList: [fazety], <zoznam záznamov> }
  * (zistené diagnostikou 6. 10. 2026 – 992 záznamov). Oba hostitelia blokujú dátové centrá → ide sa cez proxy z Administrácie.
  *
- * Register je malý, preto si ho stiahneme celý (najviac raz za 6 h a denne cronom, uložený v Redise) a štatutárov porovnávame lokálne – nezávisle od toho,
- * ako sa volá parameter vyhľadávania. Zhoda IČO = nález; zhoda mena a priezviska = možná zhoda (overiť totožnosť – RPO nezverejňuje
- * dátum narodenia), preto verdikt najviac „S výhradou“, nie „Neodporúčame“.
+ * Pri každom preverení sa register pýta nanovo – podľa IČO a podľa priezviska každého štatutára (nič sa nesťahuje ani neukladá,
+ * pamätá sa len názov parametra vyhľadávania). Zhoda IČO = nález; zhoda mena a priezviska = možná zhoda (overiť totožnosť – RPO
+ * nezverejňuje dátum narodenia), preto verdikt najviac „S výhradou“, nie „Neodporúčame“.
  */
 export const DISKV_API = "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia";
 export const DISKV_PAGE = "https://www.justice.gov.sk/registre/registerDiskvalifikacii/";
-const KEY = "diskv:index";
+const PARAM_KEY = "diskv:param";
+const LOOKUP_SIZE = 50;
 /** Adresa API (DISKV_API_URL len pre testy). */
 const apiUrl = () => process.env.DISKV_API_URL || DISKV_API;
-const TTL_SEC = 6 * 3600; // register sa mení zriedka (updateDate), 6 h je kompromis medzi čerstvosťou a počtom dopytov cez proxy
-const MAX_PAGES = 40;
 
 export type DiskvRecord = Record<string, string>;
-export interface DiskvIndex {
-  at: string;
-  updateDate?: string;
-  total: number;
-  records: DiskvRecord[];
-  /** celý register stiahnutý (počet záznamov zodpovedá numFound) */
-  complete: boolean;
-}
 
 /** Zoznam záznamov v odpovedi – prvé pole objektov okrem fazet (názov poľa nepoznáme naisto, napr. diskvalifikaciaList). */
 export function recordsOf(j: any): { total: number | null; records: any[]; key?: string; updateDate?: string } {
@@ -62,15 +53,16 @@ export function flatten(o: any, prefix = "", out: DiskvRecord = {}): DiskvRecord
 
 const TITLES = /^(ing|mgr|judr|mudr|mvdr|phdr|paeddr|rndr|rsdr|thdr|doc|prof|bc|dipl|arch|akad|mba|phd|csc|drsc|llm|msc|bsc|ma|ba|art|dr)$/;
 
-/** Meno štatutára → krstné mená a priezvisko (bez titulov), zložené na malé písmená bez diakritiky. */
-export function nameParts(name: string): { given: string[]; surname: string } | null {
-  const words = fold(name.replace(/,.*$/, ""))
-    .replace(/[^a-z\s.-]/g, " ")
+/** Meno štatutára → krstné mená a priezvisko (bez titulov), zložené na malé písmená bez diakritiky; `raw` = priezvisko ako v RPO (na dopyt). */
+export function nameParts(name: string): { given: string[]; surname: string; raw: string } | null {
+  const words = name
+    .replace(/,.*$/, "")
     .split(/\s+/)
-    .map((w) => w.replace(/\.+$/, ""))
-    .filter((w) => w.length > 1 && !TITLES.test(w));
+    .map((w) => w.replace(/[^\p{L}-]/gu, ""))
+    .filter((w) => w.length > 1 && !TITLES.test(fold(w)));
   if (words.length < 2) return null;
-  return { given: words.slice(0, -1), surname: words[words.length - 1] };
+  const f = words.map((w) => fold(w));
+  return { given: f.slice(0, -1), surname: f[f.length - 1], raw: words[words.length - 1] };
 }
 
 const word = (text: string, w: string) => new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")}([^a-z]|$)`).test(text);
@@ -94,42 +86,46 @@ export function describeRecord(r: DiskvRecord): string {
   return parts.join(" · ").slice(0, 400);
 }
 
-/** Stiahne celý register (stránkovanie podľa numFound). */
-export async function downloadDiskv(opts: { pageSize?: number; timeoutMs?: number } = {}): Promise<DiskvIndex> {
-  const want = opts.pageSize || 100;
-  const records: DiskvRecord[] = [];
-  let total = 0;
-  let updateDate: string | undefined;
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const r = await fetchWithTimeout(`${apiUrl()}?page=${page}&size=${want}`, { headers: { Accept: "application/json" }, timeoutMs: opts.timeoutMs || 15000 });
-    if (!r.ok) throw new Error(`register diskvalifikácií: HTTP ${r.status}${r.status === 403 ? " (blokované – nastavte proxy v Administrácii → Prístupy)" : ""}`);
-    const j = await r.json().catch(() => null);
-    const got = recordsOf(j);
-    if (got.total == null) throw new Error("register diskvalifikácií: neznámy tvar odpovede (chýba numFound)");
-    total = got.total;
-    updateDate = got.updateDate || updateDate;
-    records.push(...got.records.map((x) => flatten(x)));
-    if (!got.records.length || records.length >= total) break;
-  }
-  return { at: new Date().toISOString(), updateDate, total, records, complete: records.length >= total };
+/** Kandidáti na parameter vyhľadávania API (zistí sa za behu: správny parameter pri nezmyselnom výraze vráti numFound = 0). */
+export const SEARCH_PARAMS = ["query", "q", "text", "hladanyText", "meno", "priezvisko", "ico"];
+const PROBE = "qxzvwkj";
+let paramMemo: { exp: number; value: string } | null = null;
+
+async function getApi(qs: string, timeoutMs = 12000): Promise<any> {
+  const r = await fetchWithTimeout(`${apiUrl()}?${qs}`, { headers: { Accept: "application/json" }, timeoutMs });
+  if (!r.ok) throw new Error(`register diskvalifikácií: HTTP ${r.status}${r.status === 403 ? " (blokované – nastavte proxy v Administrácii → Prístupy)" : ""}`);
+  const j = await r.json().catch(() => null);
+  if (recordsOf(j).total == null) throw new Error("register diskvalifikácií: neznámy tvar odpovede (chýba numFound)");
+  return j;
 }
 
-let memo: { exp: number; value: DiskvIndex } | null = null;
-
-/** Index registra: pamäť inštancie → Redis (6 h) → stiahnutie. */
-export async function diskvIndex(opts: { fresh?: boolean } = {}): Promise<DiskvIndex> {
-  if (!opts.fresh && memo && memo.exp > Date.now()) return memo.value;
-  if (!opts.fresh) {
-    const stored = await kv().get<DiskvIndex>(KEY).catch(() => null);
-    if (stored && Date.now() - Date.parse(stored.at) < TTL_SEC * 1000) {
-      memo = { exp: Date.now() + 3600e3, value: stored };
-      return stored;
+/** Ktorý parameter API filtruje – pamätá sa (nie dáta, len názov parametra) v inštancii 12 h a v Redise 7 dní. */
+export async function searchParam(): Promise<string> {
+  if (paramMemo && paramMemo.exp > Date.now()) return paramMemo.value;
+  const stored = await kv().get<string>(PARAM_KEY).catch(() => null);
+  if (stored) {
+    paramMemo = { exp: Date.now() + 12 * 3600e3, value: stored };
+    return stored;
+  }
+  for (const k of SEARCH_PARAMS) {
+    const j = await getApi(`${k}=${PROBE}&page=1&size=1`).catch(() => null);
+    if (j && recordsOf(j).total === 0) {
+      paramMemo = { exp: Date.now() + 12 * 3600e3, value: k };
+      await kv().set(PARAM_KEY, k, 7 * 86400).catch(() => {});
+      return k;
     }
   }
-  const value = await downloadDiskv();
-  if (value.complete) await kv().set(KEY, value, TTL_SEC).catch(() => {});
-  memo = { exp: Date.now() + 3600e3, value };
-  return value;
+  throw new Error("register diskvalifikácií: API nefiltruje podľa žiadneho známeho parametra (pošlite diagnostiku)");
+}
+
+/** Jeden dopyt do registra podľa výrazu (IČO alebo priezvisko) – vráti nájdené záznamy a či sú kompletné. */
+export async function lookupDiskv(term: string): Promise<{ total: number; records: DiskvRecord[]; complete: boolean; updateDate?: string; url: string }> {
+  const k = await searchParam();
+  const qs = `${k}=${encodeURIComponent(term)}&page=1&size=${LOOKUP_SIZE}`;
+  const j = await getApi(qs);
+  const got = recordsOf(j);
+  const records = got.records.map((x) => flatten(x));
+  return { total: got.total!, records, complete: records.length >= got.total!, updateDate: got.updateDate, url: `${apiUrl()}?${qs}` };
 }
 
 /** Kontrola pre preverenie; null = nedá sa rozhodnúť (ostáva manuálne overenie). */
@@ -137,10 +133,21 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
   const def = MANUAL.find((m) => m.id === "diskv")!;
   const t0 = Date.now();
   const names = Array.from(new Set((ctx.profile.statutory || []).map((s) => s.name).filter(Boolean)));
-  const idx = await diskvIndex();
-  const hits = idx.records.map((r) => ({ r, m: matchRecord(r, ctx.ico, names) })).filter((x) => x.m);
+  const terms = [ctx.ico, ...Array.from(new Set(names.map((n) => nameParts(n)?.raw).filter(Boolean) as string[])).slice(0, 8)];
+  const results = await Promise.all(terms.map((t) => lookupDiskv(t)));
+  const records = results.flatMap((r) => r.records);
+  const complete = results.every((r) => r.complete);
+  const updateDate = results.find((r) => r.updateDate)?.updateDate;
+  const seen = new Set<string>();
+  const hits = records
+    .map((r) => ({ r, m: matchRecord(r, ctx.ico, names) }))
+    .filter((x) => x.m)
+    .filter((x) => {
+      const id = JSON.stringify(x.r);
+      return seen.has(id) ? false : (seen.add(id), true);
+    });
   const byIco = hits.filter((h) => h.m!.by === "ico");
-  const asOf = idx.updateDate ? `, stav registra k ${idx.updateDate}` : "";
+  const asOf = updateDate ? `, stav registra k ${updateDate}` : "";
   const f: Finding[] = [];
   let summary: string;
   let status: CheckResult["status"];
@@ -160,8 +167,8 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
     summary = `Možná zhoda mena štatutára v registri diskvalifikácií (${hits.length} ${hits.length === 1 ? "záznam" : "záznamy"})${asOf} – treba overiť totožnosť.`;
     status = "warning";
   } else {
-    if (!idx.complete || !names.length) return null; // neúplný register alebo nepoznáme štatutárov → nerozhodujeme
-    summary = `Bez záznamu – žiadny zo štatutárov (${names.length}) ani IČO nie je v registri diskvalifikácií (${idx.total} záznamov${asOf}).`;
+    if (!complete || !names.length) return null; // neprečítané všetky výsledky alebo nepoznáme štatutárov → nerozhodujeme
+    summary = `Bez záznamu – register diskvalifikácií nemá záznam pre IČO ani pre štatutárov (${names.length})${asOf}.`;
     status = "ok";
   }
   return {
@@ -174,7 +181,7 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
     status,
     summary,
     findings: f,
-    data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: hits.slice(0, 5).map((h) => describeRecord(h.r)), queriedUrl: DISKV_API, total: idx.total, updateDate: idx.updateDate, checkedNames: names },
+    data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: hits.slice(0, 5).map((h) => describeRecord(h.r)), queriedUrl: results[0]?.url, queries: results.map((r) => r.url), updateDate, checkedNames: names },
     checkedAt: new Date().toISOString(),
     durationMs: Date.now() - t0,
     automated: true,

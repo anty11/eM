@@ -135,7 +135,7 @@ export const GET = handler(async (req) => {
         result.browserFlow = r;
         if (outcome.result === "unknown" && r.verdict !== "unknown") Object.assign(outcome, { result: r.verdict, rows: r.rows });
       }
-      // Register diskvalifikácií: API aplikácie Infosud – ukážka odpovede (bez fazet), celý index a zhody pre zadané IČO a mená
+      // Register diskvalifikácií: API aplikácie Infosud – ukážka odpovede (bez fazet), parameter vyhľadávania a dopyty podľa IČO a mien
       let apiOk = false;
       if (source === "diskv") {
         const d = await import("@/lib/sources/diskv");
@@ -149,7 +149,7 @@ export const GET = handler(async (req) => {
           const got = d.recordsOf(j);
           api.sample = { status: r.status, ms: Date.now() - t1, keys: j && typeof j === "object" ? Object.keys(j) : [], listKey: got.key, numFound: got.total, updateDate: got.updateDate, records: got.records.slice(0, 3), flat: got.records.slice(0, 3).map((x) => d.flatten(x)), raw: j ? undefined : txt.slice(0, 1500) };
           // vyhľadávanie podľa textu – ktorý parameter filtruje (numFound klesne)
-          const q = names[0] ? (d.nameParts(names[0])?.surname || names[0]) : ico;
+          const q = names[0] ? (d.nameParts(names[0])?.raw || names[0]) : ico;
           const tries: Record<string, unknown> = {};
           for (const k of ["query", "q", "text", "meno", "priezvisko", "ico"]) {
             const rr = await fetchWithTimeout(`${d.DISKV_API}?${k}=${encodeURIComponent(q)}&page=1&size=3`, { headers: { Accept: "application/json" }, timeoutMs: 10000 }).catch((e) => e as Error);
@@ -158,11 +158,20 @@ export const GET = handler(async (req) => {
             tries[k] = { status: rr.status, numFound: d.recordsOf(jj).total };
           }
           api.searchParams = { value: q, tries };
+          // skutočná kontrola: dopyt podľa IČO a priezvisk štatutárov (rovnako ako pri preverení)
           const t2 = Date.now();
-          const idx = await d.downloadDiskv();
-          const hits = idx.records.map((x) => ({ x, m: d.matchRecord(x, ico, names) })).filter((h) => h.m);
-          api.index = { ms: Date.now() - t2, total: idx.total, downloaded: idx.records.length, complete: idx.complete, updateDate: idx.updateDate, fields: Object.keys(idx.records[0] || {}), hits: hits.slice(0, 5).map((h) => ({ by: h.m!.by, who: h.m!.who, record: d.describeRecord(h.x) })) };
-          apiOk = idx.complete;
+          api.param = await d.searchParam().catch((e) => `chyba: ${(e as Error).message}`);
+          const terms = [ico, ...names.map((n) => d.nameParts(n)?.raw).filter(Boolean)] as string[];
+          api.lookups = await Promise.all(
+            terms.map((t) =>
+              d.lookupDiskv(t).then(
+                (l) => ({ term: t, url: l.url, numFound: l.total, complete: l.complete, records: l.records.slice(0, 5), hits: l.records.filter((x) => d.matchRecord(x, ico, names)).map((x) => d.describeRecord(x)) }),
+                (e) => ({ term: t, error: (e as Error).message }),
+              ),
+            ),
+          );
+          api.ms = Date.now() - t2;
+          apiOk = typeof api.param === "string" && !String(api.param).startsWith("chyba");
         } catch (e) {
           api.error = (e as Error).message;
         }
