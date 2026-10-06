@@ -1,3 +1,5 @@
+> Architektúra, toky dát, AI a Jev s diagramami: [ARCHITEKTURA.md](ARCHITEKTURA.md).
+
 # Obozretne (Overenie IČO) – referencia projektu
 
 Názov produktu a doména: **Obozretne · obozretne.sk** („obozretný podnikateľ“ – pojem z judikatúry o náležitej starostlivosti; predchádzajúce pracovné názvy Preverto a Preverenie partnera boli opustené pre konkurenciu). Prevádzkovateľ: samostatná spoločnosť (pracovne Obozretne s.r.o.), odborná záštita URBAN & PARTNERS a LEXNERA Legal. Názov je na jednom mieste: `PRODUCT`, `DOMAIN`, `OPERATOR` v `app/components/site/SiteShell.tsx` + hlavička aplikácie `app/components/Header.tsx`.

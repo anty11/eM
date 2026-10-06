@@ -379,3 +379,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Zoznam platiteľov s dôvodmi na zrušenie registrácie už nie je opisovaný ako zákonný predpoklad ručenia, ale ako varovný signál;
   odstránené neisté odkazy na § 69 ods. 15 a § 81 ods. 4 písm. b). Upravené: úvod webu, Právny základ, karta právnych zdrojov,
   zistenie FS DPH, indikátory obchodu (cena, účet), karta obchodu, zadanie AI, ZDROJE.md.
+- **v2.9.3** – `docs/ARCHITEKTURA.md`: živý dokument s diagramami (Mermaid) – celkový pohľad, priebeh preverenia, rozhodovací strom
+  registrov bez API, AI agent a Jev, kto čo rozhoduje, zdroje a očakávané polia, dátové štruktúry (CheckResult, JSON modelu, Jev,
+  záznam behu), testovanie a diagnostika, postup „AI → recept → skript“, konfigurácia. `test/docs.test.ts` stráži aktuálnosť
+  (zdroje, zadania AI, premenné prostredia, testy, verzia); pravidlo v `CLAUDE.md`.
