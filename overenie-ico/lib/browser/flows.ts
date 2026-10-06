@@ -125,7 +125,8 @@ export async function ovFlow(ico: string, opts: { diag?: boolean; url?: string; 
   const url = opts.url || "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx";
   let s: BrowserSession | null = null;
   try {
-    s = await BrowserSession.open(opts.hosts || ["justice.gov.sk"]);
+    // OV funguje priamo – len jeho hostiteľ, aby prehliadač nešiel cez proxy pre justice.gov.sk
+    s = await BrowserSession.open(opts.hosts || ["obchodnyvestnik.justice.gov.sk"]);
     await s.open(url);
     const prelude = await searchPrelude(s, ico, { dateFromYearsBack: 3 });
     let snap = prelude.snap;

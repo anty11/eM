@@ -209,9 +209,9 @@ export class BrowserSession {
     const b = await launch();
     s.browser = b;
     // registre blokujúce dátové centrá → kontext prehliadača cez proxy (Administrácia → Prístupy k registrom)
-    const { getProxyConfig, hostMatches } = await import("../access");
+    const { getProxyConfig, needsProxy } = await import("../access");
     const px = await getProxyConfig().catch(() => null);
-    const useProxy = px && allowedHosts.some((h) => hostMatches(h, px.domains));
+    const useProxy = px && allowedHosts.some((h) => needsProxy(h, px.domains));
     if (useProxy) s.proxied = px!.server;
     s.ctx = await b.newContext({
       ...(useProxy ? { proxy: { server: px!.server, username: px!.username, password: px!.password } } : {}),

@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.9.10** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.9.11** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -65,7 +65,7 @@ flowchart LR
 | Zdroje | `lib/sources/*.ts` | jeden súbor na register; vracia `CheckResult` |
 | Prehliadač | `lib/browser/session.ts`, `lib/browser/flows.ts`, `app/api/browser/flow` | Chromium na serveri (len v 3 funkciách), skripty bez AI |
 | AI | `lib/ai/*.ts` | nastavenia, zadania (`specs.ts`), agent, webové vyhľadávanie, Jev |
-| Prístupy | `lib/access.ts` | proxy pre blokované registre, prístup k exportu OV |
+| Prístupy | `lib/access.ts` | proxy pre blokované registre (predvolene `justice.gov.sk` + `obcan.justice.sk`; `DIRECT_HOSTS` – Obchodný vestník – vždy priamo), prístup k exportu OV |
 | Hodnotenie | `lib/scoring.ts`, `lib/keyfacts.ts`, `lib/deal.ts` | skóre, verdikt, kľúčové fakty, indikátory obchodu |
 | Záznamy | `lib/audit.ts`, `lib/ailog.ts` | audit firmy, záznam AI overení a skriptov |
 

@@ -47,7 +47,10 @@ async function main() {
   assert.deepEqual(st.proxy.domains, ["registre.test", "justice.gov.sk", "obcan.justice.sk"]);
   assert.equal(st.proxy.server, `http://127.0.0.1:${pPort}`);
   assert.ok(!JSON.stringify(st).includes("tajne"), "heslo sa nezobrazí");
-  assert.ok(await proxyFor("https://obchodnyvestnik.justice.gov.sk/x"), "subdoména ide cez proxy");
+  assert.ok(await proxyFor("https://www.justice.gov.sk/registre/"), "justice.gov.sk ide cez proxy");
+  assert.ok(await proxyFor("https://obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia"), "API registra diskvalifikácií cez proxy");
+  assert.equal(await proxyFor("https://obchodnyvestnik.justice.gov.sk/x"), null, "Obchodný vestník funguje priamo – nie cez proxy");
+  assert.equal(await proxyFor("https://replik.justice.sk/"), null, "REPLIK priamo");
   assert.equal(await proxyFor("https://www.uvo.gov.sk/"), null, "iné domény priamo");
 
   // dopyt servera na nastavenú doménu ide cez proxy (s prihlásením)

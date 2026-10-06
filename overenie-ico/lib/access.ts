@@ -92,6 +92,11 @@ export const hostMatches = (host: string, domains: string[]) => {
   return domains.some((d) => h === d || h.endsWith(`.${d}`));
 };
 
+/** Hostitelia, ktorí fungujú priamo aj z dátových centier – nikdy cez proxy (rýchlosť, menej prenesených dát cez platenú proxy). */
+export const DIRECT_HOSTS = ["obchodnyvestnik.justice.gov.sk"];
+/** Ide adresa (hostiteľ) cez proxy? Doména v zozname a nie je medzi priamymi hostiteľmi. */
+export const needsProxy = (host: string, domains: string[]) => !DIRECT_HOSTS.includes(host.toLowerCase()) && hostMatches(host, domains);
+
 /** Proxy pre danú adresu, ak jej doména patrí medzi nastavené. */
 export async function proxyFor(url: string): Promise<ProxyConfig | null> {
   let host: string;
@@ -101,7 +106,7 @@ export async function proxyFor(url: string): Promise<ProxyConfig | null> {
     return null;
   }
   const p = await getProxyConfig().catch(() => null);
-  return p && hostMatches(host, p.domains) ? p : null;
+  return p && needsProxy(host, p.domains) ? p : null;
 }
 
 /** Prístup k exportu Obchodného vestníka: prostredie → administrácia. */

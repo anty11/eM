@@ -419,3 +419,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   `meno, datumRozhodnutia, sud, adresa` (IČO ani dátum narodenia nie). Protokol pri možnej zhode uvedie meno, dátum rozhodnutia, súd
   a adresu a otázka odporučí porovnať adresu s obchodným registrom. Časté priezviská: ďalšie strany výsledkov (najviac 4 × 50).
   Diagnostika už neskúša stránku justice.gov.sk (len obal), ale API.
+- **v2.9.11** – Obchodný vestník (`obchodnyvestnik.justice.gov.sk`) od zapnutia proxy pre justice.gov.sk zbytočne išiel cez proxy
+  (subdoména) – pomalšie a prenos dát cez platenú proxy pri každom preverení. Nové `DIRECT_HOSTS` v `lib/access.ts` (vždy priamo),
+  skript OV otvára prehliadač len pre svojho hostiteľa. Cez proxy idú len www.justice.gov.sk a obcan.justice.sk (register diskvalifikácií).
