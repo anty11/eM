@@ -147,6 +147,31 @@ async function main() {
 
   console.log(`\nOK – všetky testy prešli (${calls.length} zachytených volaní).`);
 
+  // Chýba závierka za minulý rok (len 2024 uložená, čaká sa 2025 od októbra) → −15 a odporúčaná otázka na partnera
+  {
+    const { checkRuz } = await import("../lib/sources/ruz");
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: any, init?: any) => {
+      const url = String(input);
+      if (url.includes("uctovna-jednotka?")) {
+        const r = await real(input, init);
+        const j = await r.json();
+        return new Response(JSON.stringify({ ...j, idUctovnychZavierok: [6519074] }), { headers: { "content-type": "application/json" } });
+      }
+      return real(input, init);
+    }) as typeof fetch;
+    const ctx: any = { ico: GOOD, profile: { ico: GOOD, established: "2013-01-09", legalForm: "Spoločnosť s ručením obmedzeným" }, rpoDone: Promise.resolve() };
+    const r = await checkRuz(ctx);
+    globalThis.fetch = real;
+    const expectedYear = new Date().getFullYear() - (new Date().getMonth() >= 9 ? 1 : 2);
+    if (expectedYear === 2025) {
+      const f = r.findings.find((x) => /chýba účtovná závierka za 2025/.test(x.text));
+      assert.ok(f, r.findings.map((x) => x.text).join(" | "));
+      assert.equal(f!.penalty, 15);
+      assert.match(f!.ask || "", /dôvod/);
+    }
+  }
+
   // Chýbajúce účtovné závierky – posudzujú sa len obdobia s uplynutou lehotou; mladá firma bez zrážky
   const fsx = (latest: number, established?: string) => filingStatus({ expected: 2025, latest, established });
   assert.deepEqual(fsx(2025, "2013-01-09"), { duePeriods: 13, firstDue: 2013, missing: 0 }, "všetko uložené");

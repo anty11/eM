@@ -55,3 +55,19 @@ main();
   assert.equal(out[1].manual?.answer, "clean", "manuálne overenie prepíše výsledok AI");
   console.log("OK – manuálne overenie s poznámkou.");
 }
+
+// chýbajúca závierka za minulý rok: −15 a odporúčaná otázka; dôvod od partnera ide do protokolu, skóre nemení
+{
+  const { applyManual, computeVerdict: cv } = require("../lib/scoring");
+  const ruz = {
+    ...check("ruz", [{ severity: "warning", text: "Posledná uložená závierka je za rok 2024 – chýba účtovná závierka za 2025", penalty: 15, ask: "Vyžiadajte si od partnera dôvod…" }]),
+    status: "warning",
+  } as CheckResult;
+  assert.equal(cv([ruz]).score, 85);
+  const out = applyManual([ruz], {}, {}, { ruz: "predĺžená lehota do 30. 9., e-mail konateľa 2. 10. 2026" });
+  assert.equal(out[0].findings.length, 2);
+  assert.equal(out[0].findings[1].text, "Dôvod uvedený partnerom: predĺžená lehota do 30. 9., e-mail konateľa 2. 10. 2026");
+  assert.equal(cv(out).score, 85, "dôvod skóre nemení");
+  assert.equal(applyManual([check("rpo", [])], {}, {}, { rpo: "x" })[0].findings.length, 0, "bez otázky sa odpoveď nepripája");
+  console.log("OK – chýbajúca závierka −15 a dôvod od partnera v protokole.");
+}

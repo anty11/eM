@@ -67,6 +67,8 @@ export default function Page() {
   const [report, setReport] = useState<ScanReport | null>(null);
   const [answers, setAnswers] = useState<ManualAnswers>({});
   const [notes, setNotes] = useState<ManualNotes>({});
+  /** Odpovede partnera na odporúčané otázky (napr. dôvod chýbajúcej závierky) – do protokolu */
+  const [replies, setReplies] = useState<Record<string, string>>({});
   const [author, setAuthor] = useState("");
   const [note, setNote] = useState("");
   const [recent, setRecent] = useState<{ ico: string; name?: string }[]>([]);
@@ -125,6 +127,7 @@ export default function Page() {
     setReport(null);
     setAnswers({});
     setNotes({});
+    setReplies({});
     setNote("");
     setAiResults({});
     setProfilePatch({});
@@ -210,9 +213,9 @@ export default function Page() {
   const profile = useMemo(() => (report ? ({ ...report.profile, ...profilePatch } as CompanyProfile) : null), [report, profilePatch]);
   const dealCheck = useMemo(() => (profile ? buildDealCheck(deal, profile, bank) : null), [deal, profile, bank]);
   const checks = useMemo(() => {
-    const base = applyManual(baseChecks, answers, notes);
+    const base = applyManual(baseChecks, answers, notes, replies);
     return dealCheck ? [...base, dealCheck] : base;
-  }, [baseChecks, answers, notes, dealCheck]);
+  }, [baseChecks, answers, notes, replies, dealCheck]);
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
   const pendingCount = checks.filter((c) => c.status === "pending").length;
   const totalAuto = checks.filter((c) => c.automated !== false && !NON_PUBLIC.includes(c.id)).length || 1;
@@ -727,6 +730,18 @@ export default function Page() {
                     {c.findings.filter((f) => f.severity !== "info" || f.text).length > 0 && (
                       <ul>{c.findings.map((f, i) => <li key={i} className={`f-${f.severity}`}>{f.text}</li>)}</ul>
                     )}
+                    {c.findings.filter((f) => f.ask).map((f, i) => (
+                      <div key={`ask-${i}`} className="ask-box no-print">
+                        <div><b>Odporúčame:</b> {f.ask}</div>
+                        <input
+                          className="manual-note"
+                          value={replies[c.id] || ""}
+                          onChange={(e) => setReplies((s) => ({ ...s, [c.id]: e.target.value }))}
+                          placeholder="Dôvod uvedený partnerom, dátum a spôsob (e‑mail, telefón) – zapíše sa do protokolu"
+                          maxLength={600}
+                        />
+                      </div>
+                    ))}
                     {aiBadge(c)}
                     <div className="actions">
                       {c.verifyUrl && <a className="verify no-print" href={c.verifyUrl} target="_blank" rel="noreferrer">Overiť v zdroji ↗</a>}

@@ -145,7 +145,7 @@ Dáta výkazu sú plochý zoznam hodnôt. Počet stĺpcov na riadok udáva `poce
 |---|---|---|
 | Obchodná spoločnosť staršia ako 2 roky nie je v RÚZ | upozornenie | −12 |
 | **Závierka chýba za 2 a viac po sebe idúcich období** (od poslednej uloženej, resp. od vzniku) – dôvod na zrušenie spoločnosti súdom podľa § 68b ods. 1 písm. c) ObZ | **kritické** | **−40** |
-| Chýba práve jedna splatná závierka (posledná, alebo prvá u mladšej firmy) | upozornenie | −12 |
+| Chýba práve jedna splatná závierka (posledná, alebo prvá u mladšej firmy) – odporúčanie vyžiadať si dôvod od partnera a zapísať ho do protokolu | upozornenie | −15 |
 | Žiadne splatné obdobie (mladá spoločnosť) | – | 0 |
 | **Záporné vlastné imanie** | kritická | −30 |
 | Spoločnosť v kríze podľa § 67a ObZ (vlastné imanie / záväzky < 0,08) | upozornenie | −18 |

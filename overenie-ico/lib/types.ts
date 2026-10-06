@@ -15,6 +15,8 @@ export interface Finding {
   text: string;
   /** Body, ktoré sa odpočítajú (kladné) alebo pripočítajú (záporné) od skóre 100. */
   penalty: number;
+  /** Odporúčaná otázka na partnera – odpoveď zaznamená poverený zamestnanec do protokolu (napr. dôvod chýbajúcej závierky). */
+  ask?: string;
 }
 
 export interface CheckResult {

@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.9.3** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.9.4** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -170,6 +170,7 @@ flowchart TD
 | Médiá – relevancia článkov | filtre mien, aliasov, štatutárov | – | – | posúdenie |
 | CRE, Dôvera | – | – | – | **len manuálne** |
 | Indikátory obchodu (SKDP 03/2024) | IBAN v zozname FS | – | – | **vyplní zamestnanec** |
+| Odporúčané otázky na partnera (`Finding.ask`, napr. chýbajúca závierka) | navrhne otázku | – | – | **zapíše dôvod** do protokolu (skóre nemení) |
 | Verdikt a skóre | **lib/scoring.ts** | – | – | manuálne výsledky menia skóre |
 
 Skóre = 100 − kritické − min(upozornenia, 40) + min(pozitíva, 10); akýkoľvek kritický nález ⇒ NEODPORÚČAME;
@@ -184,7 +185,7 @@ Skóre = 100 − kritické − min(upozornenia, 40) + min(pozitíva, 10); akýko
 | id | Register | Ako získavame | Kľúčové polia (profil / `data`) | Hodnotenie | Test |
 |---|---|---|---|---|---|
 | `rpo` | RPO (ŠÚ SR), záloha orsr.sk | REST `api.statistics.sk/rpo/v1` – search + entity; záloha HTML ORSR (windows‑1250) | `name, address, legalForm, established, terminated, statutory[], owners[], registrationNumber, lastStatutoryChange, lastOwnershipChange`; `data.legalFacts, dissolution, via` | zánik −100, likvidácia −70, konkurz −90, časté zmeny, jurisdikcie | offline, retro, orsr |
-| `ruz` | Register účtovných závierok | REST `registeruz.sk/cruz-public/api` | `dic, ruzName, ruzAddress`; `data.metrics[] (revenue, profit, equity, liabilities), lastFiledYear, filedExpected, incomplete` | záporné VI, chýbajúce závierky | offline, scoring |
+| `ruz` | Register účtovných závierok | REST `registeruz.sk/cruz-public/api` | `dic, ruzName, ruzAddress`; `data.metrics[] (revenue, profit, equity, liabilities), lastFiledYear, filedExpected, incomplete` | záporné VI −30; chýba závierka za minulý rok −15 + otázka na partnera (dôvod do protokolu); 2+ obdobia −40 | offline, scoring |
 | `fs-debtors` | Daňoví dlžníci | FS OpenData `ds_dsdd` (len podľa názvu) | `data.slug, rows[]` | dlžník −45 | offline |
 | `fs-vat` | DPH a dôvody na zrušenie | FS OpenData (IČ DPH, `ds_dphz`, IBAN zoznam) | `icDph`; `data.row` | dôvody na zrušenie −35 | offline |
 | `fs-ids` | Index daňovej spoľahlivosti | FS OpenData `ds_iz_ran` | `data.row.hodnotenie` | menej spoľahlivý −20 | offline |
@@ -239,6 +240,7 @@ classDiagram
     severity: critical|warning|info|positive
     text
     penalty
+    ask?: otázka na partnera
   }
   class AiMeta {
     provider: anthropic|openai|typesafe

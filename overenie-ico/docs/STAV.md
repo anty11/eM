@@ -383,3 +383,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   registrov bez API, AI agent a Jev, kto čo rozhoduje, zdroje a očakávané polia, dátové štruktúry (CheckResult, JSON modelu, Jev,
   záznam behu), testovanie a diagnostika, postup „AI → recept → skript“, konfigurácia. `test/docs.test.ts` stráži aktuálnosť
   (zdroje, zadania AI, premenné prostredia, testy, verzia); pravidlo v `CLAUDE.md`.
+- **v2.9.4** – Chýbajúca účtovná závierka za minulý rok: **−15** (predtým −12) a odporúčanie vyžiadať si od partnera dôvod
+  (`Finding.ask`); v karte RÚZ pole „Dôvod uvedený partnerom“ – zapíše sa do protokolu ako „Dôvod uvedený partnerom: …“ (skóre nemení,
+  posúdenie je na zamestnancovi). Otázka aj pri 2+ chýbajúcich obdobiach (−40).

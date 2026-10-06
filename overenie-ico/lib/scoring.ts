@@ -15,8 +15,14 @@ export const LEVEL_LABEL = {
  * Doplní do kontrol výsledky manuálneho overenia povereným zamestnancom. Manuálne overenie má prednosť aj pred výsledkom AI
  * (človek v registri videl viac než model). Poznámka sa prepíše do zhrnutia aj do nálezu, aby bola v protokole.
  */
-export function applyManual(checks: CheckResult[], answers: ManualAnswers, notes: ManualNotes = {}): CheckResult[] {
-  return checks.map((c) => {
+/**
+ * @param replies odpovede partnera na odporúčané otázky (Finding.ask), podľa ID kontroly – do protokolu sa doplnia ako informácia,
+ *   skóre nemenia (posúdenie dôvodu je na zamestnancovi; pri nepresvedčivom dôvode môže kontrolu označiť manuálne).
+ */
+export function applyManual(checks: CheckResult[], answers: ManualAnswers, notes: ManualNotes = {}, replies: ManualNotes = {}): CheckResult[] {
+  return checks.map((c0) => {
+    const reply = (replies[c0.id] || "").trim().slice(0, 600);
+    const c: CheckResult = reply && c0.findings.some((f) => f.ask) ? { ...c0, findings: [...c0.findings, { severity: "info", text: `Dôvod uvedený partnerom: ${reply}`, penalty: 0 }] } : c0;
     const a = answers[c.id];
     if (!a) return c;
     if (c.status !== "manual" && c.status !== "error" && !c.ai) return c;
