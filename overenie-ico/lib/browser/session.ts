@@ -260,14 +260,22 @@ export class BrowserSession {
   /** Adresa proxy, ak kontext ide cez ňu (register blokuje dátové centrá) */
   proxied?: string;
 
-  static async open(allowedHosts: string[]): Promise<BrowserSession> {
+  /**
+   * @param startUrl prvá stránka – o proxy rozhoduje jej hostiteľ (napr. OV na obchodnyvestnik.justice.gov.sk ide priamo, aj keď
+   * agent smie aj na justice.gov.sk); bez nej rozhodujú povolené domény.
+   */
+  static async open(allowedHosts: string[], startUrl?: string): Promise<BrowserSession> {
     const s = new BrowserSession(allowedHosts);
     const b = await launch();
     s.browser = b;
     // registre blokujúce dátové centrá → kontext prehliadača cez proxy (Administrácia → Prístupy k registrom)
     const { getProxyConfig, needsProxy } = await import("../access");
     const px = await getProxyConfig().catch(() => null);
-    const useProxy = px && allowedHosts.some((h) => needsProxy(h, px.domains));
+    let startHost = "";
+    try {
+      startHost = startUrl ? new URL(startUrl).hostname : "";
+    } catch {}
+    const useProxy = px && (startHost ? needsProxy(startHost, px.domains) : allowedHosts.some((h) => needsProxy(h, px.domains)));
     if (useProxy) s.proxied = px!.server;
     s.ctx = await b.newContext({
       ...(useProxy ? { proxy: { server: px!.server, username: px!.username, password: px!.password } } : {}),

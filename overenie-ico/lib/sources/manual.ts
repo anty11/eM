@@ -70,7 +70,7 @@ export const MANUAL: ManualDef[] = [
     source: "Ministerstvo spravodlivosti SR – Obchodný vestník",
     sourceUrl: "https://obchodnyvestnik.justice.gov.sk",
     verifyUrl: () => "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx",
-    note: "Import vydaní Obchodného vestníka zatiaľ nie je zapnutý – skontrolujte oznámenia o likvidácii, konkurze, znížení imania, výzvach veriteľom a dražbách.",
+    note: "Automatické vyhľadávanie v Obchodnom vestníku tentoraz neodpovedalo včas (stránka OV je chránená proti robotom a býva pomalá) – overte oznámenia o likvidácii, konkurze, znížení imania, výzvach veriteľom a dražbách tlačidlom AI overenia alebo ručne.",
     penaltyIfFound: 30,
     severityIfFound: "warning",
   },

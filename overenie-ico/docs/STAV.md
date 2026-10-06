@@ -446,3 +446,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   končila manuálne. Nové: „nebol nájdený“ pri dopyte podľa IČO (IČO je v odpovedi) = bez záznamu; pri hľadaní podľa názvu sa pokračuje
   dopytom podľa IČO. Záťažová skúška (vlna 10, v2.10.3): 10/10 dokončených, celé preverenie p50 26,4 s / max 27,1 s (strop OV 25 s funguje),
   Union 10/10 (11 s), ETXTBSY zmizlo; Obchodný vestník v prehliadači pri súbežnosti zlyháva (1/10 – Enter 8 s / limit 25 s).
+- **v2.10.5** – AI overenie Obchodného vestníka išlo cez proxy (agent smie aj na justice.gov.sk) – zbytočne pomalšie a prenos cez platenú
+  proxy. `BrowserSession.open(hosts, startUrl)`: o proxy rozhoduje hostiteľ prvej stránky (OV priamo, register diskvalifikácií cez proxy).
+  Text manuálnej kontroly OV už netvrdí „import nie je zapnutý“, ale že vyhľadávanie v OV neodpovedalo včas (ochrana proti robotom)
+  a odporúča AI overenie alebo ručné overenie. Prístup k exportu OV (štruktúrované údaje XML) vybavuje Monika – postup: registrácia
+  na portáli OV, registračné číslo (pošta/osobne), aktivácia, žiadosť na redakciu OV, vzorka XML, rola „Export/Stiahnutie Xml podaní“.

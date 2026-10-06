@@ -71,6 +71,13 @@ async function main() {
     assert.ok(snap.text.includes("REGISTER OK /vyhladavanie?ico=2"), snap.text);
     assert.ok(seen.length > before && seen.slice(before).some((x) => x.host.includes("registre.test")), "prehliadač išiel cez proxy");
     await s.close();
+    // o proxy rozhoduje prvá stránka: OV ide priamo, aj keď agent smie aj na justice.gov.sk
+    const ov = await BrowserSession.open(["obchodnyvestnik.justice.gov.sk", "justice.gov.sk"], "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx");
+    assert.equal(ov.proxied, undefined, "Obchodný vestník nejde cez proxy");
+    await ov.close();
+    const dk = await BrowserSession.open(["justice.gov.sk", "obcan.justice.sk"], "https://www.justice.gov.sk/registre/registerDiskvalifikacii/");
+    assert.equal(dk.proxied, `http://127.0.0.1:${pPort}`, "register diskvalifikácií ide cez proxy");
+    await dk.close();
     console.log("OK – prehliadač cez proxy.");
   } else console.log("PRESKOČENÉ – prehliadač nie je k dispozícii.");
 
