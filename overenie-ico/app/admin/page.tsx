@@ -6,6 +6,7 @@ import AccessPanel from "../components/AccessPanel";
 import AiLogPanel from "../components/AiLogPanel";
 import AiSettings from "../components/AiSettings";
 import DiagPanel from "../components/DiagPanel";
+import LoadTestPanel from "../components/LoadTestPanel";
 import OrdersPanel from "../components/OrdersPanel";
 import OrgsPanel, { type OrgPrefill, type OrgRow } from "../components/OrgsPanel";
 import { selectedOrg, setSelectedOrg } from "../components/org";
@@ -284,6 +285,7 @@ export default function AdminPage() {
         <AccessPanel />
 
         <DiagPanel />
+        <LoadTestPanel />
         <AiLogPanel />
 
         <section className="card">

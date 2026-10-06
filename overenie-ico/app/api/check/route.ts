@@ -11,6 +11,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
+/** Identita inštancie funkcie (záťažová skúška: koľko inštancií Vercel spustil a ktoré boli „studené“). */
+const INSTANCE = Math.random().toString(36).slice(2, 8);
+let served = 0;
+
 export const GET = handler(async (req) => {
   const me = await requireUser();
   // Správca platformy preveruje v mene zvolenej firmy (?org=), používateľ vždy vo svojej
@@ -32,6 +36,9 @@ export const GET = handler(async (req) => {
     asOf = asOfRaw;
   }
   const fresh = new URL(req.url).searchParams.get("fresh") === "1";
+  // Záťažová skúška (len správca platformy): preverenie prebehne naostro, ale nezapíše sa do zoznamu firiem ani auditu
+  const loadtest = new URL(req.url).searchParams.get("loadtest") === "1" && me.role === "admin";
+  const servedBefore = served++;
   const ai = await getAiConfig().catch(() => null);
   const aiInfo = ai ? { available: true, auto: ai.auto, noApiSources: ai.noApiSources, provider: ai.provider } : { available: false };
 
@@ -51,13 +58,15 @@ export const GET = handler(async (req) => {
         };
         // číslo preverenia hneď na začiatku – protokol ho má, aj keby sa spojenie prerušilo pred koncom
         const scannedAt = new Date().toISOString();
-        send({ type: "start", ico, scanId: scanIdFor(ico, scannedAt), scannedAt, scannedBy, orgName, ai: aiInfo });
+        send({ type: "start", ico, scanId: scanIdFor(ico, scannedAt), scannedAt, scannedBy, orgName, ai: aiInfo, ...(loadtest ? { instance: INSTANCE, cold: servedBefore === 0, region: process.env.VERCEL_REGION } : {}) });
         // srdcový tep počas dlhých dopytov (registre bez API až 55 s), aby proxy spojenie neukončila
         const hb = setInterval(() => send({ type: "ping" }), 10000);
         try {
           const report = await scan(ico, (check, profile) => send({ type: "check", check, profile }), { asOf, fresh, scannedAt });
-          if (!report.notFound) await recordScan(orgId, { ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
-          await audit({ type: "scan", by: me.email, orgId, ico, company: report.profile.name || (report.notFound ? "IČO nenájdené" : undefined), verdict: report.notFound ? "not_found" : report.verdict.level, score: report.verdict.score, scanId: report.scanId });
+          if (!loadtest) {
+            if (!report.notFound) await recordScan(orgId, { ico, name: report.profile.name, by: me.email, verdict: report.verdict.level, score: report.verdict.score, scanId: report.scanId, at: report.scannedAt });
+            await audit({ type: "scan", by: me.email, orgId, ico, company: report.profile.name || (report.notFound ? "IČO nenájdené" : undefined), verdict: report.notFound ? "not_found" : report.verdict.level, score: report.verdict.score, scanId: report.scanId });
+          }
           send({ type: "done", report: { ...report, scannedBy, orgName, ai: aiInfo } });
         } catch (e) {
           send({ type: "error", error: (e as Error).message });

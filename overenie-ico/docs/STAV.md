@@ -426,3 +426,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   **overovací kód**, kto, odkaz na overenie). Pri pečatení sa ukladá aj zapečatený obsah (kanonický JSON, gzip, ~4–15 kB) → stránka
   `/protokol/<číslo>/<poradie>` protokol znova zobrazí, server prepočíta odtlačok („Obsah zhodný s pečaťou“) a dá sa znova vytlačiť do PDF
   s tou istou pečaťou. Staršie pečate sa doplnia z auditu (kód áno, obsah nie). Úložisko: Upstash Redis (pri 100 pečatiach denne ≈ 0,5 MB/deň).
+- **v2.10.1** – Záťažová skúška v Administrácii: vlny súbežných preverení (predvolene 5 → 10 → 25 → 50, pauza 30 s) z prehliadača
+  správcu cez `/api/check?loadtest=1` – naostro (skutočné registre, každé preverenie vo vlastnej funkcii), bez zápisu do zoznamu firiem
+  a auditu. Výsledok za vlnu: p50/p95/max celého preverenia, čas po prvý výsledok, počet inštancií Vercelu a región, pre každý zdroj
+  OK / nedostupný / manuálne / obmedzovanie (403, 429, 503, časový limit) s ukážkou chyby. Skúška sa sama zastaví, keď registre začnú
+  odmietať. „Kopírovať výsledok“ → JSON pre vývoj. Test `test/loadtest.test.ts`.

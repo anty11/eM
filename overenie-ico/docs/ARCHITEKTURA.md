@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.10.0** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.10.1** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -327,6 +327,7 @@ flowchart LR
 | `retro.test.ts` | spätné preverenie k dátumu |
 | `public.test.ts` | rozpoznávanie VšZP, Union, ÚVO, OV (tabuľky, hlásenia) |
 | `ovflow.test.ts` | OV v prehliadači: prepínač dátumov, 100 na stranu, nález na 2. strane, staré oznámenie |
+| `loadtest.test.ts` | záťažová skúška: percentily, štatistika zdrojov, rozpoznanie obmedzovania (403/429/časový limit) |
 | `diskv.test.ts` | Register diskvalifikácií cez API: tvar odpovede, zistenie parametra vyhľadávania, dopyt podľa IČO a priezvisk (bez sťahovania registra), mená s titulmi, verdikty |
 | `diskvcapture.test.ts` | Register diskvalifikácií: záznam dopytov XHR/fetch aplikácie React, hľadanie podľa IČO a priezviska |
 | `agent.test.ts` | prehliadač, snímky, úvod servera (aj ASP.NET), agent pre Claude aj OpenAI, kontrola tvrdení, Jev, záložný model, živý priebeh |
@@ -334,6 +335,7 @@ flowchart LR
 | `access.test.ts` | proxy pre server aj prehliadač, prístup k OV |
 | `ailog.test.ts` | záznam behov a súhrn (recept, posledný neúspech) |
 | `ai.test.ts` | nastavenia AI, poskytovatelia, rýchlosť, šifrovanie kľúčov |
+| `loadtest` | Administrácia → Záťažová skúška: vlny súbežných preverení cez `/api/check?loadtest=1` (len správca; naostro, bez zápisu do zoznamu firiem a auditu; `start` vracia inštanciu, studený štart a región), samozastavenie pri odmietaní registrami |
 | `auth`, `orgs`, `companies`, `orders`, `seal`, `deal` | prihlásenie, firmy, databáza preverení, objednávky, pečať protokolu (archív firmy, uložený obsah, prepočet odtlačku, doplnenie z auditu), indikátory obchodu |
 | `docs.test.ts` | tento dokument pokrýva všetky zdroje, zadania AI a premenné prostredia |
 
@@ -381,7 +383,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |
 | `DISKV_API_URL` | testy | iná adresa API registra diskvalifikácií (len testy) |
-| `SELF_ORIGIN`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL`, `AWS_LAMBDA_FUNCTION_NAME`, `NODE_ENV` | automaticky / lokálne | interné volania (/api/edgefetch, /api/browser/flow), detekcia prostredia |
+| `SELF_ORIGIN`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL`, `VERCEL_REGION`, `AWS_LAMBDA_FUNCTION_NAME`, `NODE_ENV` | automaticky / lokálne | interné volania (/api/edgefetch, /api/browser/flow), detekcia prostredia, región v záťažovej skúške |
 
 Cron (vercel.json): `/api/cron/socpoist` 04:20, `/api/cron/ov` 04:40 (UTC).
 
