@@ -26,7 +26,9 @@ export interface ProxyConfig {
 }
 
 const KEY = "settings:access";
-export const DEFAULT_PROXY_DOMAINS = ["justice.gov.sk"];
+export const DEFAULT_PROXY_DOMAINS = ["justice.gov.sk", "obcan.justice.sk"];
+/** Domény, ktoré idú cez proxy vždy (Register diskvalifikácií: stránka na justice.gov.sk, dáta z obcan.justice.sk). */
+const withDefaults = (d: string[]) => Array.from(new Set([...d, ...DEFAULT_PROXY_DOMAINS]));
 
 function cipherKey() {
   const secret = process.env.SESSION_SECRET || "dev-only-secret-dev-only-secret-dev-only";
@@ -75,7 +77,7 @@ export async function getProxyConfig(): Promise<ProxyConfig | null> {
     if (s.proxy?.enc && s.proxy.enabled !== false) {
       try {
         const p = parseProxy(decrypt(s.proxy.enc));
-        if (p) value = { ...p, domains: s.proxy.domains?.length ? s.proxy.domains : DEFAULT_PROXY_DOMAINS, origin: "admin" };
+        if (p) value = { ...p, domains: withDefaults(s.proxy.domains || []), origin: "admin" };
       } catch {
         value = null; // zmenený SESSION_SECRET – treba zadať znova
       }

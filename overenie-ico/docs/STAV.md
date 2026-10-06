@@ -398,3 +398,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   (priamo aj cez Edge) – blokované sú adresy dátových centier, zmena regiónu nepomáha. Proxy zo služby **Webshare**
   (účet v [zozname proxy](https://dashboard.webshare.io/14492237/proxy/list?authenticationMethod=%22username_password%22&connectionMethod=%22direct%22&proxyControl=%220%22&removeType=%22refresh_all%22),
   prvá adresa Poľsko/Varšava) je uložená v Administrácii → Prístupy; „Otestovať proxy“: **HTTP 200 za 1,1 s** – register je cez proxy dostupný. Ďalší krok: diagnostika „Register diskvalifikácií“ na reálnej firme (overenie čítania výsledkov). Údaje k proxy nie sú v repozitári.
+- **v2.9.7** – Register diskvalifikácií: cez proxy stránka vracia 200, ale je to len obal WordPress – samotný register je aplikácia React
+  (`obcan.justice.sk/pilot/isu`, API `obcan.justice.sk/pilot/api/ress-isu-service/v1`), preto GET dopyt nenájde výsledky. Diagnostika
+  „Register diskvalifikácií“ teraz pridá `browserCapture`: otvorí stránku v prehliadači cez proxy, zaznamená dopyty XHR/fetch s odpoveďami,
+  skúsi hľadanie podľa IČO a priezviska štatutára. `obcan.justice.sk` ide cez proxy vždy (spolu s justice.gov.sk), ostatné justice.sk
+  (REPLIK) priamo. Test `test/diskvcapture.test.ts`.

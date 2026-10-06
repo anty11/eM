@@ -44,7 +44,7 @@ async function main() {
   await assert.rejects(saveAccess({ proxy: { url: "ftp://x" } }, "a@x.sk"), /tvar/);
   const st = await saveAccess({ proxy: { url: `http://meno:tajne%40heslo@127.0.0.1:${pPort}`, domains: "registre.test, https://www.justice.gov.sk/" } }, "admin@x.sk");
   assert.equal(st.proxy.active, true);
-  assert.deepEqual(st.proxy.domains, ["registre.test", "justice.gov.sk"]);
+  assert.deepEqual(st.proxy.domains, ["registre.test", "justice.gov.sk", "obcan.justice.sk"]);
   assert.equal(st.proxy.server, `http://127.0.0.1:${pPort}`);
   assert.ok(!JSON.stringify(st).includes("tajne"), "heslo sa nezobrazí");
   assert.ok(await proxyFor("https://obchodnyvestnik.justice.gov.sk/x"), "subdoména ide cez proxy");

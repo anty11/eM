@@ -135,6 +135,14 @@ export const GET = handler(async (req) => {
         result.browserFlow = r;
         if (outcome.result === "unknown" && r.verdict !== "unknown") Object.assign(outcome, { result: r.verdict, rows: r.rows });
       }
+      // Register diskvalifikácií: stránka je aplikácia React – v prehliadači zaznamenáme dopyty na jej API (podklad pre priamy dopyt)
+      if (source === "diskv" && process.env.BROWSER_DISABLED !== "1") {
+        const { diskvCapture } = await import("@/lib/browser/flows");
+        result.browserCapture = await Promise.race([
+          diskvCapture(ico, names),
+          new Promise((res) => setTimeout(() => res({ error: "časový limit 70 s" }), 70000)),
+        ]);
+      }
       Object.assign(result, { needles, result: outcome.result, rows: outcome.rows, attempts: outcome.attempts });
       return NextResponse.json(result);
     }

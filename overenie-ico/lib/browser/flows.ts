@@ -285,3 +285,66 @@ export function judgeUnion(snap: Snapshot, ico: string): Pick<FlowResult, "verdi
   }
   return { verdict: "unknown", rows: [] };
 }
+
+/**
+ * Register diskvalifikácií – stránka na justice.gov.sk je len obal; zoznam vykresľuje aplikácia React
+ * (obcan.justice.sk/pilot/isu) a dáta berie z API (obcan.justice.sk/pilot/api/ress-isu-service/v1). Diagnostika otvorí stránku
+ * v prehliadači (cez proxy), zaznamená všetky dopyty XHR/fetch s odpoveďami a skúsi vyhľadať podľa IČO a mien štatutárov –
+ * z výstupu sa potom dá písať priamy dopyt na API bez prehliadača.
+ */
+export interface NetCall { url: string; method: string; status: number; type: string; post?: string; body?: string; ms?: number }
+
+export async function diskvCapture(ico: string, names: string[] = [], opts: { url?: string; hosts?: string[] } = {}) {
+  const t0 = Date.now();
+  const calls: NetCall[] = [];
+  const steps: { step: string; url?: string; rendered?: string; error?: string }[] = [];
+  let s: BrowserSession | null = null;
+  try {
+    s = await BrowserSession.open(opts.hosts || ["justice.gov.sk", "obcan.justice.sk"]);
+    const started = new Map<unknown, number>();
+    s.page.on("request", (r) => started.set(r, Date.now()));
+    s.page.on("response", async (r) => {
+      const req = r.request();
+      const type = req.resourceType();
+      if (type !== "xhr" && type !== "fetch") return;
+      let body = "";
+      try {
+        body = (await r.text()).slice(0, 4000);
+      } catch {}
+      const st = started.get(req);
+      calls.push({ url: r.url(), method: req.method(), status: r.status(), type, post: req.postData()?.slice(0, 800) || undefined, body, ms: st ? Date.now() - st : undefined });
+    });
+    const snapStep = async (step: string, snap: Snapshot) => steps.push({ step, url: snap.url, rendered: renderSnapshot(snap).slice(0, 5000) });
+    const url = opts.url || "https://www.justice.gov.sk/registre/registerDiskvalifikacii/";
+    let snap = await s.open(url);
+    await s.wait(2500);
+    snap = await s.snapshot();
+    await snapStep("otvorenie", snap);
+    // 1) IČO (ak má formulár také pole)
+    const pre = await searchPrelude(s, ico).catch((e) => ({ snap, done: [`chyba: ${(e as Error).message.split("\n")[0]}`] }));
+    if (pre.done.length) {
+      await s.wait(2500);
+      await snapStep(`IČO: ${pre.done.join(", ")}`, await s.snapshot());
+    }
+    // 2) meno štatutára – prvé textové pole s menom/priezviskom/hľadaním
+    if (names[0]) {
+      await s.open(url);
+      await s.wait(2000);
+      snap = await s.snapshot();
+      const nameRe = /meno|priezvisko|nazov|hlad|search|osoba|fyzick/;
+      const field = snap.elements.find((e) => e.kind === "input" && nameRe.test(fold(`${e.label} ${e.placeholder || ""} ${e.name || ""}`)));
+      if (field) {
+        const surname = names[0].replace(/,.*$/, "").split(/\s+/).filter((w) => !/\.$/.test(w)).pop() || names[0];
+        snap = await s.fill(field.ref, surname);
+        snap = await s.pressEnter(field.ref).catch(() => snap);
+        await s.wait(3000);
+        await snapStep(`meno: ${surname} → ${field.label || field.name || field.ref}`, await s.snapshot());
+      } else steps.push({ step: "meno: pole na meno sa nenašlo" });
+    }
+  } catch (e) {
+    steps.push({ step: "chyba", error: (e as Error).message.split("\n")[0] });
+  } finally {
+    await (s as BrowserSession | null)?.close();
+  }
+  return { ms: Date.now() - t0, proxied: (s as BrowserSession | null)?.proxied, calls: calls.slice(0, 40), steps };
+}

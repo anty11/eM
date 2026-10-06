@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.9.6** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.9.7** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -208,7 +208,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `union` | Union – dlžníci | API 401 → skript v prehliadači | pole „Zadajte priezvisko, IČO…“, tabuľka „… · IČO · Pohľadávka …“, „Žiadne data · 0–0 z 0“ | −25 kritické | public, agent |
 | `ov` | Obchodný vestník | index z exportu MS SR (ak je prístup) → skript v prehliadači | prepínač „dňa / od–do“, pole „IČO:“, „Vyhľadať podania“, tabuľka „# · Typ podania · Dátum · Kapitola · Subjekt · OV“, stránkovanie | −30 upozornenie (konkurz/likvidácia/zrušenie/dražba/zníženie imania/výzva veriteľom) | public, ovflow |
 | `uvo` | ÚVO – zákaz účasti | GET globálne vyhľadávanie `searchType=OSZ` (názov, IČO) | „Zadaný výraz nebol nájdený.“ / „N záznamov“ | −15 upozornenie | public |
-| `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026) | (čaká na diagnostiku s proxy na reálnej firme) | −25 kritické | access |
+| `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026). Stránka je len obal: zoznam vykresľuje aplikácia React (`obcan.justice.sk/pilot/isu`) s API `obcan.justice.sk/pilot/api/ress-isu-service/v1` – obe domény idú vždy cez proxy | (čaká na `browserCapture` z diagnostiky – podľa zachytených dopytov API sa napíše priamy dopyt) | −25 kritické | access |
 | `cre` | CRE – exekúcie | len po registrácii a s certifikátom | – | −40 kritické | – |
 | `dovera` | Dôvera – dlžníci | podmienky zakazujú automatizáciu | – | −25 kritické | – |
 
@@ -319,6 +319,7 @@ flowchart LR
 | `retro.test.ts` | spätné preverenie k dátumu |
 | `public.test.ts` | rozpoznávanie VšZP, Union, ÚVO, OV (tabuľky, hlásenia) |
 | `ovflow.test.ts` | OV v prehliadači: prepínač dátumov, 100 na stranu, nález na 2. strane, staré oznámenie |
+| `diskvcapture.test.ts` | Register diskvalifikácií: záznam dopytov XHR/fetch aplikácie React, hľadanie podľa IČO a priezviska |
 | `agent.test.ts` | prehliadač, snímky, úvod servera (aj ASP.NET), agent pre Claude aj OpenAI, kontrola tvrdení, Jev, záložný model, živý priebeh |
 | `orsr.test.ts` | záloha identifikácie z orsr.sk (windows‑1250, pomalé RPO) |
 | `access.test.ts` | proxy pre server aj prehliadač, prístup k OV |
