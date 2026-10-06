@@ -64,6 +64,11 @@ main();
     status: "warning",
   } as CheckResult;
   assert.equal(cv([ruz]).score, 85);
+  // so stropom: aj s pozitívami najviac „S výhradou“ (prípad LEXNERA: 100 − 15 + 7 = 92 → ODPORÚČAME bolo zle)
+  const capped = { ...ruz, findings: [{ ...ruz.findings[0], cap: "caution" }, { severity: "positive", text: "zisk", penalty: -4 }, { severity: "positive", text: "história", penalty: -3 }] } as CheckResult;
+  const vc = cv([capped]);
+  assert.equal(vc.level, "caution");
+  assert.equal(vc.score, 84);
   const out = applyManual([ruz], {}, {}, { ruz: "predĺžená lehota do 30. 9., e-mail konateľa 2. 10. 2026" });
   assert.equal(out[0].findings.length, 2);
   assert.equal(out[0].findings[1].text, "Dôvod uvedený partnerom: predĺžená lehota do 30. 9., e-mail konateľa 2. 10. 2026");

@@ -386,3 +386,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.9.4** – Chýbajúca účtovná závierka za minulý rok: **−15** (predtým −12) a odporúčanie vyžiadať si od partnera dôvod
   (`Finding.ask`); v karte RÚZ pole „Dôvod uvedený partnerom“ – zapíše sa do protokolu ako „Dôvod uvedený partnerom: …“ (skóre nemení,
   posúdenie je na zamestnancovi). Otázka aj pri 2+ chýbajúcich obdobiach (−40).
+- **v2.9.5** – Chýbajúca účtovná závierka už nemôže skončiť „ODPORÚČAME“: LEXNERA Legal (závierka 2024, chýba 2025) mala
+  100 − 15 + pozitíva = 92 → Odporúčame. Nové `Finding.cap = "caution"` – verdikt najviac „S výhradou“ a skóre najviac 84;
+  použité pri chýbajúcej závierke za minulý rok a pri firme bez jedinej závierky v RÚZ.

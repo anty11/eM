@@ -189,7 +189,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
         f.push({ severity: "warning", text: `Register eviduje ${totalStatements} závierok, no žiadnu riadnu závierku sa nepodarilo vyhodnotiť – overte v registri`, penalty: 0 });
       } else if (!latest && fs.duePeriods >= 6) {
         // zavedená spoločnosť bez jedinej závierky v RÚZ je skôr medzera v dátach registra (RÚZ eviduje závierky od r. 2014) než 6+ rokov porušovania – na manuálne overenie, nie kritický nález
-        f.push({ severity: "warning", text: `V Registri účtovných závierok nie je uložená žiadna závierka spoločnosti (splatných období: ${fs.duePeriods}) – overte priamo v registri; pri potvrdení ide o dôvod na zrušenie súdom (§ 68b ods. 1 písm. c) ObZ)`, penalty: 12 });
+        f.push({ severity: "warning", text: `V Registri účtovných závierok nie je uložená žiadna závierka spoločnosti (splatných období: ${fs.duePeriods}) – overte priamo v registri; pri potvrdení ide o dôvod na zrušenie súdom (§ 68b ods. 1 písm. c) ObZ)`, penalty: 12, cap: "caution" });
       } else if (fs.missing >= 2)
         f.push({
           ask: `Vyžiadajte si od partnera dôvod, prečo nie sú v Registri účtovných závierok uložené závierky za ${fs.missing} obdobia, a jeho vysvetlenie zaznamenajte.`,
@@ -203,6 +203,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
           severity: "warning",
           text: `${latest ? `Posledná uložená závierka je za rok ${latest} – chýba účtovná závierka za ${expected}` : `Chýba prvá účtovná závierka (za rok ${expected})`} (lehota uplynula 30. 6., pri predĺžení daňového priznania 30. 9.)`,
           penalty: 15,
+          cap: "caution",
           ask: `Vyžiadajte si od partnera dôvod, prečo nie je uložená účtovná závierka za ${expected} (napr. predĺžená lehota, podanie v listinnej podobe, chyba pri ukladaní), a odpoveď zaznamenajte.`,
         });
       // fs.missing === 0: buď je všetko uložené, alebo spoločnosť ešte nemusela podať – bez zrážky

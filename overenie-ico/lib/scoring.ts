@@ -52,6 +52,7 @@ export const POSITIVE_CAP = 10;
 
 /**
  * Skóre = 100 − kritické nálezy − upozornenia (spolu najviac WARNING_CAP) + pozitíva (najviac POSITIVE_CAP).
+ * Zistenie s `cap: "caution"` (chýbajúca účtovná závierka) obmedzí verdikt najviac na „S výhradou“ a skóre na 84.
  * Kritický nález (daňový dlžník, dlh v SP, konkurz / likvidácia / zrušenie, záporné imanie, chýbajúce závierky za 2+ obdobia,
  * dôvody na zrušenie registrácie DPH) znamená „Neodporúčame“ vždy; upozornenia bez kritického nálezu najviac „S výhradou“.
  */
@@ -60,12 +61,16 @@ export function computeVerdict(checks: CheckResult[], opts: { ignore?: string[] 
   const critical = findings.filter((f) => f.severity === "critical").reduce((s, f) => s + Math.max(0, f.penalty), 0);
   const warnings = Math.min(WARNING_CAP, findings.filter((f) => f.severity === "warning").reduce((s, f) => s + Math.max(0, f.penalty), 0));
   const bonus = Math.min(POSITIVE_CAP, findings.filter((f) => f.severity === "positive").reduce((s, f) => s + Math.max(0, -f.penalty), 0));
-  const score = Math.max(0, Math.min(100, Math.round(100 - critical - warnings + bonus)));
+  let score = Math.max(0, Math.min(100, Math.round(100 - critical - warnings + bonus)));
   const hasCritical = findings.some((f) => f.severity === "critical");
+  // zistenie so stropom (napr. chýbajúca závierka) – pozitíva ho nevyvážia: najviac „S výhradou“ a skóre pod hranicou odporúčania
+  const capped = !hasCritical && findings.some((f) => f.cap === "caution");
+  if (capped) score = Math.min(score, 84);
   const pendingManual = checks.filter((c) => (c.status === "manual" || c.status === "error") && !opts.ignore?.includes(c.id)).length;
 
   let level: Verdict["level"] = score >= 85 ? "recommended" : score >= 60 ? "caution" : "not_recommended";
   if (hasCritical) level = "not_recommended";
+  else if (capped && level === "recommended") level = "caution";
 
   const reasons = findings
     .filter((f) => f.severity === "critical" || f.severity === "warning")

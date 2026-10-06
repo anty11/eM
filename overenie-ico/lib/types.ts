@@ -17,6 +17,8 @@ export interface Finding {
   penalty: number;
   /** Odporúčaná otázka na partnera – odpoveď zaznamená poverený zamestnanec do protokolu (napr. dôvod chýbajúcej závierky). */
   ask?: string;
+  /** Zistenie nedovolí verdikt „Odporúčame“ – najlepšie „S výhradou“ (napr. chýbajúca závierka), aj keď by skóre stačilo. */
+  cap?: "caution";
 }
 
 export interface CheckResult {
