@@ -105,7 +105,8 @@ export default function LoadTestPanel() {
   }
 
   const waveNums = [...new Set(runs.map((r) => r.wave))];
-  const report = { at: new Date().toISOString(), icos, waves, waves_summary: waveNums.map((w) => ({ wave: w, ...summarizeLoad(runs.filter((r) => r.wave === w)) })) };
+  const report = { at: new Date().toISOString(), icos, waves, waves_summary: waveNums.map((w) => ({ wave: w, ...summarizeLoad(runs.filter((r) => r.wave === w)) })),
+    failedRuns: runs.filter((r) => !r.done).map((r) => ({ wave: r.wave, ico: r.ico, http: r.httpStatus, error: r.error, afterMs: Date.now() - r.startedAt, lastSources: r.sources.length })) };
 
   return (
     <section className="card">

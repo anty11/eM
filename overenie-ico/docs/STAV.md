@@ -437,3 +437,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ako manuálne – aj tie, ktoré už boli overené (diskvalifikácie 11/50, OV, Union v skúške). Teraz ostanú hotové výsledky a manuálny je len
   register, ktorý neodpovedal (s dôvodom „neodpovedal do 55 s“). ÚVO: 7 s na pokus, strop 15 s. Manuálne kontroly majú `durationMs`
   a záťažová skúška ukazuje dôvod neúspechu (autoNote). Test v `test/offline.test.ts` (visiace ÚVO, limit 4 s).
+- **v2.10.3** – Záťažová skúška (vlna 10) po v2.10.2: celé preverenie p50 **12,6 – 17,7 s** (predtým ~50 s); p95 52 s spôsobil
+  Obchodný vestník v prehliadači. Opravy: Chromium (@sparticuz) sa rozbaľuje len raz na inštanciu (súbežné spúšťanie padalo na
+  „spawn ETXTBSY“ – Union 4/10, OV), opakovaný pokus pri ETXTBSY; najviac 3 prehliadače naraz v inštancii (`BROWSER_MAX_PER_INSTANCE`),
+  ďalšie čakajú; strop skriptu v rámci preverenia OV 25 s, Union 30 s (diagnostika 50 s). Záťažová skúška exportuje aj neúspešné behy
+  (`failedRuns`). ÚVO: pokusy vrátia stránku, ktorú nevieme vyhodnotiť – treba diagnostiku ÚVO. Test `test/browserpool.test.ts`.

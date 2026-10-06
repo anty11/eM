@@ -85,16 +85,72 @@ const NAV_TIMEOUT = 25000;
  * kontextu padá („Target page, context or browser has been closed“, ERR_INSUFFICIENT_RESOURCES), takže zdieľanie medzi sedeniami nie je bezpečné.
  * Binárka sa rozbalí do /tmp len raz, ďalšie spustenia trvajú ~1 s.
  */
-async function launch(): Promise<Browser> {
+/**
+ * Rozbalenie Chromia (@sparticuz) len raz na inštanciu: pri súbežných volaniach v jednej inštancii (Fluid compute) sa inak
+ * rozbaľoval naraz viackrát a spustenie padalo na „spawn ETXTBSY“ (súbor sa ešte zapisoval). Záťažová skúška 6. 10. 2026.
+ */
+let sparticuz: Promise<{ executablePath: string; args: string[] }> | null = null;
+function sparticuzChromium() {
+  sparticuz ??= (async () => {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    return { executablePath: await chromium.executablePath(), args: chromium.args };
+  })().catch((e) => {
+    sparticuz = null;
+    throw e;
+  });
+  return sparticuz;
+}
+
+/** Najviac BROWSER_MAX_PER_INSTANCE prehliadačov naraz v jednej inštancii (predvolene 3) – ďalšie čakajú, aby si nekonkurovali o CPU a pamäť. */
+let running = 0;
+const waiting: (() => void)[] = [];
+const maxPerInstance = () => Number(process.env.BROWSER_MAX_PER_INSTANCE) || 3;
+async function slot(): Promise<() => void> {
+  if (running >= maxPerInstance()) await new Promise<void>((r) => waiting.push(r));
+  running++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    running--;
+    waiting.shift()?.();
+  };
+}
+
+async function launchRaw(): Promise<Browser> {
   const pw = await import("playwright-core");
   if (process.env.BROWSER_WS_ENDPOINT) return pw.chromium.connectOverCDP(process.env.BROWSER_WS_ENDPOINT, { timeout: 20000 });
   if (process.env.CHROMIUM_PATH) return pw.chromium.launch({ executablePath: process.env.CHROMIUM_PATH, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const chromium = (await import("@sparticuz/chromium")).default;
-    const executablePath = await chromium.executablePath();
-    return pw.chromium.launch({ executablePath, headless: true, args: [...chromium.args, "--lang=sk-SK"] });
+    const { executablePath, args } = await sparticuzChromium();
+    try {
+      return await pw.chromium.launch({ executablePath, headless: true, args: [...args, "--lang=sk-SK"] });
+    } catch (e) {
+      // binárka sa ešte dopisuje (iná inštancia procesu) – jeden opakovaný pokus
+      if (!/ETXTBSY/.test((e as Error).message)) throw e;
+      await new Promise((r) => setTimeout(r, 400));
+      return pw.chromium.launch({ executablePath, headless: true, args: [...args, "--lang=sk-SK"] });
+    }
   }
   return pw.chromium.launch({ headless: true });
+}
+
+/** Spustenie prehliadača so slotom – slot sa uvoľní pri zatvorení prehliadača. */
+async function launch(): Promise<Browser> {
+  const release = await slot();
+  try {
+    const b = await launchRaw();
+    b.on("disconnected", release);
+    const close = b.close.bind(b);
+    b.close = async (...a: Parameters<Browser["close"]>) => {
+      release();
+      return close(...a);
+    };
+    return b;
+  } catch (e) {
+    release();
+    throw e;
+  }
 }
 
 /** Je prehliadač k dispozícii? (vyskúša spustenie; výsledok sa použije v nastavení AI a diagnostike) */

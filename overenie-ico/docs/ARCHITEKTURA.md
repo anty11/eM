@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.10.2** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.10.3** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -327,6 +327,7 @@ flowchart LR
 | `retro.test.ts` | spätné preverenie k dátumu |
 | `public.test.ts` | rozpoznávanie VšZP, Union, ÚVO, OV (tabuľky, hlásenia) |
 | `ovflow.test.ts` | OV v prehliadači: prepínač dátumov, 100 na stranu, nález na 2. strane, staré oznámenie |
+| `browserpool.test.ts` | prehliadače v jednej inštancii: limit súbežnosti, čakanie, uvoľnenie slotu |
 | `loadtest.test.ts` | záťažová skúška: percentily, štatistika zdrojov, rozpoznanie obmedzovania (403/429/časový limit) |
 | `diskv.test.ts` | Register diskvalifikácií cez API: tvar odpovede, zistenie parametra vyhľadávania, dopyt podľa IČO a priezvisk (bez sťahovania registra), mená s titulmi, verdikty |
 | `diskvcapture.test.ts` | Register diskvalifikácií: záznam dopytov XHR/fetch aplikácie React, hľadanie podľa IČO a priezviska |
@@ -378,7 +379,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | Vercel | OpenAI |
 | `AI_PROVIDER`, `AI_MODEL`, `AI_SPEED`, `AI_AUTO_FALLBACK`, `AI_NO_API_SOURCES`, `AI_ALLOW_ADMIN_KEY` | Vercel / Administrácia | východiskové voľby AI; administrácia má prednosť |
 | `TYPESAFE_API_KEY`, `TYPESAFE_MODEL`, `TYPESAFE_BASE_URL` | Vercel / Administrácia | Jev |
-| `BROWSER_DISABLED`, `BROWSER_WS_ENDPOINT`, `CHROMIUM_PATH` | Vercel / lokálne | prehliadač: vypnúť, vzdialený (CDP), lokálny |
+| `BROWSER_DISABLED`, `BROWSER_WS_ENDPOINT`, `CHROMIUM_PATH`, `BROWSER_MAX_PER_INSTANCE` | Vercel / lokálne | prehliadač: vypnúť, vzdialený (CDP), lokálny; najviac N prehliadačov naraz v jednej inštancii (predvolene 3, ďalšie čakajú) |
 | `REGISTRY_PROXY_URL`, `REGISTRY_PROXY_DOMAINS` | Vercel / Administrácia | proxy pre blokované registre |
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |

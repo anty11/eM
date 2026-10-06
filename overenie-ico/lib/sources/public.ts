@@ -50,13 +50,19 @@ async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: n
  * Skriptovaný dopyt cez prehliadač na serveri. Na nasadení ide cez oddelenú funkciu /api/browser/flow (jediná s pribaleným Chromiom),
  * lokálne a v testoch priamo. Chyby sa vracajú ako výsledok „unknown“ s popisom.
  */
+/**
+ * Strop pre skript v prehliadači v rámci preverenia (diagnostika má 50 s). Záťažová skúška 6. 10. 2026: Union p95 13 s, OV pri súbežnosti
+ * až 50 s (časový limit) – OV radšej skôr skončí ako manuálne s dôvodom, než aby držal celé preverenie.
+ */
+const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov", number> = { union: 30000, ov: 25000 };
+
 export async function browserFlow(source: "union" | "ov", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult> {
   const origin = selfOrigin();
   const t0 = Date.now();
   try {
     // Zámerne bez priameho importu lib/browser – inak by sa Chromium pribalilo aj k funkcii preverenia. Lokálne nastavte SELF_ORIGIN.
     if (!origin) throw new Error("adresa nasadenia nie je známa (SELF_ORIGIN / VERCEL_URL) – prehliadač sa volá cez /api/browser/flow");
-    const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: 50000 });
+    const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: diag ? 50000 : BROWSER_FLOW_TIMEOUT[source] });
     const j = await r.json().catch(() => null);
     if (!j || !j.verdict) throw new Error(`prehliadač: ${j?.error || `HTTP ${r.status}`}`);
     return j;
@@ -453,7 +459,7 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
     try {
       const { checkDiskv, DISKV_API } = await import("./diskv");
       const check = await checkDiskv(ctx);
-      const attempt = { url: DISKV_API, ms: Date.now() - t0, excerpt: check?.summary || "register stiahnutý, bez rozhodnutia (chýbajú štatutári)", verdict: (check ? (check.status === "ok" ? "clean" : "found") : "unknown") as "found" | "clean" | "unknown", info: "API Infosud (celý register)" };
+      const attempt = { url: DISKV_API, ms: Date.now() - t0, excerpt: check?.summary || "bez rozhodnutia – nepoznáme štatutárov (RPO) alebo výsledkov bolo viac, ako sa dá prečítať", verdict: (check ? (check.status === "ok" ? "clean" : "found") : "unknown") as "found" | "clean" | "unknown", info: "API Infosud" };
       if (check) return { check, outcome: { result: attempt.verdict, rows: (check.data?.rows as string[]) || [], attempts: [attempt] } };
       if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [attempt] } };
     } catch (e) {
