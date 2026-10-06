@@ -442,3 +442,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „spawn ETXTBSY“ – Union 4/10, OV), opakovaný pokus pri ETXTBSY; najviac 3 prehliadače naraz v inštancii (`BROWSER_MAX_PER_INSTANCE`),
   ďalšie čakajú; strop skriptu v rámci preverenia OV 25 s, Union 30 s (diagnostika 50 s). Záťažová skúška exportuje aj neúspešné behy
   (`failedRuns`). ÚVO: pokusy vrátia stránku, ktorú nevieme vyhodnotiť – treba diagnostiku ÚVO. Test `test/browserpool.test.ts`.
+- **v2.10.4** – ÚVO: register pri prázdnom výsledku už nepíše „0 záznamov“, ale „Zadaný výraz nebol nájdený.“ – kontrola preto vždy
+  končila manuálne. Nové: „nebol nájdený“ pri dopyte podľa IČO (IČO je v odpovedi) = bez záznamu; pri hľadaní podľa názvu sa pokračuje
+  dopytom podľa IČO. Záťažová skúška (vlna 10, v2.10.3): 10/10 dokončených, celé preverenie p50 26,4 s / max 27,1 s (strop OV 25 s funguje),
+  Union 10/10 (11 s), ETXTBSY zmizlo; Obchodný vestník v prehliadači pri súbežnosti zlyháva (1/10 – Enter 8 s / limit 25 s).

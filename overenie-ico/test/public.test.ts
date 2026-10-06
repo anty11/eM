@@ -83,6 +83,9 @@ main().catch((e) => { console.error(e); process.exit(1); });
   assert.equal(judgeFor("union", JSON.stringify({ data: [{ rplNazov: "Iná", rplIco: "11111111" }], totalRows: 5000 }), ["31322832"]).verdict, "unknown", "nefunkčný filter nie je bez záznamu");
   const uvoPage = (body: string) => `<html><input name="globalSearch" value="31322832"><main><h1>Globálne vyhľadávanie</h1>${body}</main></html>`;
   assert.equal(judgeFor("uvo", uvoPage(`<p>0 záznamov</p>`), ["31322832"]).verdict, "clean");
+  // ÚVO 10/2026: prázdny výsledok = „Zadaný výraz nebol nájdený.“ (bez počtu záznamov)
+  assert.equal(judgeFor("uvo", uvoPage(`<form><input name="globalSearch" value="31322832"></form><p>Zadaný výraz nebol nájdený.</p>`), ["31322832"]).verdict, "clean");
+  assert.equal(judgeFor("uvo", `<html><body><input name="globalSearch" value="SLOVNAFT, a.s."><main><p>Zadaný výraz nebol nájdený.</p></main><footer>IČO: 31797903</footer></body></html>`, ["31322832"]).verdict, "unknown", "hľadanie podľa názvu bez IČO v odpovedi sa nepočíta – pokračuje sa podľa IČO");
   assert.equal(judgeFor("uvo", uvoPage(`<p>1 záznamov</p><div>Zlá firma s.r.o. Osoba so zákazom IČO 31322832 Zákaz účasti do 12.05.2027</div>`), ["31322832"]).verdict, "found");
   assert.equal(judgeFor("uvo", uvoPage(`<p>3 záznamov</p><div>SLOVNAFT, a.s. Hospodársky subjekt IČO 31322832 Platnosť zápisu</div>`), ["31322832"]).verdict, "unknown", "zápis v inom registri nie je zákaz");
   console.log("OK – Union API a ÚVO.");

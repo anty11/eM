@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.10.3** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.10.4** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah

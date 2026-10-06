@@ -137,6 +137,12 @@ export function judgeFor(source: string, html: string, needles: string[]): { ver
     const f = fold(main);
     const echoed = fold(html).includes(ico);
     const m = f.match(/(\d+)\s+zaznam/);
+    // ÚVO (10/2026) pri prázdnom výsledku namiesto „0 záznamov“ píše „Zadaný výraz nebol nájdený.“ – platí len pre dopyt podľa IČO
+    // (IČO je v odpovedi ako hľadaný výraz); pri hľadaní podľa názvu sa pokračuje dopytom podľa IČO
+    if (echoed && !m && /zadany vyraz nebol najdeny/.test(f)) {
+      const i = f.indexOf("zadany vyraz nebol najdeny");
+      return { verdict: "clean", rows: [], evidence: main.slice(Math.max(0, i - 40), i + 40) };
+    }
     if (echoed && m) {
       const n = Number(m[1]);
       if (n === 0) return { verdict: "clean", rows: [], evidence: main.slice(Math.max(0, (m.index || 0) - 60), (m.index || 0) + 60) };
