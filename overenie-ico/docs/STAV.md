@@ -397,4 +397,4 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **Prevádzka 6. 10. 2026** – Register diskvalifikácií: diagnostika potvrdila `403 Forbidden nginx` z Vercelu v regióne `fra1`
   (priamo aj cez Edge) – blokované sú adresy dátových centier, zmena regiónu nepomáha. Proxy zo služby **Webshare**
   (účet v [zozname proxy](https://dashboard.webshare.io/14492237/proxy/list?authenticationMethod=%22username_password%22&connectionMethod=%22direct%22&proxyControl=%220%22&removeType=%22refresh_all%22),
-  prvá adresa Poľsko/Varšava) sa zadáva v Administrácii → Prístupy; čaká sa na výsledok „Otestovať proxy“. Údaje k proxy nie sú v repozitári.
+  prvá adresa Poľsko/Varšava) je uložená v Administrácii → Prístupy; „Otestovať proxy“: **HTTP 200 za 1,1 s** – register je cez proxy dostupný. Ďalší krok: diagnostika „Register diskvalifikácií“ na reálnej firme (overenie čítania výsledkov). Údaje k proxy nie sú v repozitári.

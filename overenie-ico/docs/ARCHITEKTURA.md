@@ -208,7 +208,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `union` | Union – dlžníci | API 401 → skript v prehliadači | pole „Zadajte priezvisko, IČO…“, tabuľka „… · IČO · Pohľadávka …“, „Žiadne data · 0–0 z 0“ | −25 kritické | public, agent |
 | `ov` | Obchodný vestník | index z exportu MS SR (ak je prístup) → skript v prehliadači | prepínač „dňa / od–do“, pole „IČO:“, „Vyhľadať podania“, tabuľka „# · Typ podania · Dátum · Kapitola · Subjekt · OV“, stránkovanie | −30 upozornenie (konkurz/likvidácia/zrušenie/dražba/zníženie imania/výzva veriteľom) | public, ovflow |
 | `uvo` | ÚVO – zákaz účasti | GET globálne vyhľadávanie `searchType=OSZ` (názov, IČO) | „Zadaný výraz nebol nájdený.“ / „N záznamov“ | −15 upozornenie | public |
-| `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy | (čaká na diagnostiku s proxy) | −25 kritické | access |
+| `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026) | (čaká na diagnostiku s proxy na reálnej firme) | −25 kritické | access |
 | `cre` | CRE – exekúcie | len po registrácii a s certifikátom | – | −40 kritické | – |
 | `dovera` | Dôvera – dlžníci | podmienky zakazujú automatizáciu | – | −25 kritické | – |
 
@@ -380,7 +380,7 @@ Cron (vercel.json): `/api/cron/socpoist` 04:20, `/api/cron/ov` 04:40 (UTC).
 |---|---|---|---|
 | Vercel (projekt `e-m`, región `fra1` vo `vercel.json`) | beh aplikácie | `vercel.json`, Vercel → Settings | funkcie bežia v AWS Frankfurt; zmena regiónu blokáciu justice.gov.sk nerieši (403 overené 6. 10. 2026 aj z `fra1`, priamo aj cez Edge) |
 | Upstash Redis | databáza | Vercel → Storage | – |
-| **Webshare** – [zoznam proxy](https://dashboard.webshare.io/14492237/proxy/list?authenticationMethod=%22username_password%22&connectionMethod=%22direct%22&proxyControl=%220%22&removeType=%22refresh_all%22) | proxy pre registre, ktoré blokujú dátové centrá (Register diskvalifikácií na justice.gov.sk) | Administrácia → Prístupy (tvar `http://meno:heslo@IP:port`, prihlásenie meno/heslo, pripojenie „direct“) | prvá proxy: Poľsko (Varšava), 6. 10. 2026; výsledok „Otestovať proxy“ zapísať sem. Ak register vráti 403 aj cez Webshare (dátové centrum), treba rezidenčnú proxy alebo VPS u slovenského hostingu (tinyproxy). Pri výmene proxy vo Webshare (refresh) treba novú adresu uložiť v Prístupoch. |
+| **Webshare** – [zoznam proxy](https://dashboard.webshare.io/14492237/proxy/list?authenticationMethod=%22username_password%22&connectionMethod=%22direct%22&proxyControl=%220%22&removeType=%22refresh_all%22) | proxy pre registre, ktoré blokujú dátové centrá (Register diskvalifikácií na justice.gov.sk) | Administrácia → Prístupy (tvar `http://meno:heslo@IP:port`, prihlásenie meno/heslo, pripojenie „direct“) | **funguje** – proxy Poľsko (Varšava), 6. 10. 2026 „Otestovať proxy“: Register diskvalifikácií HTTP 200 za 1,1 s (výstupná IP sa nezobrazila). Ak by register v budúcnosti vrátil 403 aj cez Webshare, treba rezidenčnú proxy alebo VPS u slovenského hostingu (tinyproxy). Pri výmene proxy vo Webshare (refresh) treba novú adresu uložiť v Prístupoch. |
 | Anthropic / OpenAI / TypeSafe (Jev) | AI overenie | Vercel env alebo Administrácia → AI | – |
 
 Prihlasovacie údaje sa do repozitára ani dokumentov nezapisujú – sú len v Administrácii (šifrované v Redise) alebo vo Vercel env.
