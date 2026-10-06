@@ -69,7 +69,7 @@ export const GET = handler(async (req) => {
           ["union", "https://portal.unionzp.sk/pub/dlznici", ["unionzp.sk"]],
           ["vszp", "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html", ["vszp.sk"]],
           ["ov", "https://obchodnyvestnik.justice.gov.sk/ObchodnyVestnik/Formular/FormulareZverejnene.aspx", ["justice.gov.sk"]],
-          ["diskv", `https://www.justice.gov.sk/registre/registerDiskvalifikacii/?ico=${ico}&pageNum=1&size=50`, ["justice.gov.sk"]],
+          ["diskv", "https://www.justice.gov.sk/registre/registerDiskvalifikacii/", ["justice.gov.sk", "obcan.justice.sk"]],
         ] as const;
         const snaps: Record<string, unknown> = {};
         for (const [id, url, hosts] of pages) {

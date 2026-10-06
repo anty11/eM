@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.9.9** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.9.10** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -208,7 +208,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `union` | Union – dlžníci | API 401 → skript v prehliadači | pole „Zadajte priezvisko, IČO…“, tabuľka „… · IČO · Pohľadávka …“, „Žiadne data · 0–0 z 0“ | −25 kritické | public, agent |
 | `ov` | Obchodný vestník | index z exportu MS SR (ak je prístup) → skript v prehliadači | prepínač „dňa / od–do“, pole „IČO:“, „Vyhľadať podania“, tabuľka „# · Typ podania · Dátum · Kapitola · Subjekt · OV“, stránkovanie | −30 upozornenie (konkurz/likvidácia/zrušenie/dražba/zníženie imania/výzva veriteľom) | public, ovflow |
 | `uvo` | ÚVO – zákaz účasti | GET globálne vyhľadávanie `searchType=OSZ` (názov, IČO) | „Zadaný výraz nebol nájdený.“ / „N záznamov“ | −15 upozornenie | public |
-| `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026). Stránka je len obal: zoznam vykresľuje aplikácia React (`obcan.justice.sk/pilot/isu`) s API `obcan.justice.sk/pilot/api/ress-isu-service/v1` – obe domény idú vždy cez proxy | `lib/sources/diskv.ts`: pri každom preverení dopyt `GET …/v1/diskvalifikacia?<param>=<výraz>&page=1&size=50` – raz podľa IČO a raz podľa priezviska každého štatutára (nič sa nesťahuje celé ani neukladá; pamätá sa len názov parametra vyhľadávania – zistí sa nezmyselným výrazom, ktorý musí vrátiť `numFound = 0`); vrátené záznamy sa porovnajú s IČO a menom + priezviskom (bez titulov a diakritiky). IČO = kritické −25; zhoda mena = možná zhoda (−25, `cap` S výhradou, `ask` overiť totožnosť); bez zhody pri úplnom registri = ok | −25 | access, diskv |
+| `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026). Stránka je len obal: zoznam vykresľuje aplikácia React (`obcan.justice.sk/pilot/isu`) s API `obcan.justice.sk/pilot/api/ress-isu-service/v1` – obe domény idú vždy cez proxy | `lib/sources/diskv.ts`: pri každom preverení dopyt `GET …/v1/diskvalifikacia?<param>=<výraz>&page=1&size=50` – raz podľa IČO a raz podľa priezviska každého štatutára (nič sa nesťahuje celé ani neukladá; pamätá sa len názov parametra vyhľadávania – zistí sa nezmyselným výrazom, ktorý musí vrátiť `numFound = 0`); vrátené záznamy sa porovnajú s IČO a menom + priezviskom (bez titulov a diakritiky). Overené na API 6. 10. 2026: parameter `query` (fulltext, ignoruje diakritiku), zoznam `diskvalifikaciaList`, záznam `{ registreGuid, meno, datumRozhodnutia, sud, adresa, suradnice }` – bez IČO a dátumu narodenia, preto pri zhode mena porovnať adresu s OR; pri viac ako 50 výsledkoch pre priezvisko ďalšie strany (najviac 4). IČO = kritické −25; zhoda mena = možná zhoda (−25, `cap` S výhradou, `ask` overiť totožnosť); bez zhody pri úplnom registri = ok | −25 | access, diskv |
 | `cre` | CRE – exekúcie | len po registrácii a s certifikátom | – | −40 kritické | – |
 | `dovera` | Dôvera – dlžníci | podmienky zakazujú automatizáciu | – | −25 kritické | – |
 

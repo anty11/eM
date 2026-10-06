@@ -354,20 +354,10 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
   const statutory = (ctx.profile.statutory || []).map((s) => s.name).filter(Boolean);
   switch (id) {
     case "diskv": {
-      // justice.gov.sk vracia zo serverov v dátových centrách 403 (nginx) – skúšame s hlavičkami prehliadača; záložne otvorené dáta (data.gov.sk)
-      // justice.gov.sk blokuje adresy dátových centier (403 zo serverových funkcií) – skúšame cez Edge runtime vlastného nasadenia
-      const base = "https://www.justice.gov.sk/registre/registerDiskvalifikacii/";
+      // Register diskvalifikácií: rozhoduje lib/sources/diskv.ts (API Infosud, dopyt podľa IČO a priezvisk štatutárov);
+      // stránka justice.gov.sk je len obal aplikácie – tu ostáva jediný pokus pre diagnostiku
       return {
-        attempts: [
-          // priamo – s proxy z Administrácie → Prístupy k registrom prejde (bez nej rýchle 403)
-          { url: `${base}?ico=${ico}&pageNum=1&size=50`, label: "priamo / cez proxy" },
-          ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50`, label: "priamo / cez proxy" })),
-          { url: `${base}?pageNum=1&size=10`, viaEdge: true },
-          { url: `${base}?ico=${ico}&pageNum=1&size=50`, viaEdge: true },
-          ...statutory.slice(0, 2).map((n) => ({ url: `${base}?priezvisko=${enc(n.replace(/^(ing|mgr|judr|mudr|phdr|bc|doc|prof)\.?\s+/i, "").split(" ").slice(-1)[0])}&pageNum=1&size=50`, viaEdge: true })),
-          { url: `${base}?pageNum=1&size=10` },
-          { url: "https://data.slovensko.sk/api/datasets/search?q=diskvalifik%C3%A1ci%C3%AD", info: "otvorené dáta (data.slovensko.sk) – hľadanie datasetu" },
-        ],
+        attempts: [{ url: `https://obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia?query=${ico}&page=1&size=50`, label: "API Infosud podľa IČO" }],
         needles: [ico, ...statutory],
       };
     }

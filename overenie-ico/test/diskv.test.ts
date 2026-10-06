@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { useMemoryKV } from "../lib/auth/kv";
-import { checkDiskv, flatten, lookupDiskv, matchRecord, nameParts, recordsOf, searchParam } from "../lib/sources/diskv";
+import { checkDiskv, describeRecord as describeRecordFn, flatten, lookupDiskv, matchRecord, nameParts, recordsOf, searchParam } from "../lib/sources/diskv";
 
 const facets = [{ filterName: "sud_string", facetValueList: [{ text: "Mestský súd Košice", count: 74 }] }];
 const people = Array.from({ length: 23 }, (_, i) => ({
@@ -24,6 +24,10 @@ const people = Array.from({ length: 23 }, (_, i) => ({
   // čisté funkcie
   assert.deepEqual(nameParts("Ing. Gabriel Szabó, PhD."), { given: ["gabriel"], surname: "szabo", raw: "Szabó" });
   assert.equal(nameParts("Szabó"), null);
+  const rec = { registreGuid: "diskvalifikacia_1187", meno: "Štefan Szabó", datumRozhodnutia: "20.09.2024", adresa: "Lesné Kračany 37, 93003 Kráľovičove Kračany", suradnice: { zemepisnaDlzka: "" } };
+  assert.equal(describeRecordFn(flatten(rec)), "Štefan Szabó · rozhodnutie 20.09.2024 · adresa Lesné Kračany 37, 93003 Kráľovičove Kračany");
+  assert.equal(matchRecord(flatten(rec), "31322832", ["Ing. Gabriel Szabó"]), null, "skutočný záznam z API: iné krstné meno");
+  assert.deepEqual(matchRecord(flatten({ meno: "Roland Szabo" }), "31322832", ["Roland Szabó"]), { by: "name", who: "Roland Szabó" }, "bez diakritiky v registri");
   const flat = flatten(people[15]);
   assert.equal(flat["obchodnaSpolocnost.ico"], "12345678");
   assert.equal(flat["sud.nazov"], "Okresný súd Žilina");

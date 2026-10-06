@@ -8,7 +8,8 @@ import { MANUAL } from "./manual";
  * Stránka justice.gov.sk/registre/registerDiskvalifikacii je len obal; dáta dáva API aplikácie Infosud (ISU):
  *   GET https://obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia?page=1&size=10
  *   → { numFound, page (od 0), size, updateDate, filterList: [fazety], <zoznam záznamov> }
- * (zistené diagnostikou 6. 10. 2026 – 992 záznamov). Oba hostitelia blokujú dátové centrá → ide sa cez proxy z Administrácie.
+ * (zistené diagnostikou 6. 10. 2026 – 992 záznamov; zoznam `diskvalifikaciaList`, záznam { registreGuid, meno, datumRozhodnutia, sud, adresa,
+ *  suradnice }; IČO ani dátum narodenia v zázname nie sú). Fulltext `?query=` ignoruje diakritiku (Szabó nájde aj Szabo). Oba hostitelia blokujú dátové centrá → ide sa cez proxy z Administrácie.
  *
  * Pri každom preverení sa register pýta nanovo – podľa IČO a podľa priezviska každého štatutára (nič sa nesťahuje ani neukladá,
  * pamätá sa len názov parametra vyhľadávania). Zhoda IČO = nález; zhoda mena a priezviska = možná zhoda (overiť totožnosť – RPO
@@ -79,11 +80,16 @@ export function matchRecord(r: DiskvRecord, ico: string, names: string[]): { by:
   return null;
 }
 
-/** Krátky popis záznamu do protokolu – polia s menom, súdom, dátumami a rozsahom zákazu. */
+/** Krátky popis záznamu do protokolu (polia API: meno, datumRozhodnutia, sud, adresa; bez guid a súradníc). */
 export function describeRecord(r: DiskvRecord): string {
-  const pick = Object.entries(r).filter(([k]) => /meno|priezv|nazov|titul|narod|sud|datum|zakaz|trv|platn|od$|do$|dovod|spis|funkc|obec|mesto/i.test(k));
-  const parts = (pick.length ? pick : Object.entries(r)).map(([k, v]) => `${k.split(".").pop()}: ${v}`);
-  return parts.join(" · ").slice(0, 400);
+  const label: Record<string, string> = { meno: "", datumRozhodnutia: "rozhodnutie", sud: "súd", adresa: "adresa" };
+  const known = Object.keys(label).filter((k) => r[k]);
+  if (known.length) return known.map((k) => (label[k] ? `${label[k]} ${r[k]}` : r[k])).join(" · ").slice(0, 400);
+  return Object.entries(r)
+    .filter(([k]) => !/guid|suradnic|zemepis/i.test(k))
+    .map(([k, v]) => `${k.split(".").pop()}: ${v}`)
+    .join(" · ")
+    .slice(0, 400);
 }
 
 /** Kandidáti na parameter vyhľadávania API (zistí sa za behu: správny parameter pri nezmyselnom výraze vráti numFound = 0). */
@@ -121,11 +127,17 @@ export async function searchParam(): Promise<string> {
 /** Jeden dopyt do registra podľa výrazu (IČO alebo priezvisko) – vráti nájdené záznamy a či sú kompletné. */
 export async function lookupDiskv(term: string): Promise<{ total: number; records: DiskvRecord[]; complete: boolean; updateDate?: string; url: string }> {
   const k = await searchParam();
-  const qs = `${k}=${encodeURIComponent(term)}&page=1&size=${LOOKUP_SIZE}`;
-  const j = await getApi(qs);
+  const qs = (page: number) => `${k}=${encodeURIComponent(term)}&page=${page}&size=${LOOKUP_SIZE}`;
+  const j = await getApi(qs(1));
   const got = recordsOf(j);
   const records = got.records.map((x) => flatten(x));
-  return { total: got.total!, records, complete: records.length >= got.total!, updateDate: got.updateDate, url: `${apiUrl()}?${qs}` };
+  // časté priezvisko (viac ako 50 záznamov) – ďalšie strany toho istého dopytu, najviac 4
+  for (let page = 2; page <= 4 && records.length < got.total! && got.records.length; page++) {
+    const more = recordsOf(await getApi(qs(page))).records;
+    if (!more.length) break;
+    records.push(...more.map((x) => flatten(x)));
+  }
+  return { total: got.total!, records, complete: records.length >= got.total!, updateDate: got.updateDate, url: `${apiUrl()}?${qs(1)}` };
 }
 
 /** Kontrola pre preverenie; null = nedá sa rozhodnúť (ostáva manuálne overenie). */
@@ -162,7 +174,7 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
       text: `Register diskvalifikácií: možná zhoda mena štatutára (${who}) – ${describeRecord(hits[0].r)}`,
       penalty: def.penaltyIfFound,
       cap: "caution",
-      ask: `Overte totožnosť: je ${who} tá istá osoba ako v registri diskvalifikácií (dátum narodenia, bydlisko)? Výsledok zaznamenajte.`,
+      ask: `Overte totožnosť: je ${who} tá istá osoba ako v registri diskvalifikácií (porovnajte adresu v zázname s adresou štatutára v obchodnom registri)? Výsledok zaznamenajte.`,
     });
     summary = `Možná zhoda mena štatutára v registri diskvalifikácií (${hits.length} ${hits.length === 1 ? "záznam" : "záznamy"})${asOf} – treba overiť totožnosť.`;
     status = "warning";

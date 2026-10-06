@@ -414,3 +414,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Teraz každé preverenie položí API Infosud dopyt podľa IČO a podľa priezviska každého štatutára (`?<param>=…&page=1&size=50`),
   vrátené záznamy porovná s menom a priezviskom. Ukladá sa len názov parametra vyhľadávania (zistí sa výrazom, ktorý musí vrátiť
   `numFound = 0`). Cron `/api/cron/ov` register neobnovuje. Diagnostika ukáže parameter a odpovede dopytov podľa IČO a mien.
+- **v2.9.10** – Register diskvalifikácií overený na skutočnom API (diagnostika 6. 10. 2026): parameter vyhľadávania `query` (ostatné
+  ignoruje – vrátia všetkých 992), „Szabó“ → 3 záznamy (Štefan, Roland, Adrian – žiadny nie je Gabriel → bez zhody). Záznam má
+  `meno, datumRozhodnutia, sud, adresa` (IČO ani dátum narodenia nie). Protokol pri možnej zhode uvedie meno, dátum rozhodnutia, súd
+  a adresu a otázka odporučí porovnať adresu s obchodným registrom. Časté priezviská: ďalšie strany výsledkov (najviac 4 × 50).
+  Diagnostika už neskúša stránku justice.gov.sk (len obal), ale API.
