@@ -104,6 +104,15 @@ async function listDetail(slug: string): Promise<Ds | null> {
   });
 }
 
+/** Kľúč obchodného mena na porovnanie: bez diakritiky, medzier a bodiek, právna forma zjednotená („spol. s r. o.“ = „s.r.o.“). */
+export function companyKey(name: string): string {
+  return fold(name)
+    .replace(/spol\.?\s*s\s*r\.?\s*o\.?/g, "sro")
+    .replace(/s\.?\s*r\.?\s*o\.?(?![a-z])/g, "sro")
+    .replace(/a\.?\s*s\.?(?![a-z])$/g, "as")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 export interface SearchTrail {
   column: string;
   kind: string;
@@ -119,11 +128,27 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   const shortName = (ctx.profile.name || "")
     .replace(/,?\s*(spol\.\s*s\s*r\.\s*o\.|s\.\s*r\.\s*o\.|a\.\s*s\.|k\.\s*s\.|v\.\s*o\.\s*s\.|družstvo|advokátska kancelária).*$/i, "")
     .trim();
+  // Hľadanie podľa mena vždy celým obchodným menom vrátane právnej formy; zoznam FS ju môže zapisovať inak („s. r. o.“ / „s.r.o.“ /
+  // „spol. s r. o.“), preto varianty zápisu a nakoniec meno bez právnej formy – zhoda riadku sa aj tak vyžaduje na celé obchodné meno.
+  const full = (ctx.profile.name || "").replace(/\s+/g, " ").trim();
+  const nameVariants = Array.from(
+    new Set(
+      [
+        full,
+        full.replace(/s\.\s*r\.\s*o\./i, "s. r. o."),
+        full.replace(/s\.\s*r\.\s*o\./i, "s.r.o."),
+        full.replace(/spol\.\s*s\s*r\.\s*o\./i, "s.r.o."),
+        full.replace(/a\.\s*s\./i, "a. s."),
+        full.replace(/a\.\s*s\./i, "a.s."),
+        shortName.length >= 5 ? shortName : "",
+      ].filter((x) => x && x.length >= 3).map((x) => x.slice(0, 80)),
+    ),
+  );
   const values: Record<string, string | undefined> = {
     ico: ctx.ico,
     dic: ctx.profile.dic,
     ic_dph: ctx.profile.icDph || (ctx.profile.dic ? `SK${ctx.profile.dic}` : undefined),
-    name: shortName.length >= 5 ? shortName.slice(0, 60) : undefined,
+    name: nameVariants[0],
   };
   const kindOf = (col: string) => {
     const c = fold(col);
@@ -139,30 +164,25 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   if (ds?.searchable.length) {
     for (const col of ds.searchable) {
       const k = kindOf(col);
-      if (k && values[k]) tries.push([col, values[k]!, k]);
+      if (k === "name") for (const v of nameVariants) tries.push([col, v, k]);
+      else if (k && values[k]) tries.push([col, values[k]!, k]);
     }
     tries.sort((x, y) => order.indexOf(x[2]) - order.indexOf(y[2]));
   }
   if (!tries.length) {
     // bez informácie o stĺpcoch: bežné názvy stĺpcov v OpenData FS (rôzne zoznamy používajú rôzne varianty)
     const guess: [string, string][] = [["ico", "ico"], ["ICO", "ico"], ["ico_subjektu", "ico"], ["dic", "dic"], ["DIC", "dic"], ["ic_dph", "ic_dph"], ["icdph", "ic_dph"], ["IC_DPH", "ic_dph"], ["nazov_subjektu", "name"], ["nazov", "name"], ["obchodne_meno", "name"]];
-    tries = guess.filter(([, k]) => values[k]).map(([c, k]) => [c, values[k]!, k]);
+    tries = guess.flatMap(([c, k]) => (k === "name" ? nameVariants.map((v) => [c, v, k] as [string, string, string]) : values[k] ? [[c, values[k]!, k] as [string, string, string]] : []));
   }
 
   const matches = (r: any, kind: string) => {
     const s = JSON.stringify(r);
     if (s.includes(ctx.ico) || (ctx.profile.dic && s.includes(ctx.profile.dic))) return true;
-    // pri hľadaní podľa mena bez IČO v riadku: zhoda celého mena (bez právnej formy) + obec sídla, ak je v riadku
+    // pri hľadaní podľa mena (zoznam nemá IČO): zhoda celého obchodného mena vrátane právnej formy – obchodné meno je v SR jedinečné;
+    // adresa v zozname FS môže byť iná ako sídlo v RPO (HZ Stavby s.r.o.: zoznam FS „Ivanka pri Nitre“, 10/2026), preto sa neporovnáva
     if (kind !== "name") return false;
-    const rowName = fold(String(Object.entries(r).find(([k]) => /nazov|obchodne|meno|subjekt/.test(fold(k)))?.[1] || ""));
-    // celé obchodné meno vrátane právnej formy zhodné (bez ohľadu na medzery, bodky, veľkosť písmen) = ten istý subjekt – obchodné meno
-    // je v SR jedinečné; adresa v zozname FS môže byť iná ako sídlo v RPO (HZ Stavby s.r.o.: zoznam FS „Ivanka pri Nitre“, 10/2026)
-    const norm = (x: string) => fold(x).replace(/[^a-z0-9]/g, "");
-    if (ctx.profile.name && norm(rowName) === norm(ctx.profile.name)) return true;
-    if (!rowName || !rowName.startsWith(fold(shortName))) return false;
-    const rowCity = fold(String(Object.entries(r).find(([k]) => /obec|mesto/.test(fold(k)))?.[1] || ""));
-    const city = fold(ctx.profile.address || "");
-    return !rowCity || city.includes(rowCity.split(" - ")[0].trim());
+    const rowName = String(Object.entries(r).find(([k]) => /nazov|obchodne|meno|subjekt/.test(fold(k)))?.[1] || "");
+    return Boolean(rowName && ctx.profile.name && companyKey(rowName) === companyKey(ctx.profile.name));
   };
 
   const errors: string[] = [];
@@ -263,7 +283,7 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
       if (rows.by === "name")
         return {
           status: "manual",
-          summary: `Zoznam daňových dlžníkov (OpenData FS) sa dá prehľadávať len podľa názvu; ${how} sa subjekt nenašiel. Pri inom zápise názvu v zozname by ho vyhľadávanie minulo – overte podľa IČO v zozname Finančnej správy.`,
+          summary: `Zoznam daňových dlžníkov (OpenData FS) neobsahuje IČO a dá sa prehľadávať len podľa názvu; ${how} (aj s inými zápismi právnej formy) sa subjekt nenašiel. Pri odlišnom zápise obchodného mena v zozname by ho vyhľadávanie minulo – overte v zozname Finančnej správy.`,
           findings: [],
           verifyUrl: ZOZNAMY,
           automated: false,

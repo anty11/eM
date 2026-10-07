@@ -473,3 +473,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   riadok sa zahodil. Odteraz: zhoda celého obchodného mena vrátane právnej formy (bez ohľadu na medzery, bodky, veľkosť písmen) stačí –
   obchodné meno je v SR jedinečné; obec sa vyžaduje len pri zhode začiatku mena. Nález uvádza záznam zo zoznamu (meno, ulica, PSČ, obec)
   a sumu v tvare 206 971,18 €.
+- **v2.11.3** – Daňoví dlžníci: hľadá sa vždy **celým obchodným menom vrátane právnej formy** (podnet používateľky), s variantmi zápisu
+  právnej formy (s.r.o. / s. r. o. / spol. s r. o., a.s. / a. s.); meno bez právnej formy len ako posledný pokus. Riadok sa uzná, len ak
+  sa celé obchodné meno zhoduje (`companyKey`: bez diakritiky, medzier, bodiek, právna forma zjednotená) – „HZ Stavby Nitra s.r.o.“ ani
+  „HZ Stavby a.s.“ sa nezamenia; obec sa už neporovnáva.

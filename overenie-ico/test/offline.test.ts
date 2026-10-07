@@ -63,7 +63,7 @@ async function main() {
   r = await scan(GOOD);
   // zoznam daňových dlžníkov FS sa dá prehľadať len podľa názvu (nemá IČO) → nenájdenie nie je „NIE JE dlžník“, ale overenie podľa IČO
   assert.equal(by("fs-debtors").status, "manual");
-  assert.match(by("fs-debtors").summary, /len podľa názvu; podľa obchodného mena „URBAN & PARTNERS“ sa subjekt nenašiel/);
+  assert.match(by("fs-debtors").summary, /len podľa názvu; podľa obchodného mena „URBAN & PARTNERS s\.r\.o\., advokátska kancelária“ \(aj s inými zápismi právnej formy\) sa subjekt nenašiel/);
   assert.ok(((by("fs-debtors").data as any)?.trail || []).some((t: any) => t.kind === "name" && /riadkov|404/.test(t.result)), "stopa vyhľadávania");
   assert.equal(by("fs-vat").status, "ok");
   assert.equal(r.profile.icDph, "SK2023674466");
@@ -93,7 +93,7 @@ async function main() {
   console.log(r.checks.filter((c) => c.findings.length).map((c) => `  [${c.status}] ${c.name}: ${c.findings.map((f) => f.text).join(" | ")}`).join("\n"));
   assert.equal(r.verdict.level, "not_recommended");
   assert.equal(by("fs-debtors").status, "critical");
-  assert.match(by("fs-debtors").summary, /nedoplatok 12\s345,67 € \(záznam: C\.C\.C\. s\. r\. o\., Gergeľova 423\/11, 95112 Ivanka pri Nitre; vyhľadané podľa obchodného mena/, "zhoda podľa celého mena aj pri inej adrese v zozname FS");
+  assert.match(by("fs-debtors").summary, /nedoplatok 12\s345,67 € \(záznam: C\.C\.C\. s\. r\. o\., Gergeľova 423\/11, 95112 Ivanka pri Nitre; vyhľadané podľa obchodného mena „C\.C\.C\. s\.r\.o\.“/, "hľadané celým menom, zhoda aj pri inom zápise právnej formy a inej adrese v zozname FS");
   assert.equal(by("fs-vat").status, "critical");
   assert.equal(by("socpoist").status, "critical");
   assert.equal(by("insolvency").status, "critical");
@@ -217,6 +217,16 @@ async function main() {
       assert.equal(now.status, c.status, `${c.id}: hotový výsledok ostal aj po limite`);
     }
     assert.ok(done.some((x) => x.id === "diskv"), "register diskvalifikácií bol hotový");
+  }
+
+  // obchodné meno – porovnanie celého mena vrátane právnej formy (zoznam daňových dlžníkov FS nemá IČO)
+  {
+    const { companyKey } = await import("../lib/sources/fs");
+    assert.equal(companyKey("HZ Stavby s.r.o."), companyKey("HZ STAVBY, s. r. o."));
+    assert.equal(companyKey("HZ Stavby spol. s r.o."), companyKey("HZ Stavby s.r.o."));
+    assert.equal(companyKey("SLOVNAFT, a.s."), companyKey("Slovnaft a. s."));
+    assert.notEqual(companyKey("HZ Stavby s.r.o."), companyKey("HZ Stavby Nitra s.r.o."), "iná firma s podobným menom");
+    assert.notEqual(companyKey("HZ Stavby s.r.o."), companyKey("HZ Stavby a.s."), "iná právna forma = iný subjekt");
   }
 
   // IČO, ktoré v registri nie je: preverenie sa skončí pri RPO, ostatné kontroly sa nevykonajú
