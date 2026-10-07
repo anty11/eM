@@ -104,7 +104,16 @@ async function listDetail(slug: string): Promise<Ds | null> {
   });
 }
 
-async function search(slug: string, ctx: Ctx): Promise<any[]> {
+export interface SearchTrail {
+  column: string;
+  kind: string;
+  value: string;
+  result: string;
+}
+/** Nájdené riadky + podľa čoho sa hľadalo (`by`: ico / dic / ic_dph / name) a stopa pokusov. */
+export type SearchRows = any[] & { trail?: SearchTrail[]; by?: string };
+
+async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   let ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
   if (!ds?.searchable.length) ds = (await listDetail(slug)) || ds;
   const shortName = (ctx.profile.name || "")
@@ -154,22 +163,41 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
 
   const errors: string[] = [];
   let answered = false;
+  // stopa vyhľadávania – do protokolu a diagnostiky (podľa čoho sa hľadalo a čo API vrátilo)
+  const trail: SearchTrail[] = [];
+  const done = (rows: any[], by?: string) => Object.assign(rows, { trail, by }) as SearchRows;
   for (const [col, val, kind] of tries) {
     try {
-      const raw = await getJson<any>(`${API}/data/${slug}/search?page=1&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`, { headers: hdr() });
-      const all = rowsOf(raw);
-      if (!all) continue;
+      const url = (page: number) => `${API}/data/${slug}/search?page=${page}&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`;
+      const raw = await getJson<any>(url(1), { headers: hdr() });
+      let all = rowsOf(raw);
+      if (!all) {
+        trail.push({ column: col, kind, value: val, result: "neznámy formát odpovede" });
+        continue;
+      }
+      // hľadanie podľa názvu môže vrátiť viac strán (podobné názvy) – prečítame ďalšie, kým pribúdajú (najviac 10)
+      if (kind === "name" && all.length >= 10) {
+        for (let page = 2; page <= 10; page++) {
+          const more = rowsOf(await getJson<any>(url(page), { headers: hdr() }).catch(() => null));
+          if (!more?.length) break;
+          all = [...all, ...more];
+          if (more.length < 10) break;
+        }
+      }
       answered = true;
       const rows = all.filter((r) => matches(r, kind));
-      if (rows.length) return rows;
-      if (kind !== "name") return []; // presný identifikátor prehľadaný, subjekt v zozname nie je
+      trail.push({ column: col, kind, value: val, result: `${all.length} riadkov, zhoda ${rows.length}` });
+      if (rows.length) return done(rows, kind);
+      if (kind !== "name") return done([], kind); // presný identifikátor prehľadaný, subjekt v zozname nie je
     } catch (e) {
       if (e instanceof HttpError && (e.status === 401 || e.status === 403)) throw new Error("neplatný API kľúč Finančnej správy");
       if (e instanceof HttpError && e.status === 404) {
         answered = true; // „Search not found“ – v zozname nie je
-        if (kind !== "name") return [];
+        trail.push({ column: col, kind, value: val, result: "nenájdené (404)" });
+        if (kind !== "name") return done([], kind);
         continue;
       }
+      trail.push({ column: col, kind, value: val, result: `chyba: ${(e as Error).message.slice(0, 160)}` });
       errors.push(`${col}: ${(e as Error).message}`);
     }
   }
@@ -182,7 +210,7 @@ async function search(slug: string, ctx: Ctx): Promise<any[]> {
       `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : ` (API neuviedlo prehľadávateľné stĺpce${keys?.length ? `; detail zoznamu obsahuje polia: ${keys.join(", ")}` : ""})`} – ${errors.slice(0, 3).join(" | ") || "neznámy formát"}`,
     );
   }
-  return [];
+  return done([], "name");
 }
 
 /** Zoznam, ktorý API nezverejňuje – informácia namiesto chyby. */
@@ -225,15 +253,27 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
     const slug = await resolve("debtors");
     if (!slug) throw new Error("zoznam daňových dlžníkov sa v API nenašiel");
     const rows = await search(slug, ctx);
-    if (!rows.length)
-      return { status: "ok", summary: "Subjekt NIE JE v zozname daňových dlžníkov.", findings: [], verifyUrl: ZOZNAMY, data: { slug } };
+    const how = rows.by === "ico" ? `podľa IČO ${ctx.ico}` : rows.by === "dic" ? `podľa DIČ ${ctx.profile.dic}` : rows.by === "ic_dph" ? "podľa IČ DPH" : `podľa obchodného mena „${rows.trail?.find((t) => t.kind === "name")?.value || ctx.profile.name || ""}“`;
+    if (!rows.length) {
+      // len podľa mena: iný zápis názvu v zozname FS by subjekt minul – do právneho dokumentu nie ako „NIE JE“, ale na overenie
+      if (rows.by === "name")
+        return {
+          status: "manual",
+          summary: `Zoznam daňových dlžníkov (OpenData FS) sa dá prehľadávať len podľa názvu; ${how} sa subjekt nenašiel. Pri inom zápise názvu v zozname by ho vyhľadávanie minulo – overte podľa IČO v zozname Finančnej správy.`,
+          findings: [],
+          verifyUrl: ZOZNAMY,
+          automated: false,
+          data: { slug, searchedBy: rows.by, trail: rows.trail },
+        } as any;
+      return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: ZOZNAMY, data: { slug, searchedBy: rows.by, trail: rows.trail } };
+    }
     const amount = pick(rows[0], /suma|nedoplat|dlh|vyska/);
     return {
       status: "critical",
       summary: `Subjekt JE v zozname daňových dlžníkov${amount ? ` – nedoplatok ${amount} €` : ""}.`,
       findings: [{ severity: "critical", text: `Daňový dlžník (Finančná správa)${amount ? `, nedoplatok ${amount} €` : ""}`, penalty: 45 }],
       verifyUrl: ZOZNAMY,
-      data: { slug, rows: rows.slice(0, 3) },
+      data: { slug, rows: rows.slice(0, 3), searchedBy: rows.by, trail: rows.trail },
     };
   });
 }

@@ -462,3 +462,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
     výzve veriteľom ani dražbe“; nálezy s dátumom v tvare DD.MM.RRRR.
   - **Kroky ľudskými slovami** („Vyplnené pole „IČO“: 31322832“, „Zvolená možnosť …“, „Kliknuté na „Vyhľadať podania““) – v AI aj pri
     skripte („Postup overenia v registri“); `lib/browser/steps.ts` (bez Chromia, použiteľné aj vo funkcii preverenia).
+- **v2.11.1** – Falošné „NIE JE v zozname daňových dlžníkov“: HZ Stavby s.r.o. (50790030) má podľa zistenia používateľky daňový
+  nedoplatok 206 971,18 € od 21. 9. 2026, preverenie uviedlo, že dlžníkom nie je. Zoznam `ds_dsdd` v OpenData FS sa dá prehľadávať len
+  podľa názvu a obce (bez IČO) – nenájdenie podľa názvu teda nie je dôkaz. Odteraz: nenájdené len podľa názvu = **manuálna kontrola**
+  s vysvetlením („overte podľa IČO v zozname FS“), kľúčový fakt „nedoplatky“ = nezistené; nález ostáva kritický (−45). Hľadanie podľa
+  názvu číta až 10 strán výsledkov (podobné názvy). Kontrola ukladá stopu vyhľadávania (`trail`: stĺpec, hodnota, počet riadkov, zhoda) –
+  podklad na diagnostiku, prečo sa HZ Stavby nenašla (iný zápis názvu / obce, alebo OpenData ešte nemá dlh z 21. 9.).

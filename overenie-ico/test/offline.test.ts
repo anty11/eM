@@ -61,7 +61,10 @@ async function main() {
   // 2) S kľúčom FS
   process.env.FS_API_KEY = "TEST";
   r = await scan(GOOD);
-  assert.equal(by("fs-debtors").status, "ok");
+  // zoznam daňových dlžníkov FS sa dá prehľadať len podľa názvu (nemá IČO) → nenájdenie nie je „NIE JE dlžník“, ale overenie podľa IČO
+  assert.equal(by("fs-debtors").status, "manual");
+  assert.match(by("fs-debtors").summary, /len podľa názvu; podľa obchodného mena „URBAN & PARTNERS“ sa subjekt nenašiel/);
+  assert.ok(((by("fs-debtors").data as any)?.trail || []).some((t: any) => t.kind === "name" && /riadkov|404/.test(t.result)), "stopa vyhľadávania");
   assert.equal(by("fs-vat").status, "ok");
   assert.equal(r.profile.icDph, "SK2023674466");
   assert.equal(by("fs-ids").status, "ok");
@@ -72,9 +75,9 @@ async function main() {
   assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
   assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);
   assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(daň 7 830,00 €\)/);
-  assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "good");
+  assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "unknown", "daňové nedoplatky len podľa názvu → nevieme naisto");
   // Verzia Firma: neverejné registre neblokujú verdikt
-  const firmVerdict = computeVerdict(r.checks, { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
+  const firmVerdict = computeVerdict(r.checks.filter((c) => c.id !== "fs-debtors"), { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
   assert.equal(firmVerdict.preliminary, false, "vo verzii Firma nesmie byť verdikt predbežný kvôli neverejným registrom");
   // potvrdenie manuálnych kontrol ako „bez záznamu“
   const clean = Object.fromEntries(r.checks.filter((c) => c.status === "manual").map((c) => [c.id, "clean" as const]));
@@ -127,7 +130,8 @@ async function main() {
   const r3 = await scan(GOOD);
   assert.ok(r3.checks.find((c) => c.id === "rpo")!.cachedAt, "RPO z pamäte");
   assert.equal(r3.profile.name, r.profile.name, "profil obnovený z pamäte");
-  const apiCalls = (from: number) => calls.slice(from).filter((u) => !/vszp|unionzp|uvo\.gov|justice|data\.slovensko/.test(u));
+  // ds_dsdd: hľadanie len podľa názvu → manuálna kontrola, tá sa do pamäte neukladá
+  const apiCalls = (from: number) => calls.slice(from).filter((u) => !/vszp|unionzp|uvo\.gov|justice|data\.slovensko|ds_dsdd/.test(u));
   assert.equal(apiCalls(before).length, 0, `opakované preverenie nevolá API registre (${apiCalls(before).join(", ")})`);
   const r4 = await scan(GOOD, undefined, { fresh: true });
   assert.ok(!r4.checks.find((c) => c.id === "rpo")!.cachedAt, "fresh obíde pamäť");
