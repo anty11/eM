@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.1** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.2** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -201,7 +201,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 |---|---|---|---|---|---|
 | `rpo` | RPO (ŠÚ SR), záloha orsr.sk | REST `api.statistics.sk/rpo/v1` – search + entity; záloha HTML ORSR (windows‑1250) | `name, address, legalForm, established, terminated, statutory[], owners[], registrationNumber, lastStatutoryChange, lastOwnershipChange`; `data.legalFacts, dissolution, via` | zánik −100, likvidácia −70, konkurz −90, časté zmeny, jurisdikcie | offline, retro, orsr |
 | `ruz` | Register účtovných závierok | REST `registeruz.sk/cruz-public/api` | `dic, ruzName, ruzAddress`; `data.metrics[] (revenue, profit, equity, liabilities), lastFiledYear, filedExpected, incomplete` | záporné VI −30; chýba závierka za minulý rok −15, verdikt najviac S VÝHRADOU + otázka na partnera (dôvod do protokolu); 2+ obdobia −40 | offline, scoring |
-| `fs-debtors` | Daňoví dlžníci | FS OpenData `ds_dsdd` – prehľadateľné len `nazov_subjektu`, `obec` (zoznam nemá IČO); hľadanie podľa názvu číta až 10 strán podobných názvov | `data.slug, rows[], searchedBy, trail[]` (podľa čoho, čo API vrátilo) | dlžník −45; nenájdené len podľa názvu = **manuálne** (nie „NIE JE“) | offline |
+| `fs-debtors` | Daňoví dlžníci | FS OpenData `ds_dsdd` – prehľadateľné len `nazov_subjektu`, `obec` (zoznam nemá IČO); hľadanie podľa názvu číta až 10 strán podobných názvov; zhoda = celé obchodné meno s právnou formou (bez ohľadu na medzery a bodky), inak začiatok mena + obec | `data.slug, rows[], searchedBy, trail[]` (podľa čoho, čo API vrátilo) | dlžník −45; nenájdené len podľa názvu = **manuálne** (nie „NIE JE“) | offline |
 | `fs-vat` | DPH a dôvody na zrušenie | FS OpenData (IČ DPH, `ds_dphz`, IBAN zoznam) | `icDph`; `data.row` | dôvody na zrušenie −35 | offline |
 | `fs-ids` | Index daňovej spoľahlivosti | FS OpenData `ds_iz_ran` | `data.row.hodnotenie` | menej spoľahlivý −20 | offline |
 | `fs-dppo` | Daňové priznanie PO | FS OpenData `ds_dppos` | `data.filed, year, tax` | nepodané – upozornenie | offline |

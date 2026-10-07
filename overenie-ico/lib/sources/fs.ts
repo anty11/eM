@@ -155,6 +155,10 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
     // pri hľadaní podľa mena bez IČO v riadku: zhoda celého mena (bez právnej formy) + obec sídla, ak je v riadku
     if (kind !== "name") return false;
     const rowName = fold(String(Object.entries(r).find(([k]) => /nazov|obchodne|meno|subjekt/.test(fold(k)))?.[1] || ""));
+    // celé obchodné meno vrátane právnej formy zhodné (bez ohľadu na medzery, bodky, veľkosť písmen) = ten istý subjekt – obchodné meno
+    // je v SR jedinečné; adresa v zozname FS môže byť iná ako sídlo v RPO (HZ Stavby s.r.o.: zoznam FS „Ivanka pri Nitre“, 10/2026)
+    const norm = (x: string) => fold(x).replace(/[^a-z0-9]/g, "");
+    if (ctx.profile.name && norm(rowName) === norm(ctx.profile.name)) return true;
     if (!rowName || !rowName.startsWith(fold(shortName))) return false;
     const rowCity = fold(String(Object.entries(r).find(([k]) => /obec|mesto/.test(fold(k)))?.[1] || ""));
     const city = fold(ctx.profile.address || "");
@@ -267,11 +271,17 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
         } as any;
       return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: ZOZNAMY, data: { slug, searchedBy: rows.by, trail: rows.trail } };
     }
-    const amount = pick(rows[0], /suma|nedoplat|dlh|vyska/);
+    const rawAmount = pick(rows[0], /suma|nedoplat|dlh|vyska/);
+    const num = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount ?? "").replace(/\s/g, "").replace(",", "."));
+    const amount = rawAmount === undefined ? undefined : Number.isFinite(num) ? num.toLocaleString("sk-SK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawAmount);
+    const r0 = rows[0];
+    const rowName = String(pick(r0, /nazov|obchodne|meno|subjekt/) ?? "");
+    const addr = [pick(r0, /ulica/), [pick(r0, /psc/), pick(r0, /obec|mesto/)].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    const where = `${rowName || ctx.profile.name || ""}${addr ? `, ${addr}` : ""}`;
     return {
       status: "critical",
-      summary: `Subjekt JE v zozname daňových dlžníkov${amount ? ` – nedoplatok ${amount} €` : ""}.`,
-      findings: [{ severity: "critical", text: `Daňový dlžník (Finančná správa)${amount ? `, nedoplatok ${amount} €` : ""}`, penalty: 45 }],
+      summary: `Subjekt JE v zozname daňových dlžníkov Finančnej správy${amount ? ` – nedoplatok ${amount} €` : ""} (záznam: ${where}; vyhľadané ${how}).`,
+      findings: [{ severity: "critical", text: `Daňový dlžník (Finančná správa)${amount ? `, nedoplatok ${amount} €` : ""} – ${where}`, penalty: 45 }],
       verifyUrl: ZOZNAMY,
       data: { slug, rows: rows.slice(0, 3), searchedBy: rows.by, trail: rows.trail },
     };

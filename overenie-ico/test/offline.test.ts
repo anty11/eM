@@ -93,6 +93,7 @@ async function main() {
   console.log(r.checks.filter((c) => c.findings.length).map((c) => `  [${c.status}] ${c.name}: ${c.findings.map((f) => f.text).join(" | ")}`).join("\n"));
   assert.equal(r.verdict.level, "not_recommended");
   assert.equal(by("fs-debtors").status, "critical");
+  assert.match(by("fs-debtors").summary, /nedoplatok 12\s345,67 € \(záznam: C\.C\.C\. s\. r\. o\., Gergeľova 423\/11, 95112 Ivanka pri Nitre; vyhľadané podľa obchodného mena/, "zhoda podľa celého mena aj pri inej adrese v zozname FS");
   assert.equal(by("fs-vat").status, "critical");
   assert.equal(by("socpoist").status, "critical");
   assert.equal(by("insolvency").status, "critical");

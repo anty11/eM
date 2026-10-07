@@ -468,3 +468,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   s vysvetlením („overte podľa IČO v zozname FS“), kľúčový fakt „nedoplatky“ = nezistené; nález ostáva kritický (−45). Hľadanie podľa
   názvu číta až 10 strán výsledkov (podobné názvy). Kontrola ukladá stopu vyhľadávania (`trail`: stĺpec, hodnota, počet riadkov, zhoda) –
   podklad na diagnostiku, prečo sa HZ Stavby nenašla (iný zápis názvu / obce, alebo OpenData ešte nemá dlh z 21. 9.).
+- **v2.11.2** – Príčina falošného „nie je dlžník“ pri HZ Stavby s.r.o.: zoznam FS má subjekt s adresou **Gergeľova 423/11, 95112 Ivanka
+  pri Nitre** (web FS 7. 10. 2026, nedoplatok 206 971,18 €) – porovnanie vyžadovalo aj zhodu obce so sídlom z RPO, a tá sa líšila, takže
+  riadok sa zahodil. Odteraz: zhoda celého obchodného mena vrátane právnej formy (bez ohľadu na medzery, bodky, veľkosť písmen) stačí –
+  obchodné meno je v SR jedinečné; obec sa vyžaduje len pri zhode začiatku mena. Nález uvádza záznam zo zoznamu (meno, ulica, PSČ, obec)
+  a sumu v tvare 206 971,18 €.

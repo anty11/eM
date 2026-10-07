@@ -123,7 +123,8 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (!searchable[slug].includes(col)) return json({ error: "Column is not searchable" }, 400);
     const isBad = term === BAD || term === "SK2020000001";
     let rows: any[] = [];
-    if (slug === "ds_dsdd" && /C\.C\.C\./.test(term)) rows = [{ nazov_subjektu: "C.C.C. s.r.o.", obec: "Bratislava", suma: "12 345,67" }];
+    // adresa v zozname FS iná ako sídlo v RPO (ako HZ Stavby s.r.o. 10/2026) – zhoda podľa celého obchodného mena
+    if (slug === "ds_dsdd" && /C\.C\.C\./.test(term)) rows = [{ nazov_subjektu: "C.C.C. s. r. o.", obec: "Ivanka pri Nitre", psc: "95112", ulica_cislo: "Gergeľova 423/11", suma_nedoplatkov: 12345.67 }];
     if (slug === "ds_dsdd" && /URBAN/.test(term)) rows = [{ nazov_subjektu: "URBAN STAVBY s.r.o.", obec: "Košice", suma: "999,00" }]; // iná firma s podobným menom
     if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }];
     if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
