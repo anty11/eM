@@ -477,3 +477,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   právnej formy (s.r.o. / s. r. o. / spol. s r. o., a.s. / a. s.); meno bez právnej formy len ako posledný pokus. Riadok sa uzná, len ak
   sa celé obchodné meno zhoduje (`companyKey`: bez diakritiky, medzier, bodiek, právna forma zjednotená) – „HZ Stavby Nitra s.r.o.“ ani
   „HZ Stavby a.s.“ sa nezamenia; obec sa už neporovnáva.
+- **v2.11.4** – Oprava textu o lehote na uloženie závierky (podnet používateľky): závierka sa podáva s daňovým priznaním do 31. 3.;
+  pri predĺžení lehoty najneskôr do 30. 6., do 30. 9. len pri zdaniteľných príjmoch zo zahraničia (predtým nepresne „lehota uplynula 30. 6.,
+  pri predĺžení 30. 9.“). Logika sa nemení: chýbajúca závierka za minulý rok sa vyhodnocuje až od 1. 10., keď uplynula aj najdlhšia lehota.
+  Otázka na partnera už neuvádza „predĺžená lehota“ ako možný dôvod (po 30. 9. už neobstojí).

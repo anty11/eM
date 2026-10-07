@@ -90,8 +90,9 @@ const eur = (n?: number) => (n === undefined ? "–" : `${Math.round(n).toLocale
 
 /**
  * Povinnosť uložiť závierku sa posudzuje len za obdobia, ktorých lehota už uplynula („splatné obdobia“).
- * - Závierka za rok N sa ukladá do 30. 6. roku N+1, pri predĺženej lehote na daňové priznanie do 30. 9. – preto sa
- *   do septembra vrátane očakáva závierka až za rok N-2, od októbra za rok N-1 (`expected`).
+ * - Závierka za rok N sa podáva spolu s daňovým priznaním do 31. 3. roku N+1; pri predĺžení lehoty na podanie daňového
+ *   priznania najneskôr do 30. 6., do 30. 9. len ak má subjekt zdaniteľné príjmy zo zahraničia. Či ich má, nevieme – preto sa
+ *   do septembra vrátane očakáva závierka až za rok N-2, od októbra (po uplynutí aj najdlhšej lehoty) za rok N-1 (`expected`).
  * - Prvé účtovné obdobie: rok vzniku; ak spoločnosť vznikla v októbri až decembri, môže ho predĺžiť do konca
  *   nasledujúceho roka (§ 3 ods. 4 zákona o účtovníctve) – v prospech spoločnosti sa preto prvé obdobie posúva o rok.
  * Mladá spoločnosť, ktorá ešte nemusela podať žiadnu závierku, nedostane za chýbajúce závierky žiadnu zrážku
@@ -177,7 +178,7 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
       const f: Finding[] = [];
       await Promise.race([ctx.rpoDone, new Promise((r) => setTimeout(r, 6000))]); // vek/forma z RPO – nečakať dlho, ak RPO mešká
       const now = new Date();
-      // Závierka za rok N sa podáva do 30.6. (resp. 30.9. pri predĺžení) roku N+1
+      // Závierka za rok N: s daňovým priznaním do 31. 3. roku N+1, pri predĺžení do 30. 6., do 30. 9. len pri príjmoch zo zahraničia
       const expected = now.getFullYear() - (now.getMonth() >= 9 ? 1 : 2);
       const latest = Number(years[0] || 0);
       const fs = filingStatus({ expected, latest, established: ctx.profile.established });
@@ -201,10 +202,10 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
         // chýbajúca závierka za minulý rok je závažná: −15 a odporúčanie vyžiadať si dôvod od partnera a zaznamenať ho do protokolu
         f.push({
           severity: "warning",
-          text: `${latest ? `Posledná uložená závierka je za rok ${latest} – chýba účtovná závierka za ${expected}` : `Chýba prvá účtovná závierka (za rok ${expected})`} (lehota uplynula 30. 6., pri predĺžení daňového priznania 30. 9.)`,
+          text: `${latest ? `Posledná uložená závierka je za rok ${latest} – chýba účtovná závierka za ${expected}` : `Chýba prvá účtovná závierka (za rok ${expected})`} (závierka sa podáva s daňovým priznaním do 31. 3. ${expected + 1}; pri predĺžení lehoty najneskôr do 30. 6., do 30. 9. len pri zdaniteľných príjmoch zo zahraničia – uplynula aj najdlhšia lehota)`,
           penalty: 15,
           cap: "caution",
-          ask: `Vyžiadajte si od partnera dôvod, prečo nie je uložená účtovná závierka za ${expected} (napr. predĺžená lehota, podanie v listinnej podobe, chyba pri ukladaní), a odpoveď zaznamenajte.`,
+          ask: `Vyžiadajte si od partnera dôvod, prečo nie je uložená účtovná závierka za ${expected} (napr. podanie v listinnej podobe, chyba pri ukladaní do registra, neschválená závierka), a odpoveď zaznamenajte.`,
         });
       // fs.missing === 0: buď je všetko uložené, alebo spoločnosť ešte nemusela podať – bez zrážky
 

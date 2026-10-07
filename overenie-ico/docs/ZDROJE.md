@@ -136,7 +136,7 @@ Stav k 28. 9. 2026, verzia aplikácie 1.0.0.
 
 Dáta výkazu sú plochý zoznam hodnôt. Počet stĺpcov na riadok udáva `pocetDatovychStlpcov` šablóny: aktíva majú 4 stĺpce (Brutto, Korekcia, Netto bežné, Netto predchádzajúce), ostatné tabuľky 2 (bežné, predchádzajúce).
 
-**Očakávaná závierka:** za rok N sa ukladá do 30. 6. roku N+1, pri predĺžení do 30. 9. Od októbra sa preto očakáva závierka za minulý rok, inak za predminulý.
+**Očakávaná závierka:** za rok N sa podáva spolu s daňovým priznaním do 31. 3. roku N+1; pri predĺžení lehoty na podanie daňového priznania najneskôr do 30. 6., do 30. 9. len ak má subjekt zdaniteľné príjmy zo zahraničia. Keďže to z registrov nevieme, závierka za minulý rok sa očakáva až od októbra (po uplynutí aj najdlhšej lehoty), inak za predminulý.
 **Splatné obdobia:** posudzujú sa len obdobia, ktorých lehota už uplynula – od prvého účtovného obdobia (rok vzniku; pri vzniku v októbri až decembri sa v prospech spoločnosti ráta až nasledujúci rok podľa § 3 ods. 4 zákona o účtovníctve) po očakávaný rok. Spoločnosť, ktorá ešte nemusela podať žiadnu závierku, nedostane za závierky žiadnu zrážku – odpočíta sa len vek (kontrola obchodného registra).
 
 **Pravidlá hodnotenia:**
