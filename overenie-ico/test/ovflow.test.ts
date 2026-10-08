@@ -43,10 +43,16 @@ function page(q: URLSearchParams) {
   const pager = ico
     ? `<tr><td colspan="7">Aktuálna stránka: ${Array.from({ length: pages }, (_, i) => (i + 1 === pg ? `<span>${i + 1}</span>` : `<a href="${base}&size=${size}&p=${i + 1}">${i + 1}</a>`)).join(" ")} Počet záznamov na stránku: ${[10, 20, 50, 100].map((n) => `<a href="${base}&size=${n}&p=1">${n}</a>`).join(" ")}</td></tr>`
     : "";
+  // pb=1: ako skutočný OV (ASP.NET AutoPostBack) – prepínač prekreslí celý formulár o 700 ms neskôr, nové prvky, IČO vymazané
+  const pb = q.get("pb") === "1";
+  const enabledForm = `<table><tr><td>Dátum zverejnenia:</td><td><input type="radio" name="DatumUverejnenia" value="den"> dňa <input name="txtDen"> <input type="radio" name="DatumUverejnenia" value="range" checked> od <input id="od" name="txtOd"> do <input id="do" name="txtDo"></td></tr><tr><td>IČO:</td><td><input name="txtIco" value=""></td></tr><tr><td colspan="2"><input type="hidden" name="pb" value="1"><input type="submit" name="btnVyhladat" value="Vyhľadať podania"></td></tr></table>`;
+  const rangeClick = pb
+    ? `setTimeout(function(){document.querySelector('form').innerHTML=${JSON.stringify(enabledForm).replace(/"/g, "&quot;")};},700)`
+    : "document.getElementById('od').disabled=false;document.getElementById('do').disabled=false";
   return `<!doctype html><html><head><title>Webový portál Ministerstva spravodlivosti SR</title></head><body>
   <form method="get" action="/ov"><table>
     <tr><td>Dátum zverejnenia:</td><td><input type="radio" name="DatumUverejnenia" value="den" checked onclick="document.getElementById('od').disabled=true;document.getElementById('do').disabled=true"> dňa <input name="txtDen">
-      <input type="radio" name="DatumUverejnenia" value="range" onclick="document.getElementById('od').disabled=false;document.getElementById('do').disabled=false"> od <input id="od" name="txtOd" disabled> do <input id="do" name="txtDo" disabled></td></tr>
+      <input type="radio" name="DatumUverejnenia" value="range" onclick="${rangeClick}"> od <input id="od" name="txtOd" disabled> do <input id="do" name="txtDo" disabled></td></tr>
     <tr><td>IČO:</td><td><input name="txtIco" value=""></td></tr>
     <tr><td colspan="2"><input type="submit" name="btnVyhladat" value="Vyhľadať podania"></td></tr>
   </table></form>
@@ -69,6 +75,12 @@ async function main() {
   });
   await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
   const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/ov`;
+
+  // 0) AutoPostBack: prepínač prekreslí formulár neskôr (staré značky prvkov neplatia, IČO zmizne) – postup to musí ustáť
+  const pbr = await ovFlow("11111111", { url: `${url}?pb=1`, hosts: ["127.0.0.1"] });
+  assert.equal(pbr.verdict, "found", `po prekreslení formulára: ${JSON.stringify({ e: pbr.error, a: pbr.actions?.map((x) => x.action + (x.ok ? "" : " ✗ " + x.note)) })}`);
+  assert.ok(reqs.some((r) => /txtIco=11111111/.test(r) && /DatumUverejnenia=range/.test(r) && /txtOd=\d/.test(r)), "odoslané s IČO a rozsahom dátumov");
+  console.log("OK – OV po prekreslení formulára (AutoPostBack): IČO doplnené znova, rozsah dátumov, nález.");
 
   // 1) bez nálezu za 3 roky: rozsah dátumov nastavený cez prepínač, všetky oznámenia na jednej stránke
   const c = await ovFlow("33333333", { url, hosts: ["127.0.0.1"] });

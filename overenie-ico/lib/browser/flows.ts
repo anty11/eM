@@ -95,6 +95,11 @@ export async function searchPrelude(s: BrowserSession, ico: string, opts: { date
           snap = await s.click(radio.ref).catch(() => snap);
           done.push("prepínač rozsahu dátumov");
           target = snap.elements.find((e) => e.name && e.name === from.name) || from;
+          // prepínač na ASP.NET spúšťa AutoPostBack – formulár sa prekreslí o chvíľu neskôr; čakáme, kým pole „od“ ožije (max ~5 s)
+          for (let i = 0; i < 10 && target.disabled; i++) {
+            snap = await s.wait(500);
+            target = snap.elements.find((e) => e.name && e.name === from.name) || target;
+          }
         }
       }
       if (!target.disabled) {
@@ -108,8 +113,14 @@ export async function searchPrelude(s: BrowserSession, ico: string, opts: { date
       } else done.push("dátum sa nedal nastaviť (pole neaktívne)");
     }
   }
+  // po prekreslení formulára (postback) môže IČO zmiznúť – doplniť znova
+  const icoNow = snap.elements.find((e) => e.kind === "input" && (e.name ? e.name === field.name : e.label === field.label));
+  if (icoNow && (icoNow.value || "") !== ico) {
+    snap = await s.fill(icoNow.ref, ico);
+    done.push("IČO doplnené znova po prekreslení formulára");
+  }
   const btn = snap.elements.find((e) => e.kind === "button" && /hladat|vyhladat|search|zobraz|filtrovat/.test(fold(e.label)));
-  snap = btn ? await s.click(btn.ref) : await s.pressEnter(field.ref);
+  snap = btn ? await s.click(btn.ref) : await s.pressEnter((icoNow || field).ref);
   done.push(btn ? `odoslané (${btn.label})` : "odoslané (Enter)");
   for (let i = 0; i < 5 && !snap.tables.length && !/ziadne|nenasli|nebol najden|0 zaznam/.test(fold(snap.text)); i++) snap = await s.wait(1000);
   return { snap, done };

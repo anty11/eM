@@ -481,3 +481,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   pri predĺžení lehoty najneskôr do 30. 6., do 30. 9. len pri zdaniteľných príjmoch zo zahraničia (predtým nepresne „lehota uplynula 30. 6.,
   pri predĺžení 30. 9.“). Logika sa nemení: chýbajúca závierka za minulý rok sa vyhodnocuje až od 1. 10., keď uplynula aj najdlhšia lehota.
   Otázka na partnera už neuvádza „predĺžená lehota“ ako možný dôvod (po 30. 9. už neobstojí).
+- **v2.11.5** – Obchodný vestník (HZ Stavby, 8. 10. 2026): pevný postup padal na „Vyhľadať podania – Timeout 25000ms“. Príčina:
+  prepínač rozsahu dátumov na OV spúšťa ASP.NET AutoPostBack – formulár sa o chvíľu prekreslí, značky prvkov zo snímky prestanú platiť
+  a dátumy sa nevyplnili. Opravy: `BrowserSession.resolve` – ak značka neexistuje, nová snímka a ten istý prvok podľa druhu a názvu;
+  klik skriptom s limitom 5 s (nie 25 s); úvod servera po prepínači čaká, kým pole „od“ ožije, a po prekreslení doplní IČO znova.
+  AI pri OV: neotvára detaily podaní (sťahujú sa ako súbory), limit 90 s namiesto 240 s. Test AutoPostBack v `test/ovflow.test.ts`.

@@ -214,7 +214,8 @@ Povolené domény: ${spec.domains.join(", ")}.
 Dnešný dátum: ${new Date().toISOString().slice(0, 10)}.
 
 ${FORMAT(spec.dataPoints)}`;
-      agent = await runBrowserAgent(cfg, { onEvent, user: agentUser, allowedHosts: spec.domains, timeoutMs: 240000, prelude: { url: urls[0], ico, dateFromYearsBack: spec.id === "ov" ? 3 : undefined }, jev: await jevFor() });
+      // OV: AI len dohľadáva negatívne oznámenia (bez záznamu od AI sa neuzná) – kratší limit, nech používateľ nečaká minúty
+      agent = await runBrowserAgent(cfg, { onEvent, user: agentUser, allowedHosts: spec.domains, timeoutMs: spec.id === "ov" ? 90000 : 240000, prelude: { url: urls[0], ico, dateFromYearsBack: spec.id === "ov" ? 3 : undefined }, jev: await jevFor() });
       res = agent;
     } else {
       note = `Prehliadač na serveri nie je k dispozícii (${b.error || b.mode}) – použité len webové vyhľadávanie.`;

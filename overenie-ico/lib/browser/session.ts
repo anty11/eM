@@ -363,8 +363,26 @@ export class BrowserSession {
     return this.page.locator(`[data-oi-ref="${ref}"]`).first();
   }
 
-  async fill(ref: string, text: string): Promise<Snapshot> {
+  /**
+   * Prvok podľa značky; ak medzitým stránka formulár prekreslila (ASP.NET AutoPostBack po kliknutí na prepínač – Obchodný vestník,
+   * 10/2026: „Timeout 25000ms“ pri „Vyhľadať podania“), značky zo starej snímky neexistujú – urobí sa nová snímka a ten istý prvok
+   * sa nájde podľa druhu a technického názvu (alebo popisu).
+   */
+  private async resolve(ref: string): Promise<{ el: ReturnType<BrowserSession["locator"]>; ref: string }> {
     const el = this.locator(ref);
+    if ((await el.count().catch(() => 0)) > 0) return { el, ref };
+    const old = this.lastSnap?.elements.find((x) => x.ref === ref);
+    await this.page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => {});
+    await this.page.waitForTimeout(400);
+    const snap = await this.snapshot();
+    const same = old && snap.elements.find((x) => x.kind === old.kind && (old.name ? x.name === old.name : x.label === old.label && Boolean(old.label)));
+    if (!same) return { el, ref };
+    this.say("info", `Formulár sa prekreslil – pokračujem s tým istým prvkom „${this.labelOf(same.ref)}“.`);
+    return { el: this.locator(same.ref), ref: same.ref };
+  }
+
+  async fill(ref0: string, text: string): Promise<Snapshot> {
+    const { el, ref } = await this.resolve(ref0);
     this.say("act", `Vypĺňam pole „${this.labelOf(ref)}“: ${short(text, 40)}`);
     try {
       await el.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
@@ -392,8 +410,8 @@ export class BrowserSession {
     return this.snapshot();
   }
 
-  async click(ref: string): Promise<Snapshot> {
-    const el = this.locator(ref);
+  async click(ref0: string): Promise<Snapshot> {
+    const { el, ref } = await this.resolve(ref0);
     this.say("act", `Klikám na „${this.labelOf(ref)}“`);
     try {
       const href = await el.getAttribute("href").catch(() => null);
@@ -405,8 +423,8 @@ export class BrowserSession {
       try {
         await Promise.all([this.page.waitForLoadState("domcontentloaded", { timeout: 3000 }).catch(() => {}), el.click({ timeout: 4000 })]);
       } catch {
-        // prvok zakrytý (lišta cookies, prekrytie) – klik skriptom
-        await el.evaluate((n: any) => n.click());
+        // prvok zakrytý (lišta cookies, prekrytie) – klik skriptom (s krátkym limitom, nie predvolených 25 s)
+        await el.evaluate((n: any) => n.click(), undefined, { timeout: 5000 });
       }
       if (this.filled) this.searched = true;
       this.record(`click ${ref}`, true, undefined, { target: this.targetOf(ref) });
@@ -436,8 +454,8 @@ export class BrowserSession {
     return this.snapshot();
   }
 
-  async pressEnter(ref: string): Promise<Snapshot> {
-    const el = this.locator(ref);
+  async pressEnter(ref0: string): Promise<Snapshot> {
+    const { el, ref } = await this.resolve(ref0);
     this.say("act", `Odosielam formulár (Enter v poli „${this.labelOf(ref)}“)`);
     try {
       await el.press("Enter", { timeout: 8000 });
@@ -451,8 +469,8 @@ export class BrowserSession {
     return this.snapshot();
   }
 
-  async select(ref: string, value: string): Promise<Snapshot> {
-    const el = this.locator(ref);
+  async select(ref0: string, value: string): Promise<Snapshot> {
+    const { el, ref } = await this.resolve(ref0);
     this.say("act", `Vyberám „${short(value, 40)}“ v „${this.labelOf(ref)}“`);
     try {
       await el.selectOption({ label: value }, { timeout: 8000 }).catch(async () => el.selectOption(value, { timeout: 8000 }));

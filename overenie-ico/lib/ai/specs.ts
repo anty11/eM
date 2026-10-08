@@ -165,7 +165,7 @@ export const AI_SPECS: Record<string, AiSpec> = {
       routine: "'Podanie Obchodného registra', financial statements (účtovná závierka), annual reports – these are routine filings, not negative",
     },
     browser: true,
-    browserHint: (ico, p) => `Na stránke „Zverejnené formuláre“ Obchodného vestníka je vyhľadávací formulár s poľami pre IČO a obchodné meno a s výberom obdobia. Zadaj IČO ${ico}${p.name ? ` (prípadne názov „${p.name}“)` : ""}, obdobie nastav čo najširšie (posledné 3 roky) a odošli („Hľadať“/„Vyhľadať“). Prečítaj tabuľku oznámení (dátum, typ, text) a posúď, ktoré sú negatívne.`,
+    browserHint: (ico, p) => `Na stránke „Zverejnené formuláre“ Obchodného vestníka je vyhľadávací formulár s poľami pre IČO a obchodné meno a s výberom obdobia. Zadaj IČO ${ico}${p.name ? ` (prípadne názov „${p.name}“)` : ""}, obdobie nastav čo najširšie (posledné 3 roky) a odošli („Hľadať“/„Vyhľadať“). Prečítaj tabuľku oznámení (dátum, typ podania, kapitola) a posúď podľa druhu podania, ktoré sú negatívne. Detaily podaní neotváraj (otvárajú sa ako súbory na stiahnutie) – druh podania v tabuľke stačí; ak je výsledkov viac strán, prejdi stránkovanie.`,
   },
   diskv: {
     id: "diskv",

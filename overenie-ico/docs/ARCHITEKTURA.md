@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.4** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.5** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -328,7 +328,7 @@ flowchart LR
 | `scoring.test.ts` | výpočet skóre, stropy, manuálne výsledky |
 | `retro.test.ts` | spätné preverenie k dátumu |
 | `public.test.ts` | rozpoznávanie VšZP, Union, ÚVO, OV (tabuľky, hlásenia) |
-| `ovflow.test.ts` | OV v prehliadači: prepínač dátumov, 100 na stranu, nález na 2. strane, staré oznámenie |
+| `ovflow.test.ts` | OV v prehliadači: prepínač dátumov, AutoPostBack (prekreslenie formulára, IČO znova), 100 na stranu, nález na 2. strane, staré oznámenie |
 | `browserpool.test.ts` | prehliadače v jednej inštancii: limit súbežnosti, čakanie, uvoľnenie slotu |
 | `loadtest.test.ts` | záťažová skúška: percentily, štatistika zdrojov, rozpoznanie obmedzovania (403/429/časový limit) |
 | `diskv.test.ts` | Register diskvalifikácií cez API: tvar odpovede, zistenie parametra vyhľadávania, dopyt podľa IČO a priezvisk (bez sťahovania registra), mená s titulmi, verdikty |
