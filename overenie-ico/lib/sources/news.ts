@@ -1,5 +1,7 @@
 import { runCheck } from "../check";
 import { fold, getText } from "../http";
+import { sq } from "../searchlog";
+import type { SearchLog } from "../types";
 import type { CheckResult, CompanyProfile, Ctx, Finding } from "../types";
 import { NEWS_DOMAINS, OUTLETS, searchDuckDuckGo, searchOutlets, type Found } from "./slovakMedia";
 
@@ -360,7 +362,27 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       const latest = articles[0]?.date ? new Date(articles[0].date).toLocaleDateString("sk-SK") : undefined;
       const aboutFirm = articles.filter((a) => a.about === "firma").length;
       const aboutPeople = articles.length - aboutFirm;
+      const providerName: Record<string, string> = { google: "Google News", bing: "Bing News", web: "Bing web" };
+      const search: SearchLog[] = [
+        {
+          dataset: "Slovenské médiá priamo a vyhľadávače správ (Google News, Bing, DuckDuckGo)",
+          queries: [
+            ...variants.map((v) => sq("mena firmy", v, null, articles.filter((a) => a.about === "firma").length, undefined, "variant obchodného mena")),
+            ...people(p).map((n) => sq("osoby", n, null, articles.filter((a) => a.about !== "firma" && JSON.stringify(a).includes(n)).length, undefined, "štatutár / vlastník s kontextom")),
+            ...outlets.ok.map((n) => sq("média", n, outlets.found.filter((f) => f.source === n).length, outlets.found.filter((f) => f.source === n && articles.some((a) => a.link === f.link)).length)),
+            ...(outlets.failed.length ? [sq("médiá", outlets.failed.join(", "), null, 0, undefined, "neodpovedali")] : []),
+            sq("DuckDuckGo", variants[0] || ctx.ico, ddg.length + ddgPeople.length, [...ddg, ...ddgPeople].filter((f) => articles.some((a) => a.link === f.link)).length),
+            ...results.map((r, i) =>
+              sq(providerName[queries[i][1]] || queries[i][1], decodeURIComponent((queries[i][0].match(/[?&]q=([^&]+)/) || [])[1] || "").replace(/\+/g, " ").slice(0, 120), r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : null, 0, undefined, r.status === "fulfilled" ? undefined : "neodpovedal"),
+            ),
+          ],
+          total: raw.length,
+          rule: `článok o firme (meno, skratka) alebo o štatutárovi/vlastníkovi s kontextom firmy, posledných ${YEARS} rokov; vyradené: iné firmy s podobným menom, menovci, katalógy`,
+          sample: rejected.slice(0, 5).map((r: any) => `${r.title || r.link} – ${r.reason || "vyradené"}`),
+        },
+      ];
       return {
+        search,
         status: recentNeg.length || olderNeg.length ? "warning" : "ok",
         summary: articles.length
           ? `${articles.length} relevantných článkov za posledných ${YEARS} rokov (${aboutFirm} o firme, ${aboutPeople} o štatutároch/vlastníkoch; najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, hľadané: ${[...variants, ...people(p)].join(", ")}.`

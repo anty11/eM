@@ -4,6 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { BAD, GOOD, calls, installMock } from "./mock";
+import { searchLine } from "../lib/searchlog";
 import { scan } from "../lib/scan";
 import { applyManual, computeVerdict } from "../lib/scoring";
 import { icoChecksumValid, normalizeIco } from "../lib/ico";
@@ -71,6 +72,12 @@ async function main() {
   assert.equal(by("fs-ids").summary, "Hodnotenie: vysoko spoľahlivý.");
   assert.equal(by("fs-dppo").status, "ok");
   assert.equal(by("rpvs").status, "ok");
+  // každá kontrola uvádza, čo sa prehľadalo (dopyty, počty záznamov, pravidlo) – „nenájdené“ musí byť preskúmateľné
+  const noLog = r.checks.filter((c) => !["cre", "dovera"].includes(c.id) && !c.search?.length).map((c) => `${c.id}(${c.status})`);
+  assert.deepEqual(noLog, [], `kontroly bez záznamu vyhľadávania: ${noLog.join(", ")}`);
+  assert.ok(by("fs-debtors").search![0].queries.every((q) => q.by === "obchodného mena" && q.returned !== undefined), "FS: podľa mena, s počtom");
+  assert.match(searchLine(by("socpoist").search![0]), /Prehľadané: Sociálna poisťovňa.*podľa IČO „47244895“ – vrátil 0 záznamov, zhoda 0/);
+  assert.ok(by("rpo").search![0].queries[0].url?.includes("identifier=47244895"));
   assert.deepEqual((by("rpvs").data as any).kuv, ["Janko Mrkvička"], "len aktuálni KUV");
   assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
   assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);

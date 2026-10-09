@@ -2,6 +2,8 @@ import { runCheck, statusFromFindings } from "../check";
 import { riskJurisdiction } from "../deal";
 import { fold, getJson } from "../http";
 import { orsrIdentify, type OrsrResult } from "./orsr";
+import { sq } from "../searchlog";
+import type { SearchLog } from "../types";
 import type { CheckResult, Ctx, Finding } from "../types";
 
 const BASE = "https://api.statistics.sk/rpo/v1";
@@ -64,6 +66,7 @@ function fromOrsr(ctx: Ctx, o: OrsrResult, rpoError: string) {
   else if (age >= 5) f.push({ severity: "positive", text: `Stabilná história – na trhu od ${o.established?.slice(0, 4)}`, penalty: -3 });
   f.push({ severity: "info", text: `Údaje z Obchodného registra SR (orsr.sk) – Register právnických osôb neodpovedal (${rpoError}); história zmien štatutárov a vlastníkov sa nehodnotila`, penalty: 0 });
   return {
+    search: [{ dataset: "Obchodný register SR (orsr.sk) – záloha identifikácie", queries: [sq("IČO", ctx.ico, 1, 1, o.url, `RPO neodpovedalo: ${rpoError}`)], rule: "výpis subjektu s IČO" }],
     status: statusFromFindings(f),
     summary: `${o.name}${o.legalForm ? `, ${o.legalForm}` : ""}, zápis ${o.established || "?"}${o.registrationNumber ? `, ${o.registrationNumber}` : ""} – podľa Obchodného registra SR (RPO neodpovedalo včas).`,
     findings: f,
@@ -171,9 +174,20 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
         throw new Error(`${(err as Error).message}${ctx.asOf ? "" : "; záloha z Obchodného registra (orsr.sk) tiež nepomohla"}`);
       }
       const hit = search.results?.[0];
+      const searchLog = (detail?: string): SearchLog[] => [
+        {
+          dataset: "Register právnických osôb (Štatistický úrad SR, API RPO)",
+          queries: [
+            sq("IČO", ctx.ico, search.results?.length ?? 0, hit ? 1 : 0, `${BASE}/search?identifier=${ctx.ico}`),
+            ...(detail ? [sq("ID záznamu", String(hit?.id ?? ""), 1, 1, `${BASE}/entity/${hit?.id}?showHistoricalData=true`, detail)] : []),
+          ],
+          rule: "subjekt s IČO v registri (identifikácia)",
+        },
+      ];
       if (!hit) {
         ctx.profile.notFound = true;
         return {
+          search: searchLog(),
           status: "critical",
           summary: "Subjekt s týmto IČO sa v Registri právnických osôb nenašiel. Skontrolujte IČO – bez identifikácie subjektu nie je možné pokračovať v ďalších kontrolách.",
           findings: [{ severity: "critical", text: "IČO nie je evidované v Registri právnických osôb", penalty: 100 }],
@@ -341,6 +355,7 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
 
       const status = statusFromFindings(f);
       return {
+        search: searchLog(e === hit ? "výpis s históriou sa nenačítal – použitý výsledok vyhľadávania" : "výpis s históriou zmien"),
         status,
         summary: e.termination
           ? `${name} – subjekt ZANIKOL ${e.termination}.`

@@ -374,3 +374,14 @@ textarea { width: 100%; min-height: 80px; }
 .card table.mini thead th { border-top: 0; color: var(--muted); font-weight: 600; }
 .ask-box { grid-column: 1 / -1; flex: 1 1 100%; margin: 6px 0 2px; padding: 8px 10px; border-left: 3px solid var(--warn); background: var(--warn-bg); border-radius: 6px; font-size: 13px; display: grid; gap: 6px; }
 .ask-box .manual-note { width: 100%; }
+
+/* Záznam vyhľadávania pri kontrole – čo sa prehľadalo, koľko záznamov, pravidlo zhody */
+.search-log { margin-top: 6px; font-size: 12px; color: var(--muted, #667); }
+.search-log summary { cursor: pointer; line-height: 1.45; }
+.search-log ol { margin: 4px 0 4px 18px; padding: 0; }
+.search-log li { margin: 2px 0; word-break: break-word; }
+@media print {
+  .search-log { font-size: 9pt; }
+  .search-log details > *:not(summary) { display: block; }
+  .search-log .mono { font-size: 7.5pt; word-break: break-all; }
+}

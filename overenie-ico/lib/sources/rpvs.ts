@@ -1,5 +1,7 @@
 import { runCheck } from "../check";
 import { getJson } from "../http";
+import { sq } from "../searchlog";
+import type { SearchLog } from "../types";
 import type { CheckResult, Ctx } from "../types";
 
 /**
@@ -26,8 +28,10 @@ export async function checkRpvs(ctx: Ctx): Promise<CheckResult> {
       const q = `${BASE}/PartneriVerejnehoSektora?$filter=${encodeURIComponent(`Ico eq '${ctx.ico}'`)}&$expand=Partner`;
       const raw = await getJson<any>(q, { timeoutMs: 15000 });
       const pvs: any[] = Array.isArray(raw) ? raw : raw?.value || [];
+      const search: SearchLog[] = [{ dataset: "Register partnerov verejného sektora (OpenData RPVS)", queries: [sq("IČO", ctx.ico, pvs.length, pvs.length, q, "filter Ico eq … – vracia len zápisy s týmto IČO")], rule: "zápis s IČO subjektu" }];
       if (!pvs.length)
         return {
+          search,
           status: "info",
           summary: "Subjekt nie je zapísaný v RPVS (zápis je povinný len pri plneniach od štátu nad zákonné limity).",
           findings: [],
@@ -52,6 +56,7 @@ export async function checkRpvs(ctx: Ctx): Promise<CheckResult> {
         }
       }
       return {
+        search,
         status: "ok",
         summary: `Zapísaný v RPVS${cislo ? ` (vložka č. ${cislo})` : ""}${deleted ? " – zápis ukončený" : ""}.${kuv.length ? ` Koneční užívatelia výhod: ${kuv.join(", ")}.` : ""}`,
         findings: kuv.length ? [{ severity: "info", text: `KUV podľa RPVS: ${kuv.join(", ")}`, penalty: 0 }] : [],

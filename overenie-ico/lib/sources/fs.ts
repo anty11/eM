@@ -1,6 +1,7 @@
 import { runCheck, type CheckMeta } from "../check";
 import { cached, fold, getJson, HttpError } from "../http";
-import type { CheckResult, Ctx, Finding } from "../types";
+import { sq } from "../searchlog";
+import type { CheckResult, Ctx, Finding, SearchLog, SearchQuery } from "../types";
 
 /**
  * Finančná správa SR – OpenData API (iz.opendata.financnasprava.sk).
@@ -120,7 +121,7 @@ export interface SearchTrail {
   result: string;
 }
 /** Nájdené riadky + podľa čoho sa hľadalo (`by`: ico / dic / ic_dph / name) a stopa pokusov. */
-export type SearchRows = any[] & { trail?: SearchTrail[]; by?: string };
+export type SearchRows = any[] & { trail?: SearchTrail[]; by?: string; log?: SearchLog };
 
 async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   let ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
@@ -189,7 +190,23 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   let answered = false;
   // stopa vyhľadávania – do protokolu a diagnostiky (podľa čoho sa hľadalo a čo API vrátilo)
   const trail: SearchTrail[] = [];
-  const done = (rows: any[], by?: string) => Object.assign(rows, { trail, by }) as SearchRows;
+  const queries: SearchQuery[] = [];
+  const sample: string[] = [];
+  const BY: Record<string, string> = { ico: "IČO", dic: "DIČ", ic_dph: "IČ DPH", name: "obchodného mena" };
+  const rowText = (r: any) => {
+    const nm = Object.entries(r).find(([k]) => /nazov|obchodne|meno|subjekt/.test(fold(k)))?.[1];
+    const ob = Object.entries(r).find(([k]) => /obec|mesto/.test(fold(k)))?.[1];
+    return [nm, ob].filter(Boolean).join(" · ") || JSON.stringify(r).slice(0, 120);
+  };
+  const log = (): SearchLog => ({
+    dataset: `Finančná správa – OpenData, ${ds?.name || slug} (${slug})`,
+    queries,
+    rule: queries.some((q) => q.by === BY.name)
+      ? "IČO/DIČ v zázname, inak celé obchodné meno vrátane právnej formy (zoznam bez IČO sa dá prehľadať len podľa názvu)"
+      : "zhoda IČO / DIČ / IČ DPH v zázname",
+    ...(sample.length ? { sample } : {}),
+  });
+  const done = (rows: any[], by?: string) => Object.assign(rows, { trail, by, log: log() }) as SearchRows;
   for (const [col, val, kind] of tries) {
     try {
       const url = (page: number) => `${API}/data/${slug}/search?page=${page}&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`;
@@ -197,6 +214,7 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
       let all = rowsOf(raw);
       if (!all) {
         trail.push({ column: col, kind, value: val, result: "neznámy formát odpovede" });
+        queries.push(sq(BY[kind] || col, val, null, 0, url(1), "neznámy formát odpovede"));
         continue;
       }
       // hľadanie podľa názvu môže vrátiť viac strán (podobné názvy) – prečítame ďalšie, kým pribúdajú (najviac 10)
@@ -211,6 +229,8 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
       answered = true;
       const rows = all.filter((r) => matches(r, kind));
       trail.push({ column: col, kind, value: val, result: `${all.length} riadkov, zhoda ${rows.length}` });
+      queries.push(sq(BY[kind] || col, val, all.length, rows.length, url(1), `stĺpec ${col}`));
+      for (const r of all) if (!rows.includes(r) && sample.length < 5) sample.push(rowText(r));
       if (rows.length) return done(rows, kind);
       if (kind !== "name") return done([], kind); // presný identifikátor prehľadaný, subjekt v zozname nie je
     } catch (e) {
@@ -218,19 +238,22 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
       if (e instanceof HttpError && e.status === 404) {
         answered = true; // „Search not found“ – v zozname nie je
         trail.push({ column: col, kind, value: val, result: "nenájdené (404)" });
+        queries.push(sq(BY[kind] || col, val, 0, 0, `${API}/data/${slug}/search?page=1&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`, `stĺpec ${col}; API: „Search not found“`));
         if (kind !== "name") return done([], kind);
         continue;
       }
       trail.push({ column: col, kind, value: val, result: `chyba: ${(e as Error).message.slice(0, 160)}` });
+      queries.push(sq(BY[kind] || col, val, null, 0, undefined, `stĺpec ${col}; chyba: ${(e as Error).message.slice(0, 120)}`));
       errors.push(`${col}: ${(e as Error).message}`);
     }
   }
   if (!answered) {
+    const fail = (msg: string) => Object.assign(new Error(msg), { search: [log()] });
     const keys = (ds as any)?.keys as string[] | undefined;
     // zoznam sa dá prehľadávať len podľa názvu a názov subjektu nie je známy (identifikácia v RPO zlyhala / meškala)
     if (ds?.searchable.length && ds.searchable.every((c) => kindOf(c) === "name") && !values.name)
-      throw new Error(`zoznam ${slug} sa prehľadáva len podľa názvu subjektu (${ds.searchable.join(", ")}) a názov nie je známy – identifikácia v Registri právnických osôb neprebehla; skúste „Skúsiť znova“`);
-    throw new Error(
+      throw fail(`zoznam ${slug} sa prehľadáva len podľa názvu subjektu (${ds.searchable.join(", ")}) a názov nie je známy – identifikácia v Registri právnických osôb neprebehla; skúste „Skúsiť znova“`);
+    throw fail(
       `API Finančnej správy odmietlo vyhľadávanie v zozname ${slug}${ds?.searchable.length ? ` (prehľadávateľné stĺpce: ${ds.searchable.join(", ")})` : ` (API neuviedlo prehľadávateľné stĺpce${keys?.length ? `; detail zoznamu obsahuje polia: ${keys.join(", ")}` : ""})`} – ${errors.slice(0, 3).join(" | ") || "neznámy formát"}`,
     );
   }
@@ -288,8 +311,9 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
           verifyUrl: ZOZNAMY,
           automated: false,
           data: { slug, searchedBy: rows.by, trail: rows.trail },
+          search: rows.log ? [rows.log] : undefined,
         } as any;
-      return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: ZOZNAMY, data: { slug, searchedBy: rows.by, trail: rows.trail } };
+      return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: ZOZNAMY, data: { slug, searchedBy: rows.by, trail: rows.trail }, search: rows.log ? [rows.log] : undefined };
     }
     const rawAmount = pick(rows[0], /suma|nedoplat|dlh|vyska/);
     const num = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount ?? "").replace(/\s/g, "").replace(",", "."));
@@ -304,6 +328,7 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
       findings: [{ severity: "critical", text: `Daňový dlžník (Finančná správa)${amount ? `, nedoplatok ${amount} €` : ""} – ${where}`, penalty: 45 }],
       verifyUrl: ZOZNAMY,
       data: { slug, rows: rows.slice(0, 3), searchedBy: rows.by, trail: rows.trail },
+      search: rows.log ? [rows.log] : undefined,
     };
   });
 }
@@ -340,15 +365,15 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
   }
   return runCheck(m, async () => {
     const [sVat, sRisk, sDel] = await Promise.all([resolve("vat"), resolve("vatRisk"), resolve("vatDeleted")]);
-    let vat: any[] = [];
-    let risk: any[] = [];
-    let del: any[] = [];
+    let vat: SearchRows = [];
+    let risk: SearchRows = [];
+    let del: SearchRows = [];
     let viesNote = "";
     try {
       [vat, risk, del] = await Promise.all([
-        sVat ? search(sVat, ctx) : Promise.resolve([]),
-        sRisk ? search(sRisk, ctx) : Promise.resolve([]),
-        sDel ? search(sDel, ctx).catch(() => []) : Promise.resolve([]),
+        sVat ? search(sVat, ctx) : Promise.resolve([] as SearchRows),
+        sRisk ? search(sRisk, ctx) : Promise.resolve([] as SearchRows),
+        sDel ? search(sDel, ctx).catch(() => [] as SearchRows) : Promise.resolve([] as SearchRows),
       ]);
     } catch (e) {
       // FS API zlyhalo – registráciu overíme cez EÚ VIES, zoznam rizikových platiteľov ostáva na manuálne overenie
@@ -384,6 +409,7 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
       findings: f,
       verifyUrl: ZOZNAMY,
       data: { icDph, slugs: { sVat, sRisk, sDel } },
+      search: [vat.log, risk.log, del.log].filter(Boolean) as SearchLog[],
     };
   });
 }
@@ -396,7 +422,7 @@ export async function checkIds(ctx: Ctx): Promise<CheckResult> {
     if (!slug) return notPublished("Index daňovej spoľahlivosti");
     const rows = await search(slug, ctx);
     const url = `${ZOZNAMY}/index-danovej-spolahlivosti`;
-    if (!rows.length) return { status: "info", summary: "Subjekt nie je hodnotený v indexe daňovej spoľahlivosti.", findings: [], verifyUrl: url };
+    if (!rows.length) return { status: "info", summary: "Subjekt nie je hodnotený v indexe daňovej spoľahlivosti.", findings: [], verifyUrl: url, search: rows.log ? [rows.log] : undefined };
     // skutočný záznam API: { ico, dic, ids: "vysoko spoľahlivý", nazov_subjektu, obec, … }
     const raw = pick(rows[0], /^ids$|index|hodnot|spolahliv|kategor/) ?? Object.values(rows[0]).find((x) => /spo[lľ]ahliv/i.test(String(x)));
     const v = raw !== undefined ? String(raw) : "hodnotenie neuvedené";
@@ -411,6 +437,7 @@ export async function checkIds(ctx: Ctx): Promise<CheckResult> {
       findings: f,
       verifyUrl: url,
       data: { slug, row: rows[0] },
+      search: rows.log ? [rows.log] : undefined,
     };
   });
 }
@@ -434,6 +461,7 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
         findings: [],
         verifyUrl: ZOZNAMY,
         data: { slug, filed: undefined },
+        search: rows.log ? [rows.log] : undefined,
       };
     const withYear = rows
       .map((r) => ({ r, y: Number(String(pick(r, /^rok|obdobi|zdanovac/) ?? "").match(/\d{4}/)?.[0] || 0) }))
@@ -449,6 +477,7 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
       findings: [],
       verifyUrl: ZOZNAMY,
       data: { slug, filed: true, year: top.y || undefined, tax },
+      search: rows.log ? [rows.log] : undefined,
     };
   });
 }

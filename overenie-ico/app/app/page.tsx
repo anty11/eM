@@ -7,6 +7,7 @@ import { CATEGORIES, type CategoryId, type CheckResult, type ScanReport } from "
 import Header, { useMe } from "../components/Header";
 import ContactCard from "../components/ContactCard";
 import KeyFacts from "../components/KeyFacts";
+import SearchLogView from "../components/SearchLogView";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
 import { buildDealCheck, type BankAccountResult, type DealInput } from "@/lib/deal";
 import type { Seal } from "@/lib/seal";
@@ -735,6 +736,7 @@ export default function Page() {
                     </div>
                     <span className={`pill s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
                     <div className="sum">{c.summary}</div>
+                    <SearchLogView search={c.search} />
                     {c.status === "manual" && (c.data as any)?.autoNote && <div className="src">Automatický pokus: {String((c.data as any).autoNote)}</div>}
                     {Array.isArray((c.data as any)?.steps) && (c.data as any).steps.length > 0 && !c.ai && (
                       <details className="ai-trace">

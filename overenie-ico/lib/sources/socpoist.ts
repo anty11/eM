@@ -1,6 +1,8 @@
 import { runCheck } from "../check";
 import { cached, fetchWithTimeout, fold, getText, stripHtml } from "../http";
 import { kv } from "../auth/kv";
+import { sq } from "../searchlog";
+import type { SearchLog } from "../types";
 import type { CheckResult, Ctx } from "../types";
 
 const PAGE = "https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov";
@@ -211,14 +213,25 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
               data: { preparing: true },
             };
         }
+        const search: SearchLog[] = [
+          {
+            dataset: "Sociálna poisťovňa – zoznam dlžníkov (súbor zverejnený SP, indexovaný podľa IČO)",
+            total: count,
+            asOf: asOf ? new Date(asOf).toLocaleDateString("sk-SK") : undefined,
+            queries: [sq("IČO", ctx.ico, d ? 1 : 0, d ? 1 : 0, undefined, `priame vyhľadanie v zozname ${count.toLocaleString("sk-SK")} dlžníkov`)],
+            rule: "zhoda IČO v zozname",
+          },
+        ];
         if (!d)
           return {
+            search,
             status: "ok",
             summary: `Subjekt NIE JE v zozname dlžníkov Sociálnej poisťovne (prehľadaných ${count.toLocaleString("sk-SK")} záznamov${asOf ? `, zoznam k ${new Date(asOf).toLocaleDateString("sk-SK")}` : ""}).`,
             findings: [],
             verifyUrl,
           };
         return {
+          search,
           status: "critical",
           summary: `Subjekt JE dlžníkom Sociálnej poisťovne${d.amount ? ` – dlh ${d.amount}` : ""}.`,
           findings: [{ severity: "critical", text: `Dlh voči Sociálnej poisťovni${d.amount ? ` ${d.amount}` : ""}`, penalty: 35 }],
@@ -228,14 +241,17 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
       } catch (e) {
         // Záložné riešenie: vyhľadanie na webe. Spoľahlivý je len pozitívny nález (IČO v tabuľke).
         const html = await getText(`${PAGE}?search=${ctx.ico}`).catch(() => "");
+        const webSearch: SearchLog[] = [{ dataset: "Sociálna poisťovňa – zoznam dlžníkov (web SP, záloha)", queries: [sq("IČO", ctx.ico, null, html && stripHtml(html).includes(ctx.ico) ? 1 : 0, `${PAGE}?search=${ctx.ico}`, `index zoznamu nedostupný: ${(e as Error).message.slice(0, 100)}`)], rule: "IČO v tabuľke výsledkov (spoľahlivý je len nález)" }];
         if (html && stripHtml(html).includes(ctx.ico))
           return {
+            search: webSearch,
             status: "critical",
             summary: "Subjekt sa nachádza v zozname dlžníkov Sociálnej poisťovne (nález na webe SP).",
             findings: [{ severity: "critical", text: "Dlh voči Sociálnej poisťovni", penalty: 35 }],
             verifyUrl,
           };
         return {
+          search: webSearch,
           status: "manual",
           summary: `Zoznam sa nepodarilo automaticky spracovať (${(e as Error).message}). Overte manuálne.`,
           findings: [],

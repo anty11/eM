@@ -1,5 +1,7 @@
 import { runCheck, statusFromFindings } from "../check";
 import { cached, fold, getJson } from "../http";
+import { sq } from "../searchlog";
+import type { SearchLog } from "../types";
 import type { CheckResult, Ctx, Finding } from "../types";
 
 const BASE = "https://www.registeruz.sk/cruz-public/api";
@@ -134,7 +136,13 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
         const age = ctx.profile.established ? (Date.now() - +new Date(ctx.profile.established)) / 31557600000 : 0;
         if (age > 2 && /spolo[cč]nos[tť]|dru[zž]stvo/i.test(ctx.profile.legalForm || ""))
           f.push({ severity: "warning", text: "Obchodná spoločnosť nie je evidovaná v Registri účtovných závierok", penalty: 12 });
-        return { status: statusFromFindings(f, "info"), summary: "Subjekt nemá v RÚZ žiadne záznamy.", findings: f, verifyUrl };
+        return {
+          status: statusFromFindings(f, "info"),
+          summary: "Subjekt nemá v RÚZ žiadne záznamy.",
+          findings: f,
+          verifyUrl,
+          search: [{ dataset: "Register účtovných závierok (MF SR, API registeruz.sk)", queries: [sq("IČO", ctx.ico, 0, 0, `${BASE}/uctovne-jednotky?zmenene-od=2000-01-01&ico=${ctx.ico}`, "žiadna účtovná jednotka s týmto IČO")], rule: "účtovná jednotka s IČO subjektu" }],
+        };
       }
       // IČO môže mať v RÚZ viac účtovných jednotiek (historické, zmazané) – vyberie sa platná s najväčším počtom závierok
       const units = (await pool(list.id.slice(-4), 4, (id: number) => getJson<any>(`${BASE}/uctovna-jednotka?id=${id}`).catch(() => null))).filter(Boolean);
@@ -227,7 +235,18 @@ export async function checkRuz(ctx: Ctx): Promise<CheckResult> {
           f.push({ severity: "positive", text: `Zisk ${eur(c.profit)} a kladné vlastné imanie ${eur(c.equity)} (${c.period})`, penalty: -4 });
       }
 
+      const search: SearchLog[] = [
+        {
+          dataset: "Register účtovných závierok (MF SR, API registeruz.sk)",
+          queries: [
+            sq("IČO", ctx.ico, list.id.length, 1, `${BASE}/uctovne-jednotky?zmenene-od=2000-01-01&ico=${ctx.ico}`, `${list.id.length} ${list.id.length === 1 ? "účtovná jednotka" : "účtovné jednotky"}, vybraná platná s najviac závierkami (id ${uj.id ?? "?"})`),
+            sq("účtovnej jednotky", String(uj.id ?? ""), totalStatements, full.length, `${BASE}/uctovna-jednotka?id=${uj.id}`, `evidovaných ${totalStatements} závierok, načítaných posledných ${(uj.idUctovnychZavierok || []).length}, z toho riadnych/mimoriadnych ${full.length}${incomplete ? "; niektoré sa nepodarilo načítať" : ""}`),
+          ],
+          rule: "závierky účtovnej jednotky s IČO subjektu; posudzujú sa len riadne a mimoriadne (nie priebežné)",
+        },
+      ];
       return {
+        search,
         status: statusFromFindings(f, "ok"),
         summary: c
           ? `Závierky za roky: ${years.slice(0, 6).join(", ") || "–"}. ${c.period}: tržby ${eur(c.revenue)}, VH ${eur(c.profit)}, VI ${eur(c.equity)}, záväzky ${eur(c.liabilities)}.`

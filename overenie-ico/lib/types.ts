@@ -21,6 +21,38 @@ export interface Finding {
   cap?: "caution";
 }
 
+/** Jeden dopyt do zdroja – podľa čoho, akou hodnotou, koľko záznamov zdroj vrátil a koľko sa zhodovalo. */
+export interface SearchQuery {
+  /** podľa čoho: „IČO“, „obchodné meno“, „priezvisko štatutára“ … */
+  by: string;
+  value: string;
+  /** adresa dopytu (bez kľúčov) – dá sa zopakovať a overiť */
+  url?: string;
+  /** koľko záznamov zdroj na dopyt vrátil (null = zdroj počet neuvádza) */
+  returned: number | null;
+  /** koľko z nich zodpovedalo preverovanému subjektu */
+  matched: number;
+  note?: string;
+}
+
+/**
+ * Záznam vyhľadávania v zdroji – do protokolu: čo sa prehľadalo, ako, koľko záznamov a podľa akého pravidla sa rozhodlo.
+ * Bez neho by „nenájdené“ nebolo preskúmateľné (podnet 10/2026: chybné nastavenie zdroja sa prejavilo len ako „nie je v zozname“).
+ */
+export interface SearchLog {
+  /** zdroj a zoznam (dataset) */
+  dataset: string;
+  queries: SearchQuery[];
+  /** pravidlo zhody slovami (napr. „zhoda IČO“, „celé obchodné meno vrátane právnej formy“) */
+  rule: string;
+  /** veľkosť zoznamu, ak ju zdroj uvádza */
+  total?: number | null;
+  /** stav zoznamu k (dátum aktualizácie), ak ho zdroj uvádza */
+  asOf?: string;
+  /** ukážka vrátených záznamov, ktoré sa NEzhodovali – na kontrolu, či hľadanie mieri správne */
+  sample?: string[];
+}
+
 export interface CheckResult {
   id: string;
   category: CategoryId;
@@ -54,6 +86,8 @@ export interface CheckResult {
     trace?: string[];
     note?: string;
   };
+  /** Ako sa v zdroji hľadalo (dopyty, počty záznamov, pravidlo zhody) – zobrazí sa pri kontrole aj v protokole. */
+  search?: SearchLog[];
   /** Vyplnené, ak výsledok určil poverený zamestnanec manuálne (s prípadnou poznámkou, čo zistil). */
   manual?: { answer: "clean" | "found"; note?: string };
 }

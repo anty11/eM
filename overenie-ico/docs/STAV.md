@@ -486,3 +486,12 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   a dátumy sa nevyplnili. Opravy: `BrowserSession.resolve` – ak značka neexistuje, nová snímka a ten istý prvok podľa druhu a názvu;
   klik skriptom s limitom 5 s (nie 25 s); úvod servera po prepínači čaká, kým pole „od“ ožije, a po prekreslení doplní IČO znova.
   AI pri OV: neotvára detaily podaní (sťahujú sa ako súbory), limit 90 s namiesto 240 s. Test AutoPostBack v `test/ovflow.test.ts`.
+- **v2.11.6** – **Záznam vyhľadávania pri každej kontrole** (podnet: „nestačí ‚nebolo tam‘, treba vedieť, koľko záznamov sme prešli“ –
+  viackrát sme prehliadli zle nastavený zdroj). Každá kontrola nesie `search: SearchLog[]` – dataset (a celkový počet záznamov, stav k
+  dátumu), každý dopyt (podľa čoho, hodnota, odkaz na zopakovanie, vrátených záznamov, zhoda, poznámka), pravidlo zhody a vzorku
+  nezhodných záznamov. Na obrazovke aj v protokole riadok „Prehľadané: … – podľa X „Y“ – vrátil N záznamov, zhoda M …“, po rozkliknutí
+  zoznam dopytov s odkazmi „dopyt ↗“ (v tlači URL). Pokrýva FS (dlžníci – každý variant mena, DPH, index, daň z príjmov), Sociálnu
+  poisťovňu, REPLIK, RPVS, RPO (aj záloha ORSR), RÚZ, médiá, OV (index aj prehliadač – prečítané riadky, strany, obdobie), registre
+  bez API (ÚVO, VšZP, Union – počet „x–y z N“), register diskvalifikácií (dopyt podľa IČO a priezvisk štatutárov, stav registra).
+  Aj neúspech má záznam: čo sa pýtalo, kde a prečo výsledok nie je (chyba, vypnutý prehliadač, chýbajúci index). Kontrolu stráži
+  `test/offline.test.ts` (každá kontrola okrem CRE/Dôvery musí mať `search`).

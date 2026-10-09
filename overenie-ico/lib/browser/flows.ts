@@ -21,6 +21,8 @@ export interface FlowResult {
   error?: string;
   /** postup ľudskými slovami (z /api/browser/flow) */
   steps?: string[];
+  /** čo sa prehľadalo: hľadaný výraz, koľko záznamov register vrátil / prečítali sme, koľko sa týkalo subjektu */
+  searched?: { query: string; returned: number | null; matched: number; note?: string };
 }
 
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -171,7 +173,15 @@ export async function ovFlow(ico: string, opts: { diag?: boolean; url?: string; 
       }
     }
     const judged = head ? judgeOvRows(head, all, cutoff, complete, pagesRead) : judgeOv(snap, ico);
-    return { ...(await withJev(judged, "ov", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
+    const searched = {
+      query: ico,
+      returned: head ? all.length : null,
+      matched: judged.rows.length,
+      note: head
+        ? `prečítaných ${all.length} podaní na ${pagesRead} ${pagesRead === 1 ? "strane" : "stranách"}${complete ? " (všetky strany)" : " – NIE všetky strany"}, obdobie ${skDate(cutoff)} – ${skDate(new Date())}; negatívnych ${judged.rows.length}`
+        : "tabuľka výsledkov sa nenašla",
+    };
+    return { ...(await withJev(judged, "ov", snap, ico)), searched, url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
   } catch (e) {
     return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
   } finally {
@@ -274,7 +284,17 @@ export async function unionFlow(ico: string, opts: { diag?: boolean } = {}): Pro
     snap = btn ? await s.click(btn.ref) : await s.pressEnter(field.ref);
     // výsledky sa načítavajú na pozadí – počkáme, kým zmizne pôvodný zoznam alebo sa objaví hlásenie / počet
     for (let i = 0; i < 6 && !settled(snap, ico); i++) snap = await s.wait(1000);
-    return { ...(await withJev(judgeUnion(snap, ico), "union", snap, ico)), url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
+    const judged = judgeUnion(snap, ico);
+    const table = snap.tables.find((t) => t[0]?.some((h) => /IČO/i.test(h)));
+    const total = fold(snap.text).match(/\d+[–-]\d+ z (\d+)/);
+    const shown = table ? table.slice(1).filter((r) => r.some(Boolean)).length : 0;
+    const searched = {
+      query: ico,
+      returned: total ? Number(total[1]) : /0 z 0|z 0\b|ziadne data/.test(fold(snap.text)) ? 0 : table ? shown : null,
+      matched: judged.verdict === "found" ? judged.rows.length : 0,
+      note: total ? `portál hlási „${total[0]}“, v tabuľke ${shown} riadkov` : table ? `v tabuľke ${shown} riadkov` : "tabuľka výsledkov sa nenašla",
+    };
+    return { ...(await withJev(judged, "union", snap, ico)), searched, url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
   } catch (e) {
     return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
   } finally {

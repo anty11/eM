@@ -195,6 +195,7 @@ ${FORMAT(spec.dataPoints)}`;
             automated: true,
             ai: undefined,
             data: { ...(original.data || {}), rows: r.rows, queriedUrl: r.url, via: "browser-script", steps },
+            search: (await import("../sources/public")).ovSearchLog(ico, r),
             durationMs: Date.now() - t0,
           },
           debug: { actions: r.actions, pages: r.pages, visited: [r.url], raw: r.evidence || "" } as AiRunDebug,

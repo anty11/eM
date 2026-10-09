@@ -1,6 +1,7 @@
 import { kv } from "../auth/kv";
 import { getOvAccess } from "../access";
 import { fetchWithTimeout, fold } from "../http";
+import { sq } from "../searchlog";
 import type { CheckResult, Ctx, Finding } from "../types";
 import { MANUAL } from "./manual";
 
@@ -202,6 +203,15 @@ export async function checkOv(ctx: Ctx): Promise<CheckResult | null> {
       : `Bez oznámenia o subjekte v importovaných vydaniach.${coverage}${stale ? " Upozornenie: import je starší ako 10 dní." : ""}`,
     findings: stale && !recent.length ? [{ severity: "warning", text: "Import Obchodného vestníka je starší ako 10 dní – posledné vydania nemusia byť zahrnuté", penalty: 0 }] : f,
     data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, notices: recent.slice(0, 20), older: list.length - recent.length, index: meta },
+    search: [
+      {
+        dataset: `Obchodný vestník – index importovaných vydaní (export MS SR${meta.from && meta.to ? `, vydania ${meta.from} – ${meta.to}` : ""})`,
+        total: meta.count,
+        asOf: meta.updatedAt ? new Date(meta.updatedAt).toLocaleDateString("sk-SK") : undefined,
+        queries: [sq("IČO", ctx.ico, list.length, recent.length, undefined, `${list.length} oznámení k IČO v indexe, z toho ${recent.length} za 3 roky`)],
+        rule: "oznámenia s IČO subjektu za 3 roky, triedené podľa druhu",
+      },
+    ],
     checkedAt: new Date().toISOString(),
     durationMs: Date.now() - t0,
     automated: true,

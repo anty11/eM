@@ -79,7 +79,19 @@ const people = Array.from({ length: 23 }, (_, i) => ({
   const ico = await checkDiskv(ctx("12345678", []));
   assert.equal(ico?.status, "critical");
   assert.equal(ico!.findings[0].severity, "critical");
-  assert.equal(await checkDiskv(ctx("31322832", [])), null, "bez štatutárov sa nerozhoduje");
+  const none = await checkDiskv(ctx("31322832", []));
+  assert.equal(none?.status, "manual", "bez štatutárov sa nerozhoduje");
+  assert.ok(none?.search?.[0].queries.length === 1, "aj tak záznam vyhľadávania");
+  // záznam vyhľadávania: podľa čoho, koľko záznamov vrátil register, koľko sa zhodovalo
+  const sl = clean!.search![0];
+  assert.equal(sl.queries.length, 3, "IČO + 2 priezviská");
+  assert.equal(sl.queries[0].by, "IČO");
+  assert.equal(sl.queries[1].by, "priezviska štatutára");
+  assert.equal(sl.queries[1].value, "Novák");
+  assert.equal(typeof sl.queries[1].returned, "number");
+  assert.equal(sl.asOf, "30.09.2026");
+  const nm = name!.search![0].queries.find((q) => q.value === "Szabó")!;
+  assert.equal(nm.matched, 1);
   console.log("OK – register diskvalifikácií: API, stránkovanie, porovnanie štatutárov a IČO");
   srv.close();
   process.exit(0);

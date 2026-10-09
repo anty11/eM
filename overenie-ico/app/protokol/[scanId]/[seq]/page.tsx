@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Header, { useMe } from "../../../components/Header";
 import KeyFacts from "../../../components/KeyFacts";
+import SearchLogView from "../../../components/SearchLogView";
 import { withOrg } from "../../../components/org";
 import { DOMAIN } from "../../../components/site/SiteShell";
 import { shortHash } from "@/lib/seal-shared";
@@ -122,6 +123,7 @@ export default function SealedProtocol({ params }: { params: Promise<{ scanId: s
                     </div>
                     <span className={`pill s-${c.status}`}>{STATUS_LABEL[c.status] || c.status}</span>
                     <div className="sum">{c.summary}</div>
+                    <SearchLogView search={c.search} />
                     {c.findings?.length > 0 && <ul>{c.findings.map((f, i) => <li key={i} className={`f-${f.severity}`}>{f.text}</li>)}</ul>}
                   </article>
                 ))}

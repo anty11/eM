@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.5** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.6** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -250,6 +250,13 @@ classDiagram
     checkedAt, durationMs, automated
     ai?: AiMeta
     manual?: answer + note
+    search?: SearchLog[]
+  }
+  class SearchLog {
+    dataset, total?, asOf?
+    queries: by, value, url?, returned, matched, note?
+    rule: pravidlo zhody
+    sample?: nezhodné záznamy
   }
   class Finding {
     severity: critical|warning|info|positive
@@ -272,7 +279,13 @@ classDiagram
   ScanReport --> Verdict
   CheckResult --> Finding
   CheckResult --> AiMeta
+  CheckResult --> SearchLog
 ```
+
+**Záznam vyhľadávania** (`CheckResult.search`, `lib/searchlog.ts`, zobrazenie `app/components/SearchLogView.tsx`) – každá kontrola
+uvádza, čo a kde hľadala, koľko záznamov zdroj vrátil, koľko sa zhodovalo a podľa akého pravidla; aj pri chybe (prečo výsledok nie je).
+„Bez záznamu“ bez počtu prehľadaných záznamov sa neakceptuje – zle nastavený zdroj (0 vrátených pri každom dopyte, starý stav registra)
+musí byť vidieť na prvý pohľad. Riadok „Prehľadané: …“ je na obrazovke aj v protokole; rozbalenie ukáže dopyty s odkazmi na zopakovanie.
 
 **Odpoveď modelu (Claude / OpenAI)** – vždy JSON medzi `<json>` a `</json>`:
 

@@ -28,6 +28,8 @@ export async function runCheck(meta: CheckMeta, fn: () => Promise<CheckBody>): P
       summary: `Zdroj sa nepodarilo overiť: ${(e as Error).message}. Overte manuálne.`,
       findings: [{ severity: "warning", text: `${meta.name}: overenie zlyhalo – potrebné manuálne overenie`, penalty: 0 }],
       verifyUrl: meta.sourceUrl,
+      // záznam vyhľadávania aj pri chybe (čo sa stihlo prehľadať a kde to zlyhalo)
+      ...((e as any)?.search ? { search: (e as any).search } : {}),
       checkedAt,
       durationMs: Date.now() - t0,
     };

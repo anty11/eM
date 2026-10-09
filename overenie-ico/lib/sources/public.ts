@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { fetchWithTimeout, fold, stripHtml } from "../http";
-import type { CheckResult, Ctx, Finding } from "../types";
+import type { CheckResult, Ctx, Finding, SearchLog } from "../types";
+import { sq } from "../searchlog";
 import { MANUAL } from "./manual";
 import { describeStep } from "../browser/steps";
 
@@ -95,8 +96,10 @@ export function apiHints(js: string): string[] {
 }
 export interface ProbeOutcome {
   result: "found" | "clean" | "unknown";
+  /** záznam vyhľadávania (do kontroly aj pri manuálnom výsledku) */
+  search?: SearchLog[];
   rows: string[];
-  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; evidence?: string; forms?: string[]; scripts?: string[]; links?: string[]; inlineScripts?: string[]; apiHints?: string[]; codeAround?: string[]; around?: string[]; mainText?: string; selects?: string[]; chunks?: string[]; raw?: string; contentType?: string; info?: string }[];
+  attempts: { url: string; status?: number; ms: number; error?: string; excerpt: string; verdict: "found" | "clean" | "unknown"; evidence?: string; searched?: { query: string; returned: number | null; matched: number; note?: string }; forms?: string[]; scripts?: string[]; links?: string[]; inlineScripts?: string[]; apiHints?: string[]; codeAround?: string[]; around?: string[]; mainText?: string; selects?: string[]; chunks?: string[]; raw?: string; contentType?: string; info?: string }[];
 }
 
 /** Text hlavného obsahu (od <main>/<h1>) – bez navigácie, na čítanie výsledkov v diagnostike. */
@@ -432,12 +435,27 @@ function amountIn(rows: string[]): string | undefined {
  * (vtedy ostáva pôvodná manuálna kontrola). `diag` = výňatky odpovedí pre diagnostiku (len na /api/diag).
  */
 /** Obchodný vestník cez prehliadač (keď import vydaní nie je zapnutý): skriptované vyhľadanie podľa IČO a roztriedenie oznámení. */
+/** Záznam vyhľadávania v Obchodnom vestníku cez stránku (pevný postup v prehliadači). */
+export function ovSearchLog(ico: string, r: { url: string; searched?: { query: string; returned: number | null; matched: number; note?: string }; error?: string }): SearchLog[] {
+  return [
+    {
+      dataset: "Obchodný vestník (MS SR) – vyhľadávanie zverejnených podaní",
+      queries: [sq("IČO", r.searched?.query || ico, r.searched?.returned ?? null, r.searched?.matched ?? 0, r.url, r.searched?.note || r.error)],
+      rule: "podania subjektu (vyhľadané podľa IČO) za 3 roky; negatívne = likvidácia, konkurz, reštrukturalizácia, zrušenie, zníženie základného imania, výzva veriteľom, dražba; „bez záznamu“ len po prečítaní všetkých strán",
+    },
+  ];
+}
+
 export async function checkOvViaBrowser(ctx: Ctx): Promise<CheckResult | null> {
   if (process.env.BROWSER_DISABLED === "1") return null;
   const def = MANUAL.find((m) => m.id === "ov")!;
   const t0 = Date.now();
   const r = await browserFlow("ov", ctx.ico);
-  if (r.verdict === "unknown") throw new Error(r.error || "výsledok sa nedal vyhodnotiť");
+  if (r.verdict === "unknown") {
+    const err = new Error(r.error || "výsledok sa nedal vyhodnotiť");
+    (err as Error & { search?: SearchLog[] }).search = ovSearchLog(ctx.ico, r);
+    throw err;
+  }
   const f: Finding[] = r.verdict === "found" ? [{ severity: def.severityIfFound, text: `${def.name}: ${r.rows.slice(0, 3).join("; ")}`, penalty: def.penaltyIfFound }] : [];
   return {
     id: def.id,
@@ -449,11 +467,44 @@ export async function checkOvViaBrowser(ctx: Ctx): Promise<CheckResult | null> {
     status: r.verdict === "found" ? (def.severityIfFound === "critical" ? "critical" : "warning") : "ok",
     summary: r.verdict === "found" ? `Negatívne oznámenia v Obchodnom vestníku za posledné 3 roky (vyhľadané podľa IČO ${ctx.ico}): ${r.rows.slice(0, 3).join("; ")}.` : `Bez negatívneho oznámenia v Obchodnom vestníku – vyhľadané podľa IČO ${ctx.ico} priamo vo Vestníku; ${r.evidence || ""}.`,
     findings: f,
+    search: ovSearchLog(ctx.ico, r),
     data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: r.rows, queriedUrl: r.url, via: "browser", steps: r.steps || (r.actions || []).filter((l) => !/^wait/.test(l.action)).map(describeStep).slice(0, 30) },
     checkedAt: new Date().toISOString(),
     durationMs: Date.now() - t0,
     automated: true,
   };
+}
+
+const REGISTER_NAME: Record<string, string> = {
+  uvo: "Úrad pre verejné obstarávanie – register osôb so zákazom (globálne vyhľadávanie ÚVO)",
+  vszp: "VšZP – zoznam dlžníkov (vyhľadávanie na vszp.sk)",
+  union: "Union ZP – zoznam dlžníkov (portál Union)",
+  diskv: "Register diskvalifikácií (MS SR)",
+};
+
+/** Záznam vyhľadávania z pokusov dopytu do registra bez API – každý pokus: podľa čoho, odpoveď (HTTP, hlásenie), počet záznamov. */
+export function searchFromOutcome(id: string, ctx: Ctx, outcome: ProbeOutcome): SearchLog[] {
+  const queries = outcome.attempts
+    .filter((a) => !a.info?.startsWith("otvorené dáta") && !a.info?.startsWith("stránka registra"))
+    .map((a) => {
+      const byName = /podľa názvu/.test(a.info || "");
+      if (a.searched) return sq(byName ? "obchodného mena" : "IČO", a.searched.query, a.searched.returned, a.searched.matched, a.url, [a.info, a.searched.note].filter(Boolean).join("; "));
+      const returned = a.verdict === "clean" ? 0 : a.verdict === "found" ? Math.max(1, outcome.rows.length) : null;
+      const note = [
+        a.info,
+        a.error ? `chyba: ${a.error.slice(0, 100)}` : a.status ? `HTTP ${a.status}` : "",
+        a.evidence ? `odpoveď: „${a.evidence.replace(/\s+/g, " ").trim().slice(0, 100)}“` : a.verdict === "unknown" && !a.error ? "odpoveď sa nedala vyhodnotiť" : "",
+      ]
+        .filter(Boolean)
+        .join("; ");
+      return sq(byName ? "obchodného mena" : "IČO", byName ? ctx.profile.name || "" : ctx.ico, returned, a.verdict === "found" ? returned ?? 1 : 0, a.url.replace(/([?&](key|token)=)[^&]+/gi, "$1…"), note);
+    });
+  return [{ dataset: REGISTER_NAME[id] || id, queries, rule: id === "uvo" ? "záznam s IČO subjektu v registri osôb so zákazom; hlásenie „Zadaný výraz nebol nájdený“ len pri dopyte podľa IČO" : "riadok s IČO subjektu; „bez záznamu“ len pri výslovnom hlásení registra o prázdnom výsledku" }];
+}
+
+/** Register diskvalifikácií sa nepodarilo prehľadať – aj tak povieme čo, kde a prečo (nie len „nebolo tam“). */
+function diskvFailLog(ctx: Ctx, url: string, note: string): SearchLog[] {
+  return [{ dataset: "Register diskvalifikácií (MS SR, API Infosud)", queries: [sq("IČO", ctx.ico, null, 0, url, note)], rule: "rozhodnutie s IČO subjektu alebo menom štatutára; výsledok sa nedal získať – overte ručne" }];
 }
 
 export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: boolean } = {}): Promise<{ check: CheckResult | null; outcome: ProbeOutcome }> {
@@ -466,11 +517,12 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
     try {
       const { checkDiskv, DISKV_API } = await import("./diskv");
       const check = await checkDiskv(ctx);
-      const attempt = { url: DISKV_API, ms: Date.now() - t0, excerpt: check?.summary || "bez rozhodnutia – nepoznáme štatutárov (RPO) alebo výsledkov bolo viac, ako sa dá prečítať", verdict: (check ? (check.status === "ok" ? "clean" : "found") : "unknown") as "found" | "clean" | "unknown", info: "API Infosud" };
+      const attempt = { url: DISKV_API, ms: Date.now() - t0, excerpt: check?.summary || "bez rozhodnutia – nepoznáme štatutárov (RPO) alebo výsledkov bolo viac, ako sa dá prečítať", verdict: (check ? (check.status === "ok" ? "clean" : check.status === "manual" ? "unknown" : "found") : "unknown") as "found" | "clean" | "unknown", info: "API Infosud" };
       if (check) return { check, outcome: { result: attempt.verdict, rows: (check.data?.rows as string[]) || [], attempts: [attempt] } };
-      if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [attempt] } };
+      if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [attempt], search: diskvFailLog(ctx, DISKV_API, attempt.excerpt) } };
     } catch (e) {
-      if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [{ url: "diskv-api", ms: Date.now() - t0, error: (e as Error).message, excerpt: "", verdict: "unknown" }] } };
+      const search = (e as Error & { search?: SearchLog[] }).search || diskvFailLog(ctx, "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/diskvalifikacia", `chyba: ${(e as Error).message.slice(0, 160)}`);
+      if (!opts.diag) return { check: null, outcome: { result: "unknown", rows: [], attempts: [{ url: "diskv-api", ms: Date.now() - t0, error: (e as Error).message, excerpt: "", verdict: "unknown" }], search } };
     }
   }
   // ÚVO: pomalý web nesmie držať celé preverenie – kratší limit na pokus a strop 15 s na celý dopyt (potom manuálne s dôvodom)
@@ -482,13 +534,13 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
   // Union: API portálu vyžaduje token aplikácie (401) → skriptovaný dopyt cez prehliadač na serveri (bez AI)
   if (outcome.result === "unknown" && id === "union" && process.env.BROWSER_DISABLED !== "1") {
     const r = await browserFlow("union", ctx.ico, opts.diag);
-    outcome.attempts.push({ url: r.url, ms: r.ms, error: r.error, excerpt: (r.rendered || "").slice(0, opts.diag ? 6000 : 400), verdict: r.verdict, evidence: r.evidence, info: "prehliadač na serveri (skript)" });
+    outcome.attempts.push({ url: r.url, ms: r.ms, error: r.error, excerpt: (r.rendered || "").slice(0, opts.diag ? 6000 : 400), verdict: r.verdict, evidence: r.evidence, info: "prehliadač na serveri (skript)", searched: r.searched });
     if (r.verdict !== "unknown") {
       outcome.result = r.verdict;
       outcome.rows = r.rows;
     }
   }
-  if (outcome.result === "unknown") return { check: null, outcome };
+  if (outcome.result === "unknown") return { check: null, outcome: { ...outcome, search: searchFromOutcome(id, ctx, outcome) } };
   const now = new Date().toISOString();
   const used = outcome.attempts.find((a) => a.verdict !== "unknown");
   const f: Finding[] = [];
@@ -497,7 +549,10 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
     const amount = amountIn(outcome.rows);
     f.push({ severity: def.severityIfFound, text: `${def.name}: záznam nájdený${amount ? ` (${amount})` : ""}`, penalty: def.penaltyIfFound });
     summary = `Záznam nájdený: ${outcome.rows[0].slice(0, 240)}`;
-  } else summary = "Bez záznamu – register na dopyt podľa IČO nevrátil žiadny záznam.";
+  } else {
+    const u = outcome.attempts.find((a) => a.verdict === "clean");
+    summary = `Bez záznamu – register na dopyt podľa ${/podľa názvu/.test(u?.info || "") ? "obchodného mena" : "IČO"} nevrátil žiadny záznam${u?.evidence ? ` (odpoveď registra: „${u.evidence.replace(/\s+/g, " ").trim().slice(0, 120)}“)` : ""}.`;
+  }
   return {
     check: {
       id: def.id,
@@ -510,6 +565,7 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
       summary,
       findings: f,
       data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: outcome.rows, queriedUrl: used?.url, ...(opts.diag ? { diag: outcome.attempts } : {}) },
+      search: searchFromOutcome(id, ctx, outcome),
       checkedAt: now,
       durationMs: Date.now() - t0,
       automated: true,

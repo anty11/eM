@@ -1,6 +1,7 @@
 import { runCheck } from "../check";
 import { fold, getText, stripHtml } from "../http";
-import type { CheckResult, Ctx, Finding } from "../types";
+import type { CheckResult, Ctx, Finding, SearchLog } from "../types";
+import { sq } from "../searchlog";
 
 const BASE = "https://replik.justice.sk/ru-verejnost-web/pages/searchKonanie.xhtml";
 
@@ -59,7 +60,16 @@ export async function checkInsolvency(ctx: Ctx): Promise<CheckResult> {
     async () => {
       const verifyUrl = `${BASE}?query=${ctx.ico}`;
       const html = await getText(verifyUrl, { timeoutMs: 15000 });
-      const { noResults, proceedings } = parseReplik(stripHtml(html), ctx.ico);
+      const { noResults, count, proceedings } = parseReplik(stripHtml(html), ctx.ico);
+      const search: SearchLog[] = [
+        {
+          dataset: "Register úpadcov a likvidácií (REPLIK, Ministerstvo spravodlivosti SR)",
+          queries: [
+            sq("IČO", ctx.ico, count ?? (noResults ? 0 : proceedings.length ? proceedings.length : null), proceedings.length, verifyUrl, noResults ? "register hlási „žiadne výsledky“" : count === undefined && !proceedings.length ? "stránka neuviedla počet výsledkov" : undefined),
+          ],
+          rule: "konanie s IČO subjektu v riadku výsledku",
+        },
+      ];
 
       if (proceedings.length) {
         const f: Finding[] = [];
@@ -90,6 +100,7 @@ export async function checkInsolvency(ctx: Ctx): Promise<CheckResult> {
             })()
           : undefined;
         return {
+          search,
           status: ongoing.length ? "critical" : "warning",
           summary: ongoing.length
             ? `Prebiehajúce konanie: ${ongoing.map((p) => `${p.kind} č. ${p.number}`).join(", ")}.`
@@ -106,8 +117,9 @@ export async function checkInsolvency(ctx: Ctx): Promise<CheckResult> {
         };
       }
       if (noResults)
-        return { status: "ok", summary: "V registri úpadcov a likvidácií nie je žiadne konanie voči subjektu.", findings: [], verifyUrl, data: { proceedings: [], asOf: ctx.asOf ? { date: ctx.asOf, startedBefore: [], startedSameYear: [], startedAfter: [] } : undefined } };
+        return { search, status: "ok", summary: "V registri úpadcov a likvidácií nie je žiadne konanie voči subjektu.", findings: [], verifyUrl, data: { proceedings: [], asOf: ctx.asOf ? { date: ctx.asOf, startedBefore: [], startedSameYear: [], startedAfter: [] } : undefined } };
       return {
+        search,
         status: "manual",
         summary: "Register úpadcov nevrátil jednoznačný výsledok (dynamická stránka). Otvorte odkaz a potvrďte manuálne.",
         findings: [],

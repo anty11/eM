@@ -1,6 +1,7 @@
 import { fetchWithTimeout, fold } from "../http";
 import { kv } from "../auth/kv";
-import type { CheckResult, Ctx, Finding } from "../types";
+import type { CheckResult, Ctx, Finding, SearchLog } from "../types";
+import { sq } from "../searchlog";
 import { MANUAL } from "./manual";
 
 /**
@@ -159,6 +160,24 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
       return seen.has(id) ? false : (seen.add(id), true);
     });
   const byIco = hits.filter((h) => h.m!.by === "ico");
+  const search: SearchLog[] = [
+    {
+      dataset: "Register diskvalifikácií (MS SR, API Infosud)",
+      asOf: updateDate,
+      queries: results.map((r, i) =>
+        sq(
+          i === 0 ? "IČO" : "priezviska štatutára",
+          terms[i],
+          r.total,
+          r.records.filter((x) => matchRecord(x, ctx.ico, names)).length,
+          r.url,
+          `prečítaných ${r.records.length}${r.complete ? "" : " – NIE všetky výsledky"}${i === 0 ? "; záznamy registra IČO spravidla neobsahujú" : ""}`,
+        ),
+      ),
+      rule: "IČO v zázname, alebo meno aj priezvisko štatutára (bez titulov a diakritiky) – zhoda mena = možná zhoda, overiť totožnosť",
+      sample: records.filter((x) => !matchRecord(x, ctx.ico, names)).slice(0, 5).map(describeRecord),
+    },
+  ];
   const asOf = updateDate ? `, stav registra k ${updateDate}` : "";
   const f: Finding[] = [];
   let summary: string;
@@ -179,7 +198,26 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
     summary = `Možná zhoda mena štatutára v registri diskvalifikácií (${hits.length} ${hits.length === 1 ? "záznam" : "záznamy"})${asOf} – treba overiť totožnosť.`;
     status = "warning";
   } else {
-    if (!complete || !names.length) return null; // neprečítané všetky výsledky alebo nepoznáme štatutárov → nerozhodujeme
+    // neprečítané všetky výsledky alebo nepoznáme štatutárov → nerozhodujeme, ale so záznamom, čo sa prehľadalo
+    if (!complete || !names.length)
+      return {
+        id: def.id,
+        category: def.category,
+        name: def.name,
+        source: def.source,
+        sourceUrl: def.sourceUrl,
+        verifyUrl: DISKV_PAGE,
+        status: "manual",
+        summary: !names.length
+          ? "Štatutárov z obchodného registra sa nepodarilo zistiť – register diskvalifikácií vedie osoby, preto sa nedá automaticky rozhodnúť. Overte štatutárov manuálne."
+          : "Pre niektoré priezvisko vrátil register viac výsledkov, ako sa dalo prečítať – overte manuálne.",
+        findings: [],
+        data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, checkedNames: names },
+        search,
+        checkedAt: new Date().toISOString(),
+        durationMs: Date.now() - t0,
+        automated: false,
+      };
     summary = `Bez záznamu – register diskvalifikácií nemá záznam pre IČO ani pre štatutárov (${names.length})${asOf}.`;
     status = "ok";
   }
@@ -194,6 +232,7 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
     summary,
     findings: f,
     data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: hits.slice(0, 5).map((h) => describeRecord(h.r)), queriedUrl: results[0]?.url, queries: results.map((r) => r.url), updateDate, checkedNames: names },
+    search,
     checkedAt: new Date().toISOString(),
     durationMs: Date.now() - t0,
     automated: true,

@@ -5,17 +5,17 @@ import { checkIds, checkIncomeTax, checkTaxDebtors, checkVat } from "./sources/f
 import { checkInsolvency } from "./sources/insolvency";
 import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
-import { checkOvViaBrowser, PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
+import { checkOvViaBrowser, ovSearchLog, PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
 import { kv } from "./auth/kv";
 import { checkNews } from "./sources/news";
 import { checkRpo } from "./sources/rpo";
 import { checkRpvs } from "./sources/rpvs";
 import { checkRuz } from "./sources/ruz";
 import { checkSocpoist } from "./sources/socpoist";
-import type { CheckResult, CompanyProfile, Ctx, ScanReport } from "./types";
+import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.5";
+export const APP_VERSION = "2.11.6";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -235,7 +235,9 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
           if (!auto) {
             try {
               auto = await checkOvViaBrowser(ctx);
+              if (!auto) m.search = ovSearchLog(ctx.ico, { url: m.verifyUrl || "", error: "index exportu MS SR nie je k dispozícii a prehliadač na serveri je vypnutý – vyhľadávanie neprebehlo" });
             } catch (e) {
+              m.search = (e as Error & { search?: SearchLog[] }).search || ovSearchLog(ctx.ico, { url: m.verifyUrl || "", error: (e as Error).message.slice(0, 200) });
               m.data = { ...(m.data || {}), autoNote: `prehliadač: ${(e as Error).message.slice(0, 200)}` };
             }
           }
@@ -245,6 +247,7 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
           auto = r.check;
           // neúspech: stručne prečo (posledný pokus) – zobrazí sa pri manuálnej kontrole a v diagnostike
           if (!auto) {
+            if (r.outcome.search) m.search = r.outcome.search;
             const last = r.outcome.attempts[r.outcome.attempts.length - 1];
             m.data = { ...(m.data || {}), autoNote: last ? `${last.info || last.url}: ${last.error || (last.status ? `HTTP ${last.status}` : "")}${last.verdict === "unknown" ? " – výsledok sa nedal vyhodnotiť" : ""}`.slice(0, 300) : undefined };
           }
