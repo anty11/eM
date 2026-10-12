@@ -510,3 +510,10 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   prázdna bunka záväzkov = 0 € (predtým „–“).
 - **v2.11.7a** – Diagnostika registra diskvalifikácií bez zadaných mien načíta osoby z RPO (ako skutočné preverenie) a vypíše ich
   s rolami (`persons`); dopyty podľa priezvisk sú tak v diagnostike vidieť aj bez parametra `name`.
+- **v2.11.8** – **„Overiť v zdroji“ s výrazom do schránky.** Odkaz otvorí register a zároveň skopíruje presne ten výraz, ktorý treba
+  vložiť do vyhľadávania (IČO; pri zoznamoch FS celé obchodné meno, lebo zoznam dlžníkov IČO nemá; pri registri diskvalifikácií
+  priezvisko – postupne všetky preverované osoby), a pod odkazom ukáže pokyn, do ktorého poľa ho vložiť (`app/components/VerifyLink.tsx`).
+  Stránky s formulárom POST alebo aplikácie (FS zoznamy, VšZP, Dôvera, Union, OV, diskvalifikácie, CRE) sa z odkazu predvyplniť nedajú –
+  prehliadač nedovolí cudzej stránke vyplniť polia. Kde register prijíma výraz v adrese, je už v odkaze: ORSR (`hladaj_ico.asp?ICO=`),
+  RÚZ (`simplesearch?ico=`), REPLIK (`?query=`), Sociálna poisťovňa (`?search=`), RPVS (detail partnera), ÚVO (nové: globálne
+  vyhľadávanie `globalSearch=IČO&searchType=OSZ` aj pri manuálnej kontrole), Google/FinStat.

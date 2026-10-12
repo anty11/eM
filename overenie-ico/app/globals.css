@@ -376,6 +376,8 @@ textarea { width: 100%; min-height: 80px; }
 .ask-box .manual-note { width: 100%; }
 
 /* Záznam vyhľadávania pri kontrole – čo sa prehľadalo, koľko záznamov, pravidlo zhody */
+.verify-wrap { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.verify-hint { font-size: 12px; color: var(--muted, #667); background: #f3f6fa; border: 1px solid #dde3ea; border-radius: 4px; padding: 2px 8px; }
 .search-log { margin-top: 6px; font-size: 12px; color: var(--muted, #667); }
 .search-log summary { cursor: pointer; line-height: 1.45; }
 .search-log ol { margin: 4px 0 4px 18px; padding: 0; }

@@ -91,7 +91,7 @@ export const MANUAL: ManualDef[] = [
     name: "Zákaz účasti vo verejnom obstarávaní",
     source: "Úrad pre verejné obstarávanie",
     sourceUrl: "https://www.uvo.gov.sk",
-    verifyUrl: () => "https://www.uvo.gov.sk/zaujemca-uchadzac/registre-o-hospodarskych-subjektoch/register-osob-so-zakazom",
+    verifyUrl: (ico: string) => `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=OSZ`,
     note: "Automatický dopyt do registra ÚVO sa nepodaril – overte ručne; relevantné najmä pri zákazkách pre verejný sektor.",
     penaltyIfFound: 15,
     severityIfFound: "warning",

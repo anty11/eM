@@ -8,6 +8,7 @@ import Header, { useMe } from "../components/Header";
 import ContactCard from "../components/ContactCard";
 import KeyFacts from "../components/KeyFacts";
 import SearchLogView from "../components/SearchLogView";
+import VerifyLink from "../components/VerifyLink";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
 import { buildDealCheck, type BankAccountResult, type DealInput } from "@/lib/deal";
 import type { Seal } from "@/lib/seal";
@@ -761,7 +762,7 @@ export default function Page() {
                     ))}
                     {aiBadge(c)}
                     <div className="actions">
-                      {c.verifyUrl && <a className="verify no-print" href={c.verifyUrl} target="_blank" rel="noreferrer">Overiť v zdroji ↗</a>}
+                      <VerifyLink check={c} ico={report.ico} name={report.profile?.name} />
                       {lawyer && (baseChecks.find((o) => o.id === c.id)?.status === "manual" || baseChecks.find((o) => o.id === c.id)?.status === "error") && manualButtons(c)}
                       {retryButton(c)}
                       {aiButton(c)}

@@ -4,6 +4,7 @@ import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
 import { judge, searchFromOutcome } from "../lib/sources/public";
 import { debtAmount } from "../lib/sources/fs";
+import { verifyTerm } from "../app/components/VerifyLink";
 import { ownerFirms, people, professionOf } from "../lib/sources/news";
 import { judgeOv, judgeUnion } from "../lib/browser/flows";
 import type { Ctx } from "../lib/types";
@@ -146,4 +147,14 @@ main().catch((e) => { console.error(e); process.exit(1); });
   assert.equal(professionOf(prof), "konateľ");
   assert.equal(professionOf({ ico: "1", name: "URBAN & PARTNERS s.r.o., advokátska kancelária" } as any), "advokát");
   console.log("OK – dôkaz hlásenia, zlúčenie pokusov Union, výška nedoplatku, osoby pre médiá.");
+
+  // „Overiť v zdroji“: čo sa skopíruje do schránky a kam to vložiť
+  const base = { category: "tax", name: "", source: "", sourceUrl: "", status: "ok", summary: "", findings: [], checkedAt: "", durationMs: 0, automated: true } as any;
+  assert.deepEqual(verifyTerm({ ...base, id: "fs-debtors" }, "50790030", "HZ Stavby s.r.o."), { term: "HZ Stavby s.r.o.", where: "Finančná správa – Zoznam daňových dlžníkov: pole „Názov subjektu“ (zoznam nemá IČO)" });
+  const dq = verifyTerm({ ...base, id: "diskv", search: [{ dataset: "d", rule: "", queries: [{ by: "IČO", value: "50790030", returned: 0, matched: 0 }, { by: "priezviska štatutára", value: "Otáhal", returned: 0, matched: 0 }, { by: "priezviska bývalého štatutára", value: "Novák", returned: 0, matched: 0 }] }] }, "50790030");
+  assert.equal(dq?.term, "Otáhal");
+  assert.match(dq!.where, /postupne: Otáhal, Novák/);
+  assert.equal(verifyTerm({ ...base, id: "vszp" }, "50790030")?.term, "50790030");
+  assert.equal(verifyTerm({ ...base, id: "news" }, "50790030"), null);
+  console.log("OK – Overiť v zdroji: výraz do schránky a pokyn.");
 }
