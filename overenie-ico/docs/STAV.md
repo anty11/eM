@@ -508,3 +508,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   keď vyhľadávače (Google News, Bing, DuckDuckGo) nevrátia na žiadny dopyt nič (zablokovaný server), je výsledok „informácia“ s vysvetlením,
   nie „bez záznamu“. **RÚZ:** mikro účtovná jednotka (Úč MÚJ) nemá riadok „čistý obrat“ – tržby = súčet riadkov „Tržby z predaja …“;
   prázdna bunka záväzkov = 0 € (predtým „–“).
+- **v2.11.7a** – Diagnostika registra diskvalifikácií bez zadaných mien načíta osoby z RPO (ako skutočné preverenie) a vypíše ich
+  s rolami (`persons`); dopyty podľa priezvisk sú tak v diagnostike vidieť aj bez parametra `name`.

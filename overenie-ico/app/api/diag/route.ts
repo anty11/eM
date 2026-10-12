@@ -126,6 +126,17 @@ export const GET = handler(async (req) => {
     // 1) registre bez API – všetky pokusy s formulármi, skriptmi a surovým HTML
     if ((PUBLIC_QUERY_IDS as readonly string[]).includes(source)) {
       const ctx: Ctx = { ico, profile: { ico, statutory: names.map((n) => ({ name: n, role: "štatutár" })) } as any };
+      // bez zadaných mien: osoby z RPO ako pri skutočnom preverení (štatutári, bývalí štatutári za 3 roky, spoločníci – FO)
+      if (!names.length && (source === "diskv" || source === "uvo")) {
+        const r = await runOne(ico, "rpo", {}).catch(() => null);
+        if (r) Object.assign(ctx.profile, r.profile);
+        if (source === "diskv") {
+          const { diskvPersons } = await import("@/lib/sources/diskv");
+          const persons = diskvPersons(ctx);
+          names.push(...persons.map((x) => x.name));
+          result.persons = persons;
+        }
+      }
       const { attempts, needles } = attemptsFor(source, ctx);
       const outcome = await probe(attempts, needles, 15000, { diag: true });
       // Union: po API aj skriptovaný dopyt cez prehliadač (rovnako ako pri skutočnom preverení)
