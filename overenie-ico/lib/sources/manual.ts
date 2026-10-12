@@ -47,7 +47,7 @@ export const MANUAL: ManualDef[] = [
     name: "Dlžníci zdravotnej poisťovne Dôvera",
     source: "Dôvera – zoznam dlžníkov",
     sourceUrl: "https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov",
-    verifyUrl: () => "https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov",
+    verifyUrl: (ico: string) => `https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov?q=${ico}`,
     note: "Dôvera výslovne zakazuje automatizované overovanie svojho zoznamu dlžníkov, preto sa táto položka overuje vždy ručne – vyhľadajte podľa IČO.",
     penaltyIfFound: 25,
     severityIfFound: "critical",

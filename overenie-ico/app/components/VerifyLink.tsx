@@ -25,7 +25,7 @@ export function verifyTerm(c: CheckResult, ico: string, name?: string): { term: 
     case "vszp":
       return { term: ico, where: "VšZP – zoznam dlžníkov: záložka „Zamestnávatelia a SZČO“, pole „IČO“" };
     case "dovera":
-      return { term: ico, where: "Dôvera – zoznam dlžníkov: pole „IČO“" };
+      return { term: ico, where: "Dôvera – zoznam dlžníkov (IČO je v odkaze, výsledok sa zobrazí hneď)" };
     case "union":
       return { term: ico, where: "Union – zoznam dlžníkov: pole „Priezvisko, meno / názov alebo IČO“" };
     case "ov":

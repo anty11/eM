@@ -517,3 +517,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   prehliadač nedovolí cudzej stránke vyplniť polia. Kde register prijíma výraz v adrese, je už v odkaze: ORSR (`hladaj_ico.asp?ICO=`),
   RÚZ (`simplesearch?ico=`), REPLIK (`?query=`), Sociálna poisťovňa (`?search=`), RPVS (detail partnera), ÚVO (nové: globálne
   vyhľadávanie `globalSearch=IČO&searchType=OSZ` aj pri manuálnej kontrole), Google/FinStat.
+- **v2.11.8a** – Dôvera: odkaz „Overiť v zdroji“ otvorí zoznam dlžníkov rovno s výsledkom pre IČO
+  (`zoznam-dlznikov?q=<IČO>` – zistila používateľka).
