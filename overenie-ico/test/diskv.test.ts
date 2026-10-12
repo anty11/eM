@@ -69,8 +69,18 @@ const people = Array.from({ length: 23 }, (_, i) => ({
   const ctx = (ico: string, names: string[]) => ({ ico, profile: { ico, statutory: names.map((name) => ({ name, role: "konateľ" })) } }) as any;
   const clean = await checkDiskv(ctx("31322832", ["Ing. Ján Novák", "Mária Kováčová"]));
   assert.equal(clean?.status, "ok");
-  assert.match(clean!.summary, /Bez záznamu.*\(2\).*30\.09\.2026/);
+  assert.match(clean!.summary, /Bez záznamu.*\(2: štatutári 2\).*30\.09\.2026/);
   assert.ok(seen.some((q) => q.includes(`query=${encodeURIComponent("Novák")}`)), "dopyt podľa priezviska štatutára");
+  // bývalý štatutár (3 roky) a spoločník – fyzická osoba sa preverujú tiež; vlastník – firma nie (register vedie len ľudí)
+  const wide = await checkDiskv({
+    ico: "31322832",
+    profile: { ico: "31322832", statutory: [{ name: "Ing. Ján Novák", role: "konateľ" }], formerStatutory: [{ name: "Gabriel Szabó", role: "konateľ", until: "2026-09-15" }], owners: [{ name: "MAOTA s.r.o.", role: "spoločník" }, { name: "Mária Kováčová", role: "spoločník" }] },
+  } as any);
+  assert.equal(wide?.status, "warning", "bývalý štatutár so zhodou mena = možná zhoda");
+  assert.match(wide!.findings[0].text, /Gabriel Szabó – bývalý konateľ do 2026-09-15/);
+  assert.ok(!seen.some((q) => /MAOTA|s\.r\.o/.test(decodeURIComponent(q))), "firma-vlastník sa v registri osôb nehľadá");
+  const kinds = wide!.search![0].queries.map((q) => q.by);
+  assert.deepEqual(kinds, ["IČO", "priezviska štatutára", "priezviska bývalého štatutára", "priezviska spoločníka"]);
   const name = await checkDiskv(ctx("31322832", ["Ing. Gabriel Szabó"]));
   assert.equal(name?.status, "warning");
   assert.equal(name!.findings[0].cap, "caution", "zhoda mena = najviac S výhradou");

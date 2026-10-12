@@ -130,6 +130,8 @@ export interface CompanyProfile {
   registrationNumber?: string;
   mainActivity?: string;
   statutory?: { name: string; role: string; since?: string }[];
+  /** Bývalí štatutári (zápis skončil v posledných 3 rokoch) – register diskvalifikácií, médiá; zmena tesne pred obchodom. */
+  formerStatutory?: { name: string; role: string; since?: string; until?: string }[];
   equity?: number;
   activities?: string[];
   owners?: { name: string; role: string; since?: string; country?: string }[];

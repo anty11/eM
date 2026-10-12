@@ -3,6 +3,7 @@ import { kv } from "../auth/kv";
 import type { CheckResult, Ctx, Finding, SearchLog } from "../types";
 import { sq } from "../searchlog";
 import { MANUAL } from "./manual";
+import { isLegalEntity } from "../names";
 
 /**
  * Register diskvalifikácií (zákaz výkonu funkcie štatutára, § 13a ObZ) – Ministerstvo spravodlivosti SR.
@@ -141,12 +142,37 @@ export async function lookupDiskv(term: string): Promise<{ total: number; record
   return { total: got.total!, records, complete: records.length >= got.total!, updateDate: got.updateDate, url: `${apiUrl()}?${qs(1)}` };
 }
 
+
+/**
+ * Osoby, ktoré sa v registri diskvalifikácií preverujú: súčasní štatutári (zákaz funkcie = kritické), bývalí štatutári za posledné
+ * 3 roky (zmena osôb tesne pred obchodom – vzor „biely kôň“) a spoločníci – fyzické osoby (diskvalifikovaná osoba síce môže byť spoločníkom,
+ * ale je to signál). Právnické osoby (s.r.o., a.s.) sa vynechávajú – register vedie len ľudí.
+ */
+export function diskvPersons(ctx: Ctx): { name: string; kind: "statutory" | "former" | "owner"; label: string }[] {
+  const out: { name: string; kind: "statutory" | "former" | "owner"; label: string }[] = [];
+  const add = (name: string | undefined, kind: "statutory" | "former" | "owner", label: string) => {
+    if (!name || isLegalEntity(name) || !nameParts(name) || out.some((o) => fold(o.name) === fold(name))) return;
+    out.push({ name, kind, label });
+  };
+  for (const s of ctx.profile.statutory || []) add(s.name, "statutory", s.role || "štatutár");
+  for (const s of ctx.profile.formerStatutory || []) add(s.name, "former", `bývalý ${s.role || "štatutár"}${s.until ? ` do ${s.until}` : ""}`);
+  for (const o of ctx.profile.owners || []) add(o.name, "owner", o.role || "spoločník");
+  return out.slice(0, 12);
+}
+
 /** Kontrola pre preverenie; null = nedá sa rozhodnúť (ostáva manuálne overenie). */
 export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
   const def = MANUAL.find((m) => m.id === "diskv")!;
   const t0 = Date.now();
-  const names = Array.from(new Set((ctx.profile.statutory || []).map((s) => s.name).filter(Boolean)));
-  const terms = [ctx.ico, ...Array.from(new Set(names.map((n) => nameParts(n)?.raw).filter(Boolean) as string[])).slice(0, 8)];
+  const persons = diskvPersons(ctx);
+  const names = persons.map((x) => x.name);
+  const roleOf = (n?: string) => persons.find((x) => x.name === n)?.label || "štatutár";
+  const termRole = new Map<string, string>();
+  for (const x of persons) {
+    const raw = nameParts(x.name)?.raw;
+    if (raw && !termRole.has(raw)) termRole.set(raw, x.kind === "statutory" ? "priezviska štatutára" : x.kind === "former" ? "priezviska bývalého štatutára" : "priezviska spoločníka");
+  }
+  const terms = [ctx.ico, ...Array.from(termRole.keys()).slice(0, 10)];
   const results = await Promise.all(terms.map((t) => lookupDiskv(t)));
   const records = results.flatMap((r) => r.records);
   const complete = results.every((r) => r.complete);
@@ -166,7 +192,7 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
       asOf: updateDate,
       queries: results.map((r, i) =>
         sq(
-          i === 0 ? "IČO" : "priezviska štatutára",
+          i === 0 ? "IČO" : termRole.get(terms[i]) || "priezviska",
           terms[i],
           r.total,
           r.records.filter((x) => matchRecord(x, ctx.ico, names)).length,
@@ -174,7 +200,7 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
           `prečítaných ${r.records.length}${r.complete ? "" : " – NIE všetky výsledky"}${i === 0 ? "; záznamy registra IČO spravidla neobsahujú" : ""}`,
         ),
       ),
-      rule: "IČO v zázname, alebo meno aj priezvisko štatutára (bez titulov a diakritiky) – zhoda mena = možná zhoda, overiť totožnosť",
+      rule: "IČO v zázname, alebo meno aj priezvisko osoby (súčasný štatutár, bývalý štatutár za 3 roky, spoločník – fyzická osoba; bez titulov a diakritiky) – zhoda mena = možná zhoda, overiť totožnosť",
       sample: records.filter((x) => !matchRecord(x, ctx.ico, names)).slice(0, 5).map(describeRecord),
     },
   ];
@@ -187,15 +213,15 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
     summary = `Záznam s IČO firmy v registri diskvalifikácií${asOf}.`;
     status = "critical";
   } else if (hits.length) {
-    const who = Array.from(new Set(hits.map((h) => h.m!.who))).join(", ");
+    const who = Array.from(new Set(hits.map((h) => h.m!.who))).map((n) => `${n} – ${roleOf(n)}`).join(", ");
     f.push({
       severity: "warning",
-      text: `Register diskvalifikácií: možná zhoda mena štatutára (${who}) – ${describeRecord(hits[0].r)}`,
+      text: `Register diskvalifikácií: možná zhoda mena osoby (${who}) – ${describeRecord(hits[0].r)}`,
       penalty: def.penaltyIfFound,
       cap: "caution",
       ask: `Overte totožnosť: je ${who} tá istá osoba ako v registri diskvalifikácií (porovnajte adresu v zázname s adresou štatutára v obchodnom registri)? Výsledok zaznamenajte.`,
     });
-    summary = `Možná zhoda mena štatutára v registri diskvalifikácií (${hits.length} ${hits.length === 1 ? "záznam" : "záznamy"})${asOf} – treba overiť totožnosť.`;
+    summary = `Možná zhoda mena v registri diskvalifikácií: ${who} (${hits.length} ${hits.length === 1 ? "záznam" : "záznamy"})${asOf} – treba overiť totožnosť.`;
     status = "warning";
   } else {
     // neprečítané všetky výsledky alebo nepoznáme štatutárov → nerozhodujeme, ale so záznamom, čo sa prehľadalo
@@ -218,7 +244,8 @@ export async function checkDiskv(ctx: Ctx): Promise<CheckResult | null> {
         durationMs: Date.now() - t0,
         automated: false,
       };
-    summary = `Bez záznamu – register diskvalifikácií nemá záznam pre IČO ani pre štatutárov (${names.length})${asOf}.`;
+    const counts = ["statutory", "former", "owner"].map((k) => persons.filter((x) => x.kind === k).length);
+    summary = `Bez záznamu – register diskvalifikácií nemá záznam pre IČO ani pre preverené osoby (${names.length}: štatutári ${counts[0]}${counts[1] ? `, bývalí štatutári za 3 roky ${counts[1]}` : ""}${counts[2] ? `, spoločníci ${counts[2]}` : ""})${asOf}.`;
     status = "ok";
   }
   return {

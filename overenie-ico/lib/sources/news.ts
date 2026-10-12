@@ -2,6 +2,7 @@ import { runCheck } from "../check";
 import { fold, getText } from "../http";
 import { sq } from "../searchlog";
 import type { SearchLog } from "../types";
+import { isLegalEntity } from "../names";
 import type { CheckResult, CompanyProfile, Ctx, Finding } from "../types";
 import { NEWS_DOMAINS, OUTLETS, searchDuckDuckGo, searchOutlets, type Found } from "./slovakMedia";
 
@@ -89,11 +90,28 @@ export function plainPersonName(name: string): string {
 /** Osoby, ktoré sa hľadajú v médiách: štatutári a vlastníci (bez titulov, bez duplicít). */
 export function people(p: CompanyProfile): string[] {
   const out: string[] = [];
-  for (const x of [...(p.statutory || []), ...(p.owners || [])]) {
+  for (const x of [...(p.statutory || []), ...(p.owners || []), ...(p.formerStatutory || [])]) {
+    if (isLegalEntity(x.name)) continue; // vlastník – firma (MAOTA s.r.o.) nie je osoba; hľadá sa ako firma (ownerFirms)
     const n = plainPersonName(x.name || "");
     if (n.split(" ").length >= 2 && !out.some((o) => fold(o) === fold(n))) out.push(n);
   }
   return out.slice(0, 4);
+}
+
+/** Vlastníci – právnické osoby (materská firma): názov bez právnej formy na dopyt ako firma („MAOTA“), nie ako osoba. */
+export function ownerFirms(p: CompanyProfile): string[] {
+  const out: string[] = [];
+  for (const o of p.owners || []) {
+    if (!isLegalEntity(o.name)) continue;
+    const n = searchName(o.name || "");
+    if (n.length >= 3 && fold(n) !== fold(searchName(p.name || "")) && !out.some((x) => fold(x) === fold(n))) out.push(n);
+  }
+  return out.slice(0, 2);
+}
+
+/** Kontext osoby pri hľadaní (aby sa nezachytili menovci): „advokát“ len pri advokátskej kancelárii, inak „konateľ“. */
+export function professionOf(p: CompanyProfile): string {
+  return /advok|pravn/i.test(`${p.name || ""} ${p.mainActivity || ""}`) ? "advokát" : "konateľ";
 }
 
 /** Skratky z iniciál (advokátske kancelárie: URBAN STEINECKER GAŠPEREC BOŠANSKÝ → USGB, URBAN GAŠPEREC BOŠANSKÝ → UGB). */
@@ -314,16 +332,19 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       if (surname && quoted[0]) queries.push([g(`${quoted[0]} "${surname}"`), "google", "firm"]);
       // štatutári, vlastníci a partneri z názvu kancelárie: meno + kontext, aby sa nezachytili menovci
       const persons = people(p);
+      const prof = professionOf(p);
       for (const person of persons.slice(0, 3)) {
-        queries.push([g(`"${person}" (advokát OR ${quoted[0] || "firma"})`), "google", "person"], [b(`"${person}"`), "bing", "person"], [w(`"${person}" advokát OR ${quoted[0] || ""}`), "web", "person"]);
+        queries.push([g(`"${person}" (${prof} OR ${quoted[0] || "firma"})`), "google", "person"], [b(`"${person}"`), "bing", "person"], [w(`"${person}" ${prof} OR ${quoted[0] || ""}`), "web", "person"]);
       }
+      // materská firma (vlastník – právnická osoba): správy o nej sa týkajú aj dcéry
+      for (const firm of ownerFirms(p)) queries.push([g(`"${firm}" ${quoted[0] ? `(${quoted[0]} OR konateľ OR spoločnosť)` : "spoločnosť"}`), "google", "other"], [b(`"${firm}"`), "bing", "other"]);
       for (const sn of partnerSurnames(p).slice(0, 4)) queries.push([g(`"${sn}" advokát`), "google", "person"]);
 
       const [results, outlets, ddg, ddgPeople] = await Promise.all([
         Promise.allSettled(queries.map(([u]) => getText(u, { timeoutMs: 12000 }))),
         variants.length ? searchOutlets(variants).catch(() => ({ found: [] as Found[], ok: [] as string[], failed: [] as string[] })) : Promise.resolve({ found: [] as Found[], ok: [] as string[], failed: [] as string[] }),
         variants.length ? searchDuckDuckGo(variants).catch(() => [] as Found[]) : Promise.resolve([] as Found[]),
-        Promise.all(people(p).slice(0, 2).map((n) => searchDuckDuckGo([n, `${n} advokát`]).catch(() => [] as Found[]))).then((x) => x.flat()),
+        Promise.all(people(p).slice(0, 2).map((n) => searchDuckDuckGo([n, `${n} ${professionOf(p)}`]).catch(() => [] as Found[]))).then((x) => x.flat()),
       ]);
       const toRaw = (f: Found, provider: Article["provider"], via: "firm" | "person" | "other" = "firm") => ({ title: f.title, link: f.link, source: f.source, domain: f.domain, date: f.date, snippet: f.snippet, provider, via });
       const raw = [
@@ -334,6 +355,10 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       ];
       if (!raw.length && results.every((r) => r.status === "rejected") && !outlets.ok.length) throw new Error("médiá ani vyhľadávače neodpovedajú");
 
+      // vyhľadávače (Google News, Bing, DuckDuckGo) nevrátili ani jeden výsledok na žiadny dopyt – skôr blokovanie servera než prázdny
+      // internet; priame médiá síce odpovedali, ale bez vyhľadávačov sa „bez záznamu“ nedá tvrdiť → informácia, nie čisté
+      const engineHits = ddg.length + ddgPeople.length + results.reduce((n, r, i) => n + (r.status === "fulfilled" ? parseRss(r.value, queries[i][1]).length : 0), 0);
+      const enginesSilent = engineHits === 0;
       const rejected: Rejected[] = [];
       const articles = processArticles(raw, p, Date.now(), rejected);
       const twoYears = Date.now() - 2 * 365.25 * 864e5;
@@ -383,12 +408,12 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       ];
       return {
         search,
-        status: recentNeg.length || olderNeg.length ? "warning" : "ok",
+        status: recentNeg.length || olderNeg.length ? "warning" : enginesSilent && !articles.length ? "info" : "ok",
         summary: articles.length
-          ? `${articles.length} relevantných článkov za posledných ${YEARS} rokov (${aboutFirm} o firme, ${aboutPeople} o štatutároch/vlastníkoch; najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, hľadané: ${[...variants, ...people(p)].join(", ")}.`
-          : raw.length
-            ? `Za posledných ${YEARS} rokov sa nenašli články o firme ani o štatutároch (hľadané: ${[...variants, ...people(p)].join(", ")}; prehľadaných ${raw.length} výsledkov). Vyradené výsledky sú zobrazené nižšie.`
-            : "Vyhľadávače správ nevrátili žiadne výsledky – mohli zablokovať požiadavku zo servera. Použite odkazy nižšie.",
+          ? `${articles.length} relevantných článkov za posledných ${YEARS} rokov (${aboutFirm} o firme, ${aboutPeople} o štatutároch/vlastníkoch; najnovší ${latest || "bez dátumu"}); s negatívnym obsahom za 2 roky: ${recentNeg.length}. Prehľadaných ${raw.length} výsledkov, hľadané: ${[...variants, ...people(p), ...ownerFirms(p)].join(", ")}.`
+          : enginesSilent
+            ? `Vyhľadávače (Google News, Bing, DuckDuckGo) nevrátili na žiadny dopyt ani jeden výsledok – pravdepodobne zablokovali požiadavku zo servera; priame slovenské médiá (${outlets.ok.length} odpovedalo) nemajú článok o firme ani o osobách (hľadané: ${[...variants, ...people(p), ...ownerFirms(p)].join(", ")}). Médiá nie sú potvrdené ako čisté – použite odkazy nižšie.`
+            : `Za posledných ${YEARS} rokov sa nenašli články o firme ani o štatutároch (hľadané: ${[...variants, ...people(p), ...ownerFirms(p)].join(", ")}; prehľadaných ${raw.length} výsledkov). Vyradené výsledky sú zobrazené nižšie.`,
         findings: f,
         verifyUrl: links.google,
         data: { asOf, query: quoted.join(" | ") || q, variants, articles: articles.slice(0, 25), rejected: rejected.slice(0, 30), scanned: raw.length, sources: [

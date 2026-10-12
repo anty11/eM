@@ -273,7 +273,8 @@ export function judge(html: string, needles: string[]): { verdict: "found" | "cl
   if (echoed) {
     for (const m of text.matchAll(new RegExp(NO_RESULTS.source, "g"))) {
       const win = text.slice(Math.max(0, m.index! - 120), m.index! + m[0].length + 120);
-      if (/(zaznam|dlzn|vysledk|subjekt|osob|zhod|polozk|record|result)/.test(win)) return { verdict: "clean", rows: [], evidence: win.trim() };
+      // dôkaz začína hlásením registra (nie 120 znakov hlavičky tabuľky pred ním), aby bolo v protokole vidieť, čo register povedal
+      if (/(zaznam|dlzn|vysledk|subjekt|osob|zhod|polozk|record|result)/.test(win)) return { verdict: "clean", rows: [], evidence: text.slice(Math.max(0, m.index! - 30), m.index! + m[0].length + 110).trim() };
     }
   }
   return { verdict: "unknown", rows: [] };
@@ -484,9 +485,14 @@ const REGISTER_NAME: Record<string, string> = {
 
 /** Záznam vyhľadávania z pokusov dopytu do registra bez API – každý pokus: podľa čoho, odpoveď (HTTP, hlásenie), počet záznamov. */
 export function searchFromOutcome(id: string, ctx: Ctx, outcome: ProbeOutcome): SearchLog[] {
+  // Union: API portálu bez tokenu aplikácie vracia 401 pri každom názve poľa – jeden riadok namiesto ôsmich
+  const unauthorized = id === "union" ? outcome.attempts.filter((a) => a.status === 401 && !a.searched) : [];
+  const fields = unauthorized.map((a) => (a.info || "").replace(/^pole /, "")).filter(Boolean);
   const queries = outcome.attempts
     .filter((a) => !a.info?.startsWith("otvorené dáta") && !a.info?.startsWith("stránka registra"))
+    .filter((a) => !unauthorized.includes(a) || a === unauthorized[0])
     .map((a) => {
+      if (unauthorized.includes(a)) return sq("IČO", ctx.ico, null, 0, a.url.replace(/\?.*$/, ""), `API portálu Union (${unauthorized.length} ${unauthorized.length === 1 ? "pole" : "polia"}: ${fields.join(", ")}): HTTP 401 – vyžaduje token aplikácie; použil sa prehliadač na serveri`);
       const byName = /podľa názvu/.test(a.info || "");
       if (a.searched) return sq(byName ? "obchodného mena" : "IČO", a.searched.query, a.searched.returned, a.searched.matched, a.url, [a.info, a.searched.note].filter(Boolean).join("; "));
       const returned = a.verdict === "clean" ? 0 : a.verdict === "found" ? Math.max(1, outcome.rows.length) : null;

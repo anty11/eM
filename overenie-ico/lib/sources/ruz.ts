@@ -57,12 +57,21 @@ async function extract(vykaz: any): Promise<{ cur: Partial<Metrics>; prev: Parti
     if (tname.includes("pasiv")) {
       put("equity", find(/^vlastne imanie/));
       put("liabilities", find(/^zavazky/));
+      if (cur.liabilities === undefined && find(/^zavazky/) >= 0) cur.liabilities = 0; // riadok existuje, bunka prázdna = bez záväzkov
       put("profit", find(/^vysledok hospodarenia za uctovne obdobie/));
     }
     if (tname.includes("ziskov") || tname.includes("vysledovk")) {
-      let ri = find(/^cisty obrat/);
-      if (ri < 0) ri = find(/^trzby/);
-      put("revenue", ri);
+      const ri = find(/^cisty obrat/);
+      if (ri >= 0 && val(ri, ci) !== undefined) put("revenue", ri);
+      else {
+        // mikro účtovná jednotka (Úč MÚJ) nemá riadok „čistý obrat“ – tržby = súčet riadkov „Tržby z predaja …“ (prázdna bunka = 0)
+        const tr = rows.map((r, i) => i).filter((i) => /^trzby z predaja|^trzby/.test(fold(txt(rows[i].text))));
+        if (tr.length) {
+          const sum = (c: number) => tr.reduce((n, i) => n + (val(i, c) ?? 0), 0);
+          if (cur.revenue === undefined) cur.revenue = sum(ci);
+          if (prev.revenue === undefined) prev.revenue = sum(pi);
+        }
+      }
       // posledný riadok „Výsledok hospodárenia za účtovné obdobie (po zdanení)“
       let pr = -1;
       rows.forEach((r, i) => {

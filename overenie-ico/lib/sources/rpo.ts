@@ -215,6 +215,13 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
       const equity = current(e.equities).find((q: any) => typeof q.value === "number")?.value;
       const personName = (s: any) =>
         s.personName?.formatedName || s.fullName || s.fullNames?.[0]?.value || [s.personName?.givenNames, s.personName?.familyNames].flat().filter(Boolean).join(" ");
+      // bývalí štatutári za posledné 3 roky (nie tí, čo sú stále v orgáne pod iným zápisom)
+      const currentNames = new Set(statutory.map((s) => fold(s.name || "")));
+      const formerStatutory = (e.statutoryBodies || [])
+        .filter((s: any) => s.validTo && yearsSince(s.validTo) < 3 && personName(s) && !currentNames.has(fold(personName(s))))
+        .map((s: any) => ({ name: personName(s), role: s.statutoryBodyMember?.value || s.stakeholderType?.value || "štatutár", since: s.validFrom, until: s.validTo }))
+        .filter((s: any, i: number, arr: any[]) => arr.findIndex((x) => fold(x.name) === fold(s.name)) === i)
+        .slice(0, 8);
 
       // Predmet činnosti (aktuálne položky)
       const activities: string[] = current(e.activities)
@@ -269,6 +276,7 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
         equity,
         activities,
         owners,
+        formerStatutory,
         lastOwnershipChange,
         lastStatutoryChange,
       });

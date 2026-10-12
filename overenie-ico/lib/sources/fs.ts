@@ -229,7 +229,7 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
       answered = true;
       const rows = all.filter((r) => matches(r, kind));
       trail.push({ column: col, kind, value: val, result: `${all.length} riadkov, zhoda ${rows.length}` });
-      queries.push(sq(BY[kind] || col, val, all.length, rows.length, url(1), `stĺpec ${col}`));
+      queries.push(sq(BY[kind] || col, val, all.length, rows.length, url(1), `stĺpec ${col}${all[0] ? `; polia záznamu: ${Object.keys(all[0]).slice(0, 12).join(", ")}` : ""}`));
       for (const r of all) if (!rows.includes(r) && sample.length < 5) sample.push(rowText(r));
       if (rows.length) return done(rows, kind);
       if (kind !== "name") return done([], kind); // presný identifikátor prehľadaný, subjekt v zozname nie je
@@ -270,6 +270,24 @@ function notPublished(what: string): CheckBodyLike {
   };
 }
 type CheckBodyLike = { status: "info"; summary: string; findings: []; verifyUrl: string };
+
+/**
+ * Výška nedoplatku zo záznamu zoznamu dlžníkov: stĺpec podľa názvu (suma / nedoplatok / dlh / výška / daň / eur), inak jediná číselná
+ * hodnota s desatinnou časťou (názvy stĺpcov v OpenData sa menia; PSČ a IČO sú celé čísla a vynechávajú sa). Vracia text „206 971,18“.
+ */
+export function debtAmount(row: any): string | undefined {
+  if (!row || typeof row !== "object") return undefined;
+  const toNum = (v: any) => (typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, "").replace(/€/g, "").replace(",", ".")));
+  const fmt = (n: number) => n.toLocaleString("sk-SK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/[\u00a0\u202f]/g, " ");
+  const byName = Object.entries(row).find(([k, v]) => /suma|nedoplat|dlh|vysk|\bdan\b|^dan_|_dan$|eur|hodnot|ciastk/.test(fold(k)) && !/psc|ico|dic|datum|obdob/.test(fold(k)) && v !== null && v !== "");
+  if (byName) {
+    const n = toNum(byName[1]);
+    return Number.isFinite(n) ? fmt(n) : String(byName[1]);
+  }
+  const numeric = Object.entries(row).filter(([k, v]) => !/psc|ico|dic|datum|rok|obdob|cislo|id$/.test(fold(k)) && /^\s*-?\d[\d\s]*[.,]\d{1,2}\s*(€)?\s*$/.test(String(v ?? "")) || (typeof v === "number" && !Number.isInteger(v)));
+  if (numeric.length === 1) return fmt(toNum(numeric[0][1]));
+  return undefined;
+}
 
 const pick = (row: any, re: RegExp) => {
   for (const [k, v] of Object.entries(row || {})) if (re.test(fold(k)) && v !== null && v !== "") return v as any;
@@ -315,9 +333,7 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
         } as any;
       return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: ZOZNAMY, data: { slug, searchedBy: rows.by, trail: rows.trail }, search: rows.log ? [rows.log] : undefined };
     }
-    const rawAmount = pick(rows[0], /suma|nedoplat|dlh|vyska/);
-    const num = typeof rawAmount === "number" ? rawAmount : Number(String(rawAmount ?? "").replace(/\s/g, "").replace(",", "."));
-    const amount = rawAmount === undefined ? undefined : Number.isFinite(num) ? num.toLocaleString("sk-SK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(rawAmount);
+    const amount = debtAmount(rows[0]);
     const r0 = rows[0];
     const rowName = String(pick(r0, /nazov|obchodne|meno|subjekt/) ?? "");
     const addr = [pick(r0, /ulica/), [pick(r0, /psc/), pick(r0, /obec|mesto/)].filter(Boolean).join(" ")].filter(Boolean).join(", ");

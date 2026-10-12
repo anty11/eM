@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
-import { judge } from "../lib/sources/public";
+import { judge, searchFromOutcome } from "../lib/sources/public";
+import { debtAmount } from "../lib/sources/fs";
+import { ownerFirms, people, professionOf } from "../lib/sources/news";
 import { judgeOv, judgeUnion } from "../lib/browser/flows";
 import type { Ctx } from "../lib/types";
 
@@ -115,4 +117,33 @@ main().catch((e) => { console.error(e); process.exit(1); });
   assert.equal(ovEmpty.verdict, "clean");
   assert.equal(judgeOv({ ...ovBase, text: "úvodná stránka", tables: [] }, "31322832").verdict, "unknown");
   console.log("OK – Obchodný vestník cez prehliadač (triedenie oznámení).");
+
+  // Dôkaz „bez záznamu“ začína hlásením registra (VšZP: hlavička tabuľky pred hlásením sa nezobrazuje namiesto neho)
+  const vszpHtml = `<form><input value="31322832"></form><p>Čo robiť, ak ste dlžníkom</p><table><tr><th>Obchodné meno</th><th>Obec</th><th>Ulica</th><th>PSČ</th><th>Pohľadávka</th><th>Typ platiteľa</th><th>Rozsah poskytovanej ZS</th></tr></table><p>Nenašli sa žiadne záznamy.</p>`;
+  const vz = judge(vszpHtml, ["31322832"]);
+  assert.equal(vz.verdict, "clean");
+  assert.match(vz.evidence || "", /^.{0,40}nenasli sa ziadne zaznamy/);
+
+  // Union: osem pokusov API s 401 sa v zázname vyhľadávania zlúči do jedného riadku; prehliadač ostáva samostatne
+  const ctx = { ico: "31322832", profile: { ico: "31322832", name: "Firma s.r.o." } } as any;
+  const attempts = ["searchText", "text", "hladanyText"].map((k) => ({ url: "https://portal.unionzp.sk/api/x?y=1", status: 401, ms: 10, excerpt: "", verdict: "unknown" as const, info: `pole ${k}` }));
+  const log = searchFromOutcome("union", ctx, { result: "clean", rows: [], attempts: [...attempts, { url: "https://portal.unionzp.sk/pub/dlznici", ms: 5000, excerpt: "", verdict: "clean" as const, info: "prehliadač na serveri (skript)", searched: { query: "31322832", returned: 0, matched: 0, note: "portál hlási „0–0 z 0“" } }] });
+  assert.equal(log[0].queries.length, 2);
+  assert.match(log[0].queries[0].note || "", /3 polia: searchText, text, hladanyText.*HTTP 401/);
+  assert.equal(log[0].queries[1].returned, 0);
+
+  // Výška nedoplatku zo záznamu FS – podľa názvu stĺpca alebo jediná suma s desatinami (PSČ sa nepočíta)
+  assert.equal(debtAmount({ nazov_subjektu: "HZ Stavby s.r.o.", obec: "Ivanka pri Nitre", psc: "95112", ulica: "Gergeľova 423/11", dan: "206971.18" }), "206 971,18");
+  assert.equal(debtAmount({ nazov_subjektu: "X", psc: "95112", nedoplatok_eur: 1500 }), "1 500,00");
+  assert.equal(debtAmount({ nazov_subjektu: "X", psc: "95112", obec: "Y", hodnota: "12 345,67 €" }), "12 345,67");
+  assert.equal(debtAmount({ nazov_subjektu: "X", psc: "95112", obec: "Y", x1: "206971.18" }), "206 971,18", "jediná číselná hodnota s desatinami");
+  assert.equal(debtAmount({ nazov_subjektu: "X", psc: "95112", obec: "Y" }), undefined);
+
+  // Médiá: osoby z RPO bez právnických osôb; materská firma ako firma; kontext „advokát“ len pri advokátskej kancelárii
+  const prof = { ico: "1", name: "HZ Stavby s.r.o.", mainActivity: "Výstavba budov", statutory: [{ name: "Martin Otáhal", role: "konateľ" }], owners: [{ name: "MAOTA s.r.o.", role: "spoločník" }, { name: "Ing. Peter Sas", role: "spoločník" }] } as any;
+  assert.deepEqual(people(prof), ["Martin Otáhal", "Peter Sas"]);
+  assert.deepEqual(ownerFirms(prof), ["MAOTA"]);
+  assert.equal(professionOf(prof), "konateľ");
+  assert.equal(professionOf({ ico: "1", name: "URBAN & PARTNERS s.r.o., advokátska kancelária" } as any), "advokát");
+  console.log("OK – dôkaz hlásenia, zlúčenie pokusov Union, výška nedoplatku, osoby pre médiá.");
 }

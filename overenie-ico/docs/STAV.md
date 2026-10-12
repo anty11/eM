@@ -495,3 +495,16 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   bez API (ÚVO, VšZP, Union – počet „x–y z N“), register diskvalifikácií (dopyt podľa IČO a priezvisk štatutárov, stav registra).
   Aj neúspech má záznam: čo sa pýtalo, kde a prečo výsledok nie je (chyba, vypnutý prehliadač, chýbajúci index). Kontrolu stráži
   `test/offline.test.ts` (každá kontrola okrem CRE/Dôvery musí mať `search`).
+- **v2.11.7** – Kontrola správnosti po preverení HZ Stavby s.r.o. (50790030), opravy nájdených medzier:
+  **Register diskvalifikácií** preveruje okrem súčasných štatutárov aj bývalých štatutárov za posledné 3 roky (`profile.formerStatutory`
+  z histórie RPO – pri zmene osôb tesne pred obchodom je bývalý konateľ rovnako dôležitý) a spoločníkov – fyzické osoby; právnické osoby
+  (MAOTA s.r.o.) sa v registri osôb nehľadajú (`lib/names.ts` `isLegalEntity`). Záznam vyhľadávania označuje dopyt podľa role (štatutár /
+  bývalý štatutár / spoločník), nález uvádza rolu a dátum skončenia funkcie.
+  **Daňoví dlžníci:** výška nedoplatku sa v nálezе nezobrazila (názov stĺpca v OpenData nezodpovedal očakávaniu) – `debtAmount` berie stĺpec
+  podľa názvu (suma / nedoplatok / dlh / výška / daň / eur) a inak jedinú sumu s desatinami; záznam vyhľadávania vypisuje polia záznamu,
+  aby bolo vidieť, čo zoznam skutočne vracia. **VšZP / registre bez API:** dôkaz „bez záznamu“ začína hlásením registra („Nenašli sa žiadne
+  záznamy“), nie hlavičkou tabuľky pred ním. **Union:** osem pokusov API s HTTP 401 je v zázname jeden riadok. **Médiá:** vlastník – firma
+  sa hľadá ako firma („MAOTA“), nie ako osoba („MAOTA s r o“); kontext „advokát“ pri osobách len pri advokátskej kancelárii, inak „konateľ“;
+  keď vyhľadávače (Google News, Bing, DuckDuckGo) nevrátia na žiadny dopyt nič (zablokovaný server), je výsledok „informácia“ s vysvetlením,
+  nie „bez záznamu“. **RÚZ:** mikro účtovná jednotka (Úč MÚJ) nemá riadok „čistý obrat“ – tržby = súčet riadkov „Tržby z predaja …“;
+  prázdna bunka záväzkov = 0 € (predtým „–“).
