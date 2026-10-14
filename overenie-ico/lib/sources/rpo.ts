@@ -60,6 +60,7 @@ function fromOrsr(ctx: Ctx, o: OrsrResult, rpoError: string) {
   if (o.terminated) f.push({ severity: "critical", text: `Subjekt bol vymazaný z obchodného registra (${o.terminated})`, penalty: 100 });
   if (o.inLiquidation) f.push({ severity: "critical", text: "Spoločnosť je v likvidácii (obchodný register)", penalty: 70 });
   if (/v konkurze/i.test(o.name)) f.push({ severity: "critical", text: "Spoločnosť je v konkurze", penalty: 90 });
+  f.push(...legalFactFindings(o.legalFacts.map((x) => x.text), "výpis ORSR"));
   const age = yearsSince(o.established);
   if (age < 1) f.push({ severity: "warning", text: `Veľmi krátka história – subjekt vznikol ${o.established} (menej ako 1 rok)`, penalty: 15 });
   else if (age < 2) f.push({ severity: "warning", text: `Krátka história – subjekt vznikol ${o.established} (menej ako 2 roky)`, penalty: 6 });
@@ -71,7 +72,7 @@ function fromOrsr(ctx: Ctx, o: OrsrResult, rpoError: string) {
     summary: `${o.name}${o.legalForm ? `, ${o.legalForm}` : ""}, zápis ${o.established || "?"}${o.registrationNumber ? `, ${o.registrationNumber}` : ""} – podľa Obchodného registra SR (RPO neodpovedalo včas).`,
     findings: f,
     verifyUrl: o.url,
-    data: { via: "orsr", dissolution: Boolean(o.terminated || o.inLiquidation) },
+    data: { via: "orsr", dissolution: Boolean(o.terminated || o.inLiquidation) || o.legalFacts.some((x) => classifyLegalFact(x.text) === "dissolution"), legalFacts: o.legalFacts.map((x) => x.text).slice(0, 10) },
   };
 }
 
@@ -100,6 +101,23 @@ export function classifyLegalFact(text: string): "dissolution" | "merger" | "pro
   if (/zalozn/.test(t)) return "pledge";
   if (/konkurz|exek[uú]|restrukt/.test(t)) return "proceeding";
   return null;
+}
+
+/**
+ * Nálezy z „ďalších právnych skutočností“ (RPO `otherLegalFacts` alebo sekcia výpisu ORSR): konanie o zrušení / výmaz / likvidácia
+ * = kritické (postih raz), konkurz / exekúcia / reštrukturalizácia = upozornenie, zlúčenie a záložné právo = informácia.
+ */
+export function legalFactFindings(facts: string[], via?: string): Finding[] {
+  const f: Finding[] = [];
+  const tag = via ? ` [${via}]` : "";
+  const byKind = (k: ReturnType<typeof classifyLegalFact>) => facts.filter((t) => classifyLegalFact(t) === k);
+  byKind("dissolution").slice(0, 2).forEach((t, i) => f.push({ severity: "critical", text: `Konanie o zrušení / výmaze / likvidácii – zápis v registri${tag}: ${t.slice(0, 220)}`, penalty: i === 0 ? 60 : 0 }));
+  const mergers = byKind("merger");
+  if (mergers.length) f.push({ severity: "info", text: `Zlúčenie / splynutie / rozdelenie v registri (${mergers.length}×) – spoločnosť je právnym nástupcom${tag}: ${mergers[0].slice(0, 160)}…`, penalty: 0 });
+  byKind("proceeding").slice(0, 2).forEach((t, i) => f.push({ severity: "warning", text: `Právna skutočnosť v registri${tag}: ${t.slice(0, 220)}`, penalty: i === 0 ? 10 : 5 }));
+  const pledges = byKind("pledge");
+  if (pledges.length) f.push({ severity: "info", text: `Záložné právo na obchodný podiel / akcie v registri (${pledges.length}×) – bežné pri financovaní, overte pri významnom obchode${tag}`, penalty: 0 });
+  return f;
 }
 
 function fmtAddress(a: any): string {
@@ -290,15 +308,21 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
 
       // Právne skutočnosti (zrušenie, výzva súdu, exekúcia na obchodný podiel, zlúčenia, záložné práva)
       const facts: string[] = (e.otherLegalFacts || []).filter((x: any) => !x.validTo).map((x: any) => String(x.value || ""));
-      const byKind = (k: ReturnType<typeof classifyLegalFact>) => facts.filter((t) => classifyLegalFact(t) === k);
-      const dissolution = byKind("dissolution");
-      // kritický postih len raz – ďalšie zápisy o tom istom sa nesčítavajú
-      dissolution.slice(0, 2).forEach((t, i) => f.push({ severity: "critical", text: `Konanie o zrušení / výmaze / likvidácii – zápis v registri: ${t.slice(0, 220)}`, penalty: i === 0 ? 60 : 0 }));
-      const mergers = byKind("merger");
-      if (mergers.length) f.push({ severity: "info", text: `Zlúčenie / splynutie / rozdelenie v registri (${mergers.length}×) – spoločnosť je právnym nástupcom: ${mergers[0].slice(0, 160)}…`, penalty: 0 });
-      byKind("proceeding").slice(0, 2).forEach((t, i) => f.push({ severity: "warning", text: `Právna skutočnosť v registri: ${t.slice(0, 220)}`, penalty: i === 0 ? 10 : 5 }));
-      const pledges = byKind("pledge");
-      if (pledges.length) f.push({ severity: "info", text: `Záložné právo na obchodný podiel / akcie v registri (${pledges.length}×) – bežné pri financovaní, overte pri významnom obchode`, penalty: 0 });
+      f.push(...legalFactFindings(facts));
+      // RPO nemá žiadnu „ďalšiu právnu skutočnosť“ (alebo sa výpis s históriou nenačítal): krížová kontrola sekcie vo výpise ORSR –
+      // konanie o zrušení spoločnosti (§ 68 ObZ) je v ORSR vždy, v RPO občas chýba alebo mešká
+      let orsrFacts: string[] | undefined;
+      let orsrNote = "";
+      if (!facts.length && !ctx.asOf && Date.now() - t0 < 19000) {
+        const o = await Promise.race([startOrsr(), new Promise<null>((res) => setTimeout(() => res(null), Math.max(1500, Math.min(6000, 22000 - (Date.now() - t0)))))]);
+        if (o) {
+          orsrFacts = o.legalFacts.map((x) => x.text);
+          const extra = legalFactFindings(orsrFacts, "výpis ORSR – v RPO chýba");
+          f.push(...extra);
+          orsrNote = `${orsrFacts.length} zápisov, z toho rizikových ${extra.filter((x) => x.severity !== "info").length}`;
+        } else orsrNote = "ORSR neodpovedal – sekcia sa neoverila";
+      }
+      const dissolution = [...facts, ...(orsrFacts || [])].filter((t) => classifyLegalFact(t) === "dissolution");
 
       const age = yearsSince(e.establishment);
       if (age < 1) f.push({ severity: "warning", text: `Veľmi krátka história – subjekt vznikol ${e.establishment} (menej ako 1 rok)`, penalty: 15 });
@@ -363,7 +387,12 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
 
       const status = statusFromFindings(f);
       return {
-        search: searchLog(e === hit ? "výpis s históriou sa nenačítal – použitý výsledok vyhľadávania" : "výpis s históriou zmien"),
+        search: [
+          ...searchLog(e === hit ? "výpis s históriou sa nenačítal – použitý výsledok vyhľadávania" : "výpis s históriou zmien"),
+          ...(orsrNote
+            ? [{ dataset: "Obchodný register SR (orsr.sk) – sekcia „Ďalšie právne skutočnosti“ (krížová kontrola, RPO žiadnu neuvádza)", queries: [sq("IČO", ctx.ico, orsrFacts ? orsrFacts.length : null, orsrFacts ? orsrFacts.filter((t) => classifyLegalFact(t)).length : 0, `https://www.orsr.sk/hladaj_ico.asp?ICO=${ctx.ico}&SID=0`, orsrNote)], rule: "zápis o konaní o zrušení, výmaze, likvidácii (kritické), konkurze / exekúcii / reštrukturalizácii (upozornenie), zlúčení alebo záložnom práve (informácia)" }]
+            : []),
+        ],
         status,
         summary: e.termination
           ? `${name} – subjekt ZANIKOL ${e.termination}.`
@@ -376,7 +405,7 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
           seatChanges,
           nameChanges,
           statutoryChanges: statChanges,
-          legalFacts: facts.slice(0, 10),
+          legalFacts: [...facts, ...(orsrFacts || [])].slice(0, 10),
           dissolution: dissolution.length > 0 || lname.includes("v likvidacii") || Boolean(e.termination),
           dissolutionText: dissolution[0] || (lname.includes("v likvidacii") ? "Spoločnosť je v likvidácii" : e.termination ? `Zánik ${e.termination}` : undefined),
         },

@@ -16,6 +16,8 @@ export interface OrsrResult {
   statutory: { name: string; role: string; since?: string }[];
   owners: { name: string; role: string; since?: string }[];
   registrationNumber?: string;
+  /** Sekcia „Ďalšie právne skutočnosti“ aktuálneho výpisu – každý zápis s dátumom zápisu (od: …) */
+  legalFacts: { text: string; since?: string }[];
   url: string;
 }
 
@@ -132,6 +134,23 @@ export function orsrPersons(rows: string[] | undefined, defaultRole: string): { 
   return out.filter((p, i) => out.findIndex((q) => fold(q.name) === fold(p.name)) === i);
 }
 
+/** Zápisy sekcie (napr. „Ďalšie právne skutočnosti“): text pokračuje cez riadky, kým nepríde značka (od: …). */
+export function orsrEntries(rows: string[] | undefined): { text: string; since?: string }[] {
+  const out: { text: string; since?: string }[] = [];
+  let buf: string[] = [];
+  for (const raw of rows || []) {
+    const od = raw.match(OD);
+    const text = raw.replace(OD, "").trim();
+    if (text) buf.push(text);
+    if (od) {
+      if (buf.length) out.push({ text: buf.join(" "), since: toIso(od[1]) });
+      buf = [];
+    }
+  }
+  if (buf.length) out.push({ text: buf.join(" ") });
+  return out;
+}
+
 const first = (rows?: string[]) => (rows || []).map((r) => r.replace(OD, "").trim()).find(Boolean);
 const firstOd = (rows?: string[]) => (rows || []).map((r) => r.match(OD)?.[1]).find(Boolean);
 
@@ -155,6 +174,7 @@ export function parseOrsrExtract(html: string, url: string): OrsrResult | null {
     statutory: orsrPersons(sec["Štatutárny orgán"], "štatutár"),
     owners: orsrPersons(sec["Spoločníci"] || sec["Akcionár"], sec["Akcionár"] ? "akcionár" : "spoločník"),
     registrationNumber: [first(sec["Oddiel"]), first(sec["Vložka číslo"] || sec["Vložka"])].filter(Boolean).join(", vložka ") || undefined,
+    legalFacts: orsrEntries(sec["Ďalšie právne skutočnosti"]),
     url,
   };
 }

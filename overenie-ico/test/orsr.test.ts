@@ -71,6 +71,42 @@ async function main() {
   const r2 = await checkRpo({ ico: "31322832", profile: { ico: "31322832" } } as Ctx);
   assert.equal(r2.status, "error");
   assert.ok(r2.summary.includes("záloha z Obchodného registra"), r2.summary);
+  // 4) „Ďalšie právne skutočnosti“: konanie o zrušení spoločnosti (§ 68 ObZ) – vo výpise ORSR; RPO ho neuvádza → krížová kontrola
+  const FACT = "Dňa 20.03.2024 sa začalo konanie o zrušení spoločnosti pred Mestským súdom Bratislava III, č. k. B1-48CbR/256/2022";
+  const section = `<table width="100%" border="0"><tr><td width="20%" valign="top"><span class="tl">Ďalšie právne skutočnosti:&nbsp;</span></td><td width="80%"><table width="100%"><tr><td width="67%"><span class="ra">Spoločnosť bola založená zakladateľskou listinou zo dňa 1.2.2016.</span></td><td width="33%" valign="top"><span class="ra">(od: 15.02.2016)</span></td></tr><tr><td width="67%"><span class="ra">${FACT}</span></td><td width="33%" valign="top"><span class="ra">(od: 28.03.2024)</span></td></tr></table></td></tr></table>`;
+  const withFacts = html.replace('<table width="100%"><tr><td><span class="tl">Dátum aktualizácie', `${section} <table width="100%"><tr><td><span class="tl">Dátum aktualizácie`);
+  const parsed = parseOrsrExtract(withFacts, "https://www.orsr.sk/vypis.asp?ID=1&SID=2&P=0")!;
+  assert.equal(parsed.legalFacts.length, 2);
+  assert.equal(parsed.legalFacts[1].text, FACT);
+  assert.equal(parsed.legalFacts[1].since, "2024-03-28");
+  const withFactsBytes = new TextEncoder().encode(withFacts); // mock vracia UTF-8; dekodér výpisu to zvládne cez charset v hlavičke
+  const rpoEntity = { id: 1, identifiers: [{ value: "50565516" }], fullNames: [{ value: "Firma s.r.o." }], legalForms: [{ value: { value: "Spoločnosť s ručením obmedzeným" } }], establishment: "2016-02-15", addresses: [{ street: "Hlavná", buildingNumber: "1", municipality: { value: "Bratislava" }, postalCodes: ["81101"] }], statutoryBodies: [{ personName: { formatedName: "Ján Novák" }, validFrom: "2016-02-15" }], stakeholders: [], otherLegalFacts: [] };
+  globalThis.fetch = (async (input: any) => {
+    const u = new URL(String(input));
+    if (u.host === "api.statistics.sk") return new Response(JSON.stringify(u.pathname.includes("/entity/") ? rpoEntity : { results: [rpoEntity] }), { headers: { "content-type": "application/json" } });
+    if (u.pathname.includes("hladaj_ico")) return new Response(hladaj);
+    return new Response(withFactsBytes, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }) as typeof fetch;
+  const ctxF = { ico: "50565516", profile: { ico: "50565516" } } as Ctx;
+  const rf = await checkRpo(ctxF);
+  assert.equal(rf.status, "critical", rf.summary);
+  const crit = rf.findings.find((x) => x.severity === "critical");
+  assert.ok(crit && /konanie o zrušení spoločnosti/.test(crit.text) && /výpis ORSR – v RPO chýba/.test(crit.text), JSON.stringify(rf.findings));
+  assert.equal(crit!.penalty, 60);
+  assert.ok((rf.data as any).dissolution === true);
+  assert.ok(rf.search!.some((s) => /Ďalšie právne skutočnosti/.test(s.dataset) && s.queries[0].returned === 2 && s.queries[0].matched === 1), JSON.stringify(rf.search));
+  assert.ok(!/založená zakladateľskou/.test(JSON.stringify(rf.findings)), "bežný zápis o založení nie je nález");
+  // tá istá skutočnosť v zálohe z ORSR (RPO nedostupné)
+  globalThis.fetch = (async (input: any) => {
+    const u = new URL(String(input));
+    if (u.host === "api.statistics.sk") return new Response("x", { status: 503 });
+    if (u.pathname.includes("hladaj_ico")) return new Response(hladaj);
+    return new Response(withFactsBytes, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }) as typeof fetch;
+  const rb = await checkRpo({ ico: "50565516", profile: { ico: "50565516" } } as Ctx);
+  assert.equal(rb.status, "critical");
+  assert.ok(rb.findings.some((x) => x.severity === "critical" && /konanie o zrušení/.test(x.text)));
+  console.log("OK – ďalšie právne skutočnosti: konanie o zrušení z výpisu ORSR (krížová kontrola aj záloha).");
   console.log("OK – testy zálohy z obchodného registra prešli.");
   process.exit(0);
 }

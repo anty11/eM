@@ -519,3 +519,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   vyhľadávanie `globalSearch=IČO&searchType=OSZ` aj pri manuálnej kontrole), Google/FinStat.
 - **v2.11.8a** – Dôvera: odkaz „Overiť v zdroji“ otvorí zoznam dlžníkov rovno s výsledkom pre IČO
   (`zoznam-dlznikov?q=<IČO>` – zistila používateľka).
+- **v2.11.9** – (1) Logo v hlavičke klientskej sekcie vedie na úvodnú stránku (predtým na /app). (2) **Ďalšie právne skutočnosti
+  z obchodného registra** (podnet: IČO 50 565 516 – „Dňa 20.03.2024 sa začalo konanie o zrušení spoločnosti pred Mestským súdom
+  Bratislava III, č. k. B1-48CbR/256/2022“ sa nevyhodnotilo): RPO túto sekciu niekedy neuvádza alebo mešká. Odteraz, keď RPO nemá žiadnu
+  „ďalšiu právnu skutočnosť“ (alebo sa výpis s históriou nenačítal), sa súbežne načíta aktuálny výpis z orsr.sk a sekcia „Ďalšie právne
+  skutočnosti“ sa vyhodnotí rovnakým triedením (`legalFactFindings`: konanie o zrušení / výmaz / likvidácia = kritické −60, konkurz /
+  exekúcia / reštrukturalizácia = upozornenie, zlúčenie a záložné právo = informácia); nález je označený „[výpis ORSR – v RPO chýba]“
+  a záznam vyhľadávania uvádza počet zápisov a rizikových. Tú istú sekciu vyhodnocuje aj záloha identifikácie z ORSR (`fromOrsr`,
+  predtým ju ignorovala). `orsr.ts`: `orsrEntries` (zápisy sekcie s dátumom „od“), `OrsrResult.legalFacts`. Test v `orsr.test.ts`.

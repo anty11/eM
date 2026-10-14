@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.8** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.9** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -199,7 +199,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 
 | id | Register | Ako získavame | Kľúčové polia (profil / `data`) | Hodnotenie | Test |
 |---|---|---|---|---|---|
-| `rpo` | RPO (ŠÚ SR), záloha orsr.sk | REST `api.statistics.sk/rpo/v1` – search + entity; záloha HTML ORSR (windows‑1250) | `name, address, legalForm, established, terminated, statutory[], owners[], registrationNumber, lastStatutoryChange, lastOwnershipChange`; `data.legalFacts, dissolution, via` | zánik −100, likvidácia −70, konkurz −90, časté zmeny, jurisdikcie | offline, retro, orsr |
+| `rpo` | RPO (ŠÚ SR), záloha orsr.sk | REST `api.statistics.sk/rpo/v1` – search + entity; záloha HTML ORSR (windows‑1250); keď RPO neuvádza žiadnu „ďalšiu právnu skutočnosť“, krížová kontrola sekcie vo výpise ORSR (`legalFactFindings`) | `name, address, legalForm, established, terminated, statutory[], owners[], registrationNumber, lastStatutoryChange, lastOwnershipChange`; `data.legalFacts, dissolution, via` | zánik −100, likvidácia −70, konkurz −90, časté zmeny, jurisdikcie | offline, retro, orsr |
 | `ruz` | Register účtovných závierok | REST `registeruz.sk/cruz-public/api` | `dic, ruzName, ruzAddress`; `data.metrics[] (revenue, profit, equity, liabilities), lastFiledYear, filedExpected, incomplete` | záporné VI −30; chýba závierka za minulý rok −15, verdikt najviac S VÝHRADOU + otázka na partnera (dôvod do protokolu); 2+ obdobia −40 | offline, scoring |
 | `fs-debtors` | Daňoví dlžníci | FS OpenData `ds_dsdd` – prehľadateľné len `nazov_subjektu`, `obec` (zoznam nemá IČO); hľadá sa **celým obchodným menom s právnou formou** (varianty zápisu „s.r.o./s. r. o./spol. s r. o.“, „a.s./a. s.“, nakoniec meno bez formy), číta až 10 strán; zhoda = `companyKey` celého mena (adresa sa neporovnáva – v zozname FS môže byť iná) | `data.slug, rows[], searchedBy, trail[]` (podľa čoho, čo API vrátilo) | dlžník −45; nenájdené len podľa názvu = **manuálne** (nie „NIE JE“) | offline |
 | `fs-vat` | DPH a dôvody na zrušenie | FS OpenData (IČ DPH, `ds_dphz`, IBAN zoznam) | `icDph`; `data.row` | dôvody na zrušenie −35 | offline |
@@ -349,7 +349,7 @@ flowchart LR
 | `diskv.test.ts` | Register diskvalifikácií cez API: tvar odpovede, zistenie parametra vyhľadávania, dopyt podľa IČO a priezvisk (bez sťahovania registra), mená s titulmi, bývalí štatutári a spoločníci, verdikty |
 | `diskvcapture.test.ts` | Register diskvalifikácií: záznam dopytov XHR/fetch aplikácie React, hľadanie podľa IČO a priezviska |
 | `agent.test.ts` | prehliadač, snímky, úvod servera (aj ASP.NET), agent pre Claude aj OpenAI, kontrola tvrdení, Jev, záložný model, živý priebeh |
-| `orsr.test.ts` | záloha identifikácie z orsr.sk (windows‑1250, pomalé RPO) |
+| `orsr.test.ts` | záloha identifikácie z orsr.sk (windows‑1250, pomalé RPO), ďalšie právne skutočnosti – konanie o zrušení (krížová kontrola aj záloha) |
 | `access.test.ts` | proxy pre server aj prehliadač, prístup k OV |
 | `ailog.test.ts` | záznam behov a súhrn (recept, posledný neúspech) |
 | `ai.test.ts` | nastavenia AI, poskytovatelia, rýchlosť, šifrovanie kľúčov |
