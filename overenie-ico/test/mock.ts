@@ -142,6 +142,14 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (url.includes("/api/idsp/download/")) return new Response(new Uint8Array(socBuf), { status: 200 });
     return new Response('<a href="/api/idsp/download/ed57da4c-93aa-4198-ae4b-b2d65d3ca099">Stiahnuť</a>', { status: 200 });
   }
+  // Poverenia na vykonanie exekúcie (Infosud) – zdroj „poverenia“; nezmyselný výraz → 0, BAD → jedno poverenie s IČO
+  if (u.host === "obcan.justice.sk" && u.pathname.includes("/ress-isu-service/v1/")) {
+    const res = u.pathname.split("/").pop();
+    if (res !== "poverenia") return json({ error: "not found" }, 404);
+    const q = u.searchParams.get("query") || "";
+    const list = q === BAD ? [{ registreGuid: "poverenie_1", povinny: `C.C.C. s.r.o., IČO ${BAD}`, opravneny: "Sociálna poisťovňa", exekutor: "JUDr. Peter Kuna", datumVydania: "12.05.2025", spisovaZnacka: "6Er/123/2025" }] : [];
+    return json({ numFound: list.length, page: 0, size: 50, updateDate: "13.10.2026", filterList: [], povereniaList: list });
+  }
   if (u.host === "replik.justice.sk") {
     // Štruktúra reálnej stránky REPLIK: filter s druhmi konaní je na stránke vždy, hľadané IČO sa opakuje v hlavičke
     const filters = `<select><option>Konkurz</option><option>Malý konkurz</option><option>Reštrukturalizácia</option><option>Oddlženie</option><option>Likvidácia</option></select>`;

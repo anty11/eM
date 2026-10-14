@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
-import { judge, searchFromOutcome } from "../lib/sources/public";
+import { judge, queryPublicRegister, searchFromOutcome } from "../lib/sources/public";
 import { debtAmount } from "../lib/sources/fs";
 import { verifyTerm } from "../app/components/VerifyLink";
 import { ownerFirms, people, professionOf } from "../lib/sources/news";
@@ -167,4 +167,31 @@ main().catch((e) => { console.error(e); process.exit(1); });
   assert.equal(verifyTerm({ ...base, id: "vszp" }, "50790030")?.term, "50790030");
   assert.equal(verifyTerm({ ...base, id: "news" }, "50790030"), null);
   console.log("OK – Overiť v zdroji: výraz do schránky a pokyn.");
+
+  // ÚVO: popri IČO aj mená osôb (štatutári, spoločníci – FO); zhoda mena = možná zhoda (upozornenie, strop S výhradou), nie nález
+  (async () => {
+    const real = globalThis.fetch;
+    const page = (q: string, body: string) => new Response(`<html><input name="globalSearch" value="${q}"><main><h1>Globálne vyhľadávanie</h1>${body}</main></html>`, { headers: { "content-type": "text/html" } });
+    globalThis.fetch = (async (input: any) => {
+      const u = new URL(String(input));
+      if (u.host !== "www.uvo.gov.sk") return new Response("x", { status: 404 });
+      const q = u.searchParams.get("globalSearch") || "";
+      if (q === "31322832") return page(q, "<p>Zadaný výraz nebol nájdený.</p>");
+      if (q === "Ján Novák") return page(q, "<p>1 záznamov</p><div>Ján Novák Osoba so zákazom IČO 40000001 Zákaz účasti do 12.05.2027</div>");
+      return page(q, "<p>Zadaný výraz nebol nájdený.</p>");
+    }) as typeof fetch;
+    const uctx = { ico: "31322832", profile: { ico: "31322832", name: "Firma s.r.o.", statutory: [{ name: "Ing. Ján Novák", role: "konateľ" }, { name: "Mária Kováčová", role: "konateľ" }], owners: [{ name: "MAOTA s.r.o.", role: "spoločník" }] } } as any;
+    const u = await queryPublicRegister("uvo", uctx);
+    globalThis.fetch = real;
+    assert.ok(u.check, "ÚVO rozhodlo");
+    assert.equal(u.check!.status, "warning");
+    assert.match(u.check!.summary, /^Bez záznamu – register na dopyt podľa IČO.*Podľa mien osôb \(Ján Novák, Mária Kováčová\): možná zhoda – Ján Novák/);
+    assert.equal(u.check!.findings[0].cap, "caution");
+    assert.ok(u.check!.findings[0].ask);
+    const byPerson = u.check!.search![0].queries.filter((q) => q.by === "mena osoby");
+    assert.equal(byPerson.length, 2, "dve osoby (firma-vlastník sa nehľadá)");
+    assert.equal(byPerson[0].matched, 1);
+    assert.equal(byPerson[1].returned, 0);
+    console.log("OK – ÚVO podľa mien osôb (možná zhoda).");
+  })().catch((e) => { console.error(e); process.exit(1); });
 }

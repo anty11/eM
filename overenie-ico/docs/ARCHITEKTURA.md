@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.11** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.12** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -218,16 +218,17 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `vszp` | VšZP – dlžníci | POST formulár (vypnutie ochrany + `typ, nazov, docid`) | tabuľka „Obchodné meno · Obec · Ulica · PSČ · Pohľadávka“ alebo „Nenašli sa žiadne záznamy.“ | −25 kritické | public |
 | `union` | Union – dlžníci | API 401 → skript v prehliadači | pole „Zadajte priezvisko, IČO…“, tabuľka „… · IČO · Pohľadávka …“, „Žiadne data · 0–0 z 0“ | −25 kritické | public, agent |
 | `ov` | Obchodný vestník | index z exportu MS SR (ak je prístup) → skript v prehliadači | prepínač „dňa / od–do“, pole „IČO:“, „Vyhľadať podania“, tabuľka „# · Typ podania · Dátum · Kapitola · Subjekt · OV“, stránkovanie | −30 upozornenie (konkurz/likvidácia/zrušenie/dražba/zníženie imania/výzva veriteľom) | public, ovflow |
-| `uvo` | ÚVO – zákaz účasti | GET globálne vyhľadávanie `searchType=OSZ` (najprv IČO – rozhodujúci dopyt, potom názov; 12 s na dopyt, 20 s spolu) | „Zadaný výraz nebol nájdený.“ / „N záznamov“ | −15 upozornenie | public |
+| `uvo` | ÚVO – zákaz účasti | GET globálne vyhľadávanie `searchType=OSZ` (najprv IČO – rozhodujúci dopyt, potom názov; 12 s na dopyt, 20 s spolu); súbežne podľa mien osôb bez titulov (štatutári, spoločníci – FO, najviac 4) – zhoda mena = možná zhoda (upozornenie, strop S výhradou, otázka na totožnosť) | „Zadaný výraz nebol nájdený.“ / „N záznamov“ | −15 upozornenie | public |
 | `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026). Stránka je len obal: zoznam vykresľuje aplikácia React (`obcan.justice.sk/pilot/isu`) s API `obcan.justice.sk/pilot/api/ress-isu-service/v1` – obe domény idú vždy cez proxy | `lib/sources/diskv.ts`: pri každom preverení dopyt `GET …/v1/diskvalifikacia?<param>=<výraz>&page=1&size=50` – raz podľa IČO a raz podľa priezviska každej preverovanej osoby – súčasní štatutári, bývalí štatutári za 3 roky (`profile.formerStatutory`), spoločníci – fyzické osoby; právnické osoby sa vynechávajú (`lib/names.ts`) (nič sa nesťahuje celé ani neukladá; pamätá sa len názov parametra vyhľadávania – zistí sa nezmyselným výrazom, ktorý musí vrátiť `numFound = 0`); vrátené záznamy sa porovnajú s IČO a menom + priezviskom (bez titulov a diakritiky). Overené na API 6. 10. 2026: parameter `query` (fulltext, ignoruje diakritiku), zoznam `diskvalifikaciaList`, záznam `{ registreGuid, meno, datumRozhodnutia, sud, adresa, suradnice }` – bez IČO a dátumu narodenia, preto pri zhode mena porovnať adresu s OR; pri viac ako 50 výsledkoch pre priezvisko ďalšie strany (najviac 4). IČO = kritické −25; zhoda mena = možná zhoda (−25, `cap` S výhradou, `ask` overiť totožnosť); bez zhody pri úplnom registri = ok | −25 | access, diskv |
 | `cre` | CRE – exekúcie | len po registrácii a s certifikátom | – | −40 kritické | – |
+| `exek` | Exekúcie – poverenia na vykonanie exekúcie (MS SR, Infosud `obcan.justice.sk/pilot/poverenia`) | `lib/sources/exek.ts`: API tej istej služby ako diskvalifikácie (`…/ress-isu-service/v1/<zdroj>?query=IČO`), zdroj sa nájde za behu (nezmyselný výraz → `numFound = 0`; kandidáti `EXEK_RESOURCES`, pevne `EXEK_API_RESOURCE`); cez proxy. Zoznam obsahuje LEN poverenia OS Banská Bystrica vydané od 1. 4. 2017 a len z prebiehajúcich konaní – „bez záznamu“ nesie túto výhradu vždy (skončené a staršie exekúcie dáva len CRE) | `data.rows, updateDate, coverageSince` | poverenie s IČO −25 upozornenie; bez záznamu = ok + informácia o rozsahu | offline |
 | `dovera` | Dôvera – dlžníci | podmienky zakazujú automatizáciu | – | −25 kritické | – |
 
 ### Zadania pre AI (`lib/ai/specs.ts`)
 
 Každé zadanie má `domains` (povolené domény a domény dôkazu), `urls` (vstupné stránky), `task`, `dataPoints`, pri registroch bez API
 `browser: true`, `browserHint` a `jev` (popis registra a čo je negatívny záznam po anglicky). Zadania existujú pre:
-`rpo`, `ruz`, `fs-debtors`, `fs-vat`, `fs-ids`, `fs-dppo`, `socpoist`, `insolvency`, `rpvs`, `vszp`, `union`, `ov`, `diskv`, `uvo`;
+`rpo`, `ruz`, `fs-debtors`, `fs-vat`, `fs-ids`, `fs-dppo`, `socpoist`, `insolvency`, `rpvs`, `vszp`, `union`, `ov`, `diskv`, `uvo`, `exek`;
 `cre` a `dovera` sú vypnuté s vysvetlením.
 
 ---
@@ -402,6 +403,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |
 | `DISKV_API_URL` | testy | iná adresa API registra diskvalifikácií (len testy) |
+| `EXEK_API_RESOURCE` | voliteľné | pevný názov zdroja API poverení na vykonanie exekúcie (inak sa skúšajú kandidáti `EXEK_RESOURCES`) |
 | `MANUAL_DEADLINE_MS` | testy | limit pre registre bez API (predvolene 55 000 ms) |
 | `SELF_ORIGIN`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL`, `VERCEL_REGION`, `AWS_LAMBDA_FUNCTION_NAME`, `NODE_ENV` | automaticky / lokálne | interné volania (/api/edgefetch, /api/browser/flow), detekcia prostredia, región v záťažovej skúške |
 

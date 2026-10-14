@@ -31,6 +31,17 @@ export const MANUAL: ManualDef[] = [
     severityIfFound: "critical",
   },
   {
+    id: "exek",
+    category: "insolvency",
+    name: "Exekúcie – poverenia na vykonanie exekúcie",
+    source: "Ministerstvo spravodlivosti SR – zoznam poverení (Infosud)",
+    sourceUrl: "https://obcan.justice.sk/pilot/poverenia/",
+    verifyUrl: () => "https://obcan.justice.sk/pilot/poverenia/",
+    note: "Automatický dopyt do zoznamu poverení sa nepodaril – overte ručne podľa IČO. Zoznam obsahuje len poverenia Okresného súdu Banská Bystrica vydané od 1. 4. 2017 z prebiehajúcich exekučných konaní (skončené a staršie exekúcie tu nie sú – úplný prehľad dáva CRE).",
+    penaltyIfFound: 25,
+    severityIfFound: "warning",
+  },
+  {
     id: "vszp",
     category: "insurance",
     name: "Dlžníci Všeobecnej zdravotnej poisťovne",

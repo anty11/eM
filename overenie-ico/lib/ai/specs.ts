@@ -181,6 +181,20 @@ export const AI_SPECS: Record<string, AiSpec> = {
     browser: true,
     browserHint: () => `Register diskvalifikácií má formulár s poľami pre meno/priezvisko a IČO spoločnosti. Vyhľadaj podľa IČO aj podľa mien štatutárov. Ak stránka vráti chybu 403 / prístup odmietnutý, vráť "unknown".`,
   },
+  exek: {
+    id: "exek",
+    kind: "negative",
+    domains: ["obcan.justice.sk", "justice.gov.sk", "www.justice.gov.sk"],
+    urls: () => ["https://obcan.justice.sk/pilot/poverenia/"],
+    task: (ico, p) =>
+      `V zozname poverení na vykonanie exekúcie (Ministerstvo spravodlivosti SR, obcan.justice.sk/pilot/poverenia) over, či je voči subjektu ${who(ico, p)} vydané poverenie (prebiehajúca exekúcia). Hľadaj podľa IČO ${ico}. Zoznam obsahuje len poverenia Okresného súdu Banská Bystrica od 1. 4. 2017 z prebiehajúcich konaní – uveď to v poznámke.`,
+    dataPoints: `"notices": [{"date","court","executor","fileNo","text"}]`,
+    penalty: 25,
+    foundText: "Poverenie na vykonanie exekúcie voči subjektu (prebiehajúca exekúcia)",
+    jev: { register: "List of authorisations to carry out enforcement (Ministry of Justice, Infosud)", negative: "an enforcement authorisation lists the company (by company ID) as the obligor" },
+    browser: true,
+    browserHint: () => `Stránka je aplikácia React s vyhľadávacím poľom; zadaj IČO a prečítaj tabuľku poverení. Ak stránka vráti 403 / prístup odmietnutý, vráť "unknown".`,
+  },
   uvo: {
     id: "uvo",
     kind: "negative",

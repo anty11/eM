@@ -5,6 +5,7 @@ import { checkExcise, checkIds, checkIncomeTax, checkTaxDebtors, checkVat } from
 import { checkInsolvency } from "./sources/insolvency";
 import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
+import { checkExek } from "./sources/exek";
 import { checkOvViaBrowser, ovSearchLog, PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
 import { kv } from "./auth/kv";
 import { checkNews } from "./sources/news";
@@ -15,7 +16,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.11";
+export const APP_VERSION = "2.11.12";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -245,7 +246,15 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
             }
           }
         }
-        else if ((PUBLIC_QUERY_IDS as readonly string[]).includes(m.id)) {
+        else if (m.id === "exek") {
+          const r = await checkExek(ctx);
+          if (r.status !== "manual") auto = r;
+          else {
+            m.search = r.search;
+            m.summary = r.summary;
+            m.data = { ...(m.data || {}), ...(r.data || {}) };
+          }
+        } else if ((PUBLIC_QUERY_IDS as readonly string[]).includes(m.id)) {
           const r = await queryPublicRegister(m.id, ctx);
           auto = r.check;
           // neúspech: stručne prečo (posledný pokus) – zobrazí sa pri manuálnej kontrole a v diagnostike
@@ -283,6 +292,7 @@ const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {
   rpvs: checkRpvs,
   news: checkNews,
   ov: async (c) => (await checkOv(c)) || manualChecks(c).find((m) => m.id === "ov")!,
+  exek: checkExek,
   diskv: async (c) => (await queryPublicRegister("diskv", c)).check || manualChecks(c).find((m) => m.id === "diskv")!,
   uvo: async (c) => (await queryPublicRegister("uvo", c)).check || manualChecks(c).find((m) => m.id === "uvo")!,
   vszp: async (c) => (await queryPublicRegister("vszp", c)).check || manualChecks(c).find((m) => m.id === "vszp")!,

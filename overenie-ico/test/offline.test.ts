@@ -84,6 +84,10 @@ async function main() {
   assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(zoznam FS; daň 7 830,00 €\)/);
   assert.equal(by("fs-excise").status, "info");
   assert.match(by("fs-excise").summary, /nie je registrovaný pre spotrebné dane/);
+  // exekúcie: poverenia (len prebiehajúce, od 1. 4. 2017) – bez záznamu vždy s výhradou
+  assert.equal(by("exek").status, "ok", by("exek").summary);
+  assert.match(by("exek").summary, /Bez záznamu.*UPOZORNENIE: zoznam obsahuje len poverenia .* od 1\. 4\. 2017 a len z prebiehajúcich konaní/);
+  assert.equal(by("exek").search![0].queries[0].url, "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/poverenia?query=47244895&page=1&size=50");
   assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "unknown", "daňové nedoplatky len podľa názvu → nevieme naisto");
   // Verzia Firma: neverejné registre neblokujú verdikt
   const firmVerdict = computeVerdict(r.checks.filter((c) => c.id !== "fs-debtors"), { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
@@ -103,6 +107,9 @@ async function main() {
   assert.equal((by("fs-dppo").data as any).via, "ruz");
   assert.ok(by("fs-dppo").search!.length >= 2, "záznam vyhľadávania FS aj RÚZ");
   assert.match(by("fs-excise").summary, /Registrovaný pre spotrebné dane \(1×\): Lieh – Schválený príjemca – od 12\.03\.2021/);
+  assert.equal(by("exek").status, "warning");
+  assert.match(by("exek").findings[0].text, /Prebiehajúca exekúcia – poverenie .*6Er\/123\/2025/);
+  assert.equal(by("exek").findings[0].penalty, 25);
   assert.equal(by("fs-excise").status, "info");
   console.log("BAD:", r.verdict.level, r.verdict.score);
   console.log(r.checks.filter((c) => c.findings.length).map((c) => `  [${c.status}] ${c.name}: ${c.findings.map((f) => f.text).join(" | ")}`).join("\n"));

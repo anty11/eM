@@ -550,3 +550,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   limit 12 s na dopyt, 20 s spolu (predtým 7 s / 15 s – pri pomalom ÚVO sa IČO dopyt nestihol a výsledok padal na manuálne overenie,
   hoci register záznam nemal). (8) Zdravotné poisťovne: zamestnávateľ odvádza poistné za zamestnancov do všetkých troch poisťovní,
   preto sa overujú všetky (VšZP, Dôvera, Union) – „jedna poisťovňa“ platí len pre fyzickú osobu / SZČO.
+- **v2.11.12** – (11) **ÚVO aj podľa mien osôb:** popri IČO a názve sa register osôb so zákazom prehľadá súbežne podľa mien
+  štatutárov a spoločníkov – fyzických osôb (bez titulov, najviac 4); zhoda mena = možná zhoda (upozornenie −15, strop S výhradou,
+  otázka na overenie totožnosti), nie nález; súhrn uvádza preverené osoby. (12) **Exekúcie – nová kontrola `exek`:** poverenia na
+  vykonanie exekúcie zo zoznamu MS SR (aplikácia Infosud, `obcan.justice.sk/pilot/poverenia`, API tej istej služby ako register
+  diskvalifikácií, cez proxy). Poverenie s IČO subjektu = upozornenie −25 (prebiehajúca exekúcia). Zoznam obsahuje len poverenia
+  Okresného súdu Banská Bystrica vydané od 1. 4. 2017 a len z prebiehajúcich konaní, preto každý výsledok – aj „bez záznamu“ – nesie
+  výhradu, že skončené a staršie exekúcie tu nie sú a úplný prehľad dáva CRE (ostáva manuálne). Názov zdroja v API sa zisťuje za behu
+  (nezmyselný výraz → 0 záznamov); diagnostika `exek` ukáže skúšané zdroje aj dopyty aplikácie React na stránke poverení.

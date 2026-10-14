@@ -31,6 +31,8 @@ export function verifyTerm(c: CheckResult, ico: string, name?: string): { term: 
       return { term: ico, where: "Union – zoznam dlžníkov: pole „Priezvisko, meno / názov alebo IČO“" };
     case "ov":
       return { term: ico, where: "Obchodný vestník – Zverejnené formuláre: pole „IČO“, dátum od (3 roky), „Vyhľadať podania“" };
+    case "exek":
+      return { term: ico, where: "Zoznam poverení (MS SR): pole „IČO“ povinného; len prebiehajúce exekúcie s poverením od 1. 4. 2017" };
     case "cre":
       return { term: ico, where: "CRE – po prihlásení: vyhľadávanie podľa IČO" };
     case "uvo":
