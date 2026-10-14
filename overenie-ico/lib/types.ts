@@ -191,6 +191,8 @@ export interface Ctx {
   profile: CompanyProfile;
   /** Splnené po dokončení identifikácie (RPO) – ostatné kontroly naň čakajú len ak potrebujú meno/vek. */
   rpoDone?: Promise<unknown>;
+  /** Výsledok Registra účtovných závierok (daň z príjmov z výkazu, uložené závierky) – pre daňové kontroly. */
+  ruzDone?: Promise<CheckResult | null>;
   /** Splnené, keď je známe DIČ (z RÚZ) alebo je jasné, že nie je. */
   dicReady?: Promise<unknown>;
   /** Interné: vyriešenie dicReady. */

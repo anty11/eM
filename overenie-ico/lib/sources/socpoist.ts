@@ -11,7 +11,10 @@ const FALLBACK_FILE = "https://www.socpoist.sk/api/idsp/download/ed57da4c-93aa-4
 interface Debtor {
   name: string;
   city?: string;
+  /** Dlžná suma v tvare „5 434,41 €“ (SP ju tak zverejňuje); „-“ = bez dlžnej sumy, zapísaný pre chýbajúce podklady */
   amount?: string;
+  /** „Chýbajúce podklady za obdobie“ (mesačné výkazy), napr. „07/2026, 08/2026“ */
+  missing?: string;
 }
 
 /**
@@ -19,9 +22,19 @@ interface Debtor {
  * Súbor stiahneme, zaindexujeme podľa IČO a držíme v pamäti 6 hodín.
  */
 /** Rozpozná formát (XLSX/XLS/CSV, prípadne ZIP s nimi) a zaindexuje dlžníkov podľa IČO. */
+/** Hlavička posledného spracovaného súboru (diagnostika: ktoré stĺpce zoznam má a kde je dlžná suma). */
+export let lastHeaders: string[] = [];
+
+/** „5434.41“ / „5 434,41 €“ / 5434.41 → „5 434,41 €“ */
+export function fmtAmount(raw: string | number): string {
+  const n = Number(String(raw).replace(/[€\s\u00a0]/g, "").replace(",", "."));
+  return Number.isFinite(n) ? `${n.toLocaleString("sk-SK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/[\u00a0\u202f]/g, " ")} €` : String(raw).trim();
+}
+
 export async function indexFile(buf: Buffer, map: Map<string, Debtor>): Promise<number> {
   const XLSX = await import("xlsx");
   let count = 0;
+  let headers: string[] = [];
   const sheetRows = (wb: any) => wb.SheetNames.map((sn: string) => XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: "" }) as any[][]);
   const readBook = (b: Buffer): any[][][] => {
     const magic = b.subarray(0, 4).toString("hex");
@@ -68,16 +81,22 @@ export async function indexFile(buf: Buffer, map: Map<string, Debtor>): Promise<
     const iIco = h.findIndex((c: string) => /^ico$/.test(c.trim()));
     const iName = h.findIndex((c: string) => /nazov|meno|dlznik|subjekt/.test(c));
     const iCity = h.findIndex((c: string) => /mesto|obec/.test(c));
-    const iAmt = h.findIndex((c: string) => /suma|dlh|vyska|pohladav|nedoplat/.test(c));
+    const iAmt = h.findIndex((c: string) => /suma|dlh|vyska|pohladav|nedoplat|eur/.test(c) && !/obdob|podklad/.test(c));
+    const iMiss = h.findIndex((c: string) => /chybaj|podklad|obdob/.test(c));
+    if (!headers.length) headers = (rows[hi] || []).map((c: any) => String(c).trim()).filter(Boolean);
     for (const r of rows.slice(hi + 1)) {
       const ico = String(iIco >= 0 ? r[iIco] : r.find((c: any) => /^\d{6,8}$/.test(String(c).trim())) || "")
         .replace(/\s/g, "")
         .padStart(8, "0");
       if (!/^\d{8}$/.test(ico) || ico === "00000000") continue;
       count++;
-      map.set(ico, { name: String(r[iName] ?? ""), city: iCity >= 0 ? String(r[iCity]) : undefined, amount: iAmt >= 0 ? String(r[iAmt]) : undefined });
+      const amtRaw = iAmt >= 0 ? String(r[iAmt] ?? "").trim() : "";
+      const amount = amtRaw && amtRaw !== "-" ? fmtAmount(amtRaw) : undefined;
+      const missRaw = iMiss >= 0 ? String(r[iMiss] ?? "").trim() : "";
+      map.set(ico, { name: String(r[iName] ?? ""), city: iCity >= 0 ? String(r[iCity]) : undefined, amount, missing: missRaw && missRaw !== "-" ? missRaw : undefined });
     }
   }
+  lastHeaders = headers;
   return count;
 }
 
@@ -116,6 +135,8 @@ interface SpMeta {
   count: number;
   updatedAt: number;
   file: string;
+  /** stĺpce súboru SP (diagnostika) */
+  headers?: string[];
 }
 
 async function persistIndex(idx: { map: Map<string, Debtor>; count: number; file: string }) {
@@ -123,11 +144,11 @@ async function persistIndex(idx: { map: Map<string, Debtor>; count: number; file
   const entries = [...idx.map.entries()];
   for (let i = 0; i < entries.length; i += 4000) {
     const chunk: Record<string, string> = {};
-    for (const [ico, d] of entries.slice(i, i + 4000)) chunk[ico] = [d.amount || "", d.name || "", d.city || ""].join("|");
+    for (const [ico, d] of entries.slice(i, i + 4000)) chunk[ico] = [d.amount || "", d.name || "", d.city || "", d.missing || ""].join("|");
     await kv().hset(key, chunk);
   }
   const old = await kv().get<SpMeta>(META_KEY);
-  await kv().set(META_KEY, { key, count: idx.count, updatedAt: Date.now(), file: idx.file } satisfies SpMeta);
+  await kv().set(META_KEY, { key, count: idx.count, updatedAt: Date.now(), file: idx.file, headers: lastHeaders } satisfies SpMeta);
   if (old?.key && old.key !== key) await kv().del(old.key);
 }
 
@@ -162,8 +183,8 @@ async function lookupStored(ico: string): Promise<{ meta: SpMeta; d: Debtor | nu
     if (!meta?.key) return null;
     const v = await kv().hget(meta.key, ico);
     if (v === null) return { meta, d: null };
-    const [amount, name, city] = v.split("|");
-    return { meta, d: { amount: amount || undefined, name, city: city || undefined } };
+    const [amount, name, city, missing] = v.split("|");
+    return { meta, d: { amount: amount || undefined, name, city: city || undefined, missing: missing || undefined } };
   } catch {
     return null;
   }
@@ -184,11 +205,13 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
         let d: Debtor | null | undefined;
         let count = 0;
         let asOf: number | undefined;
+        let headers: string[] | undefined;
         const stored = await lookupStored(ctx.ico);
         if (stored) {
           d = stored.d;
           count = stored.meta.count;
           asOf = stored.meta.updatedAt;
+          headers = stored.meta.headers;
           if (Date.now() - stored.meta.updatedAt > MAX_AGE) await refreshInBackground();
         } else {
           // Prvé spustenie: zoznam (~130 000 riadkov) sa pripraví na pozadí, aby nezdržal preverenie.
@@ -201,6 +224,7 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
               d = again.d;
               count = again.meta.count;
               asOf = again.meta.updatedAt;
+              headers = again.meta.headers;
               break;
             }
           }
@@ -218,7 +242,7 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
             dataset: "Sociálna poisťovňa – zoznam dlžníkov (súbor zverejnený SP, indexovaný podľa IČO)",
             total: count,
             asOf: asOf ? new Date(asOf).toLocaleDateString("sk-SK") : undefined,
-            queries: [sq("IČO", ctx.ico, d ? 1 : 0, d ? 1 : 0, undefined, `priame vyhľadanie v zozname ${count.toLocaleString("sk-SK")} dlžníkov`)],
+            queries: [sq("IČO", ctx.ico, d ? 1 : 0, d ? 1 : 0, undefined, `priame vyhľadanie v zozname ${count.toLocaleString("sk-SK")} dlžníkov${headers?.length ? `; stĺpce súboru SP: ${headers.join(", ")}` : ""}${d ? `; záznam: ${[d.name, d.city, d.amount || "bez dlžnej sumy", d.missing ? `chýbajúce podklady ${d.missing}` : ""].filter(Boolean).join(" · ")}` : ""}`)],
             rule: "zhoda IČO v zozname",
           },
         ];
@@ -233,8 +257,8 @@ export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
         return {
           search,
           status: "critical",
-          summary: `Subjekt JE dlžníkom Sociálnej poisťovne${d.amount ? ` – dlh ${d.amount}` : ""}.`,
-          findings: [{ severity: "critical", text: `Dlh voči Sociálnej poisťovni${d.amount ? ` ${d.amount}` : ""}`, penalty: 35 }],
+          summary: `Subjekt JE v zozname dlžníkov Sociálnej poisťovne${d.amount ? ` – dlžná suma ${d.amount}` : ""}${d.missing ? ` – chýbajúce podklady (mesačné výkazy) za obdobie ${d.missing}` : ""}${!d.amount && !d.missing ? " – výšku dlžnej sumy zoznam neuvádza" : ""} (záznam: ${[d.name, d.city].filter(Boolean).join(", ")}).`,
+          findings: [{ severity: "critical", text: `Dlh voči Sociálnej poisťovni${d.amount ? ` – dlžná suma ${d.amount}` : ""}${d.missing ? `${d.amount ? ";" : " –"} chýbajúce podklady za obdobie ${d.missing}` : ""}`, penalty: 35 }],
           verifyUrl,
           data: d as unknown as Record<string, unknown>,
         };

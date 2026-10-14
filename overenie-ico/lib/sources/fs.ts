@@ -9,6 +9,17 @@ import type { CheckResult, Ctx, Finding, SearchLog, SearchQuery } from "../types
  */
 const API = "https://iz.opendata.financnasprava.sk/api";
 const ZOZNAMY = "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy";
+/** Stránky jednotlivých zoznamov na webe FS (prehľad zoznamov 14. 10. 2026) – na overenie v zdroji priamo v správnom zozname. */
+export const FS_LIST_URL = {
+  debtors: `${ZOZNAMY}/zoznam-danovych-dlznikov`,
+  vat: `${ZOZNAMY}/detail/_101c6128-e1f6-4a48-81ed-ad3c01220e03`,
+  vatRisk: `${ZOZNAMY}/detail/_b6188880-e315-47f0-895d-a275008afcf2`,
+  vatDeleted: `${ZOZNAMY}/detail/_c7c3ebc0-a880-4289-82b3-a3d100ece6b6`,
+  ids: `${ZOZNAMY}/detail/_3ae2281c-3b96-40d9-86c3-af1d00cfb1df`,
+  incomeTax: `${ZOZNAMY}/detail/_b8ef7dea-48c9-4dfd-880b-a90e00e611f0`,
+  excise: `${ZOZNAMY}/detail/_c8ed25c8-8593-40ac-a233-a275008a12f9`,
+  bankAccounts: `${ZOZNAMY}/detail/_3a11bae5-4c60-46fd-b57e-ae0700a98ee7`,
+} as const;
 
 interface Ds {
   slug: string;
@@ -65,6 +76,8 @@ const DATASETS = {
   vatDeleted: { slugs: ["ds_dphv"], re: /vymazan\S* .*dph/i },
   ids: { slugs: ["ds_iz_ran", "ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
   incomeTax: { slugs: ["ds_dppos", "ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
+  /** Zoznam daňových subjektov registrovaných pre spotrebné dane (§ 52 ods. 5 daňového poriadku) – len informácia */
+  excise: { slugs: ["ds_sd", "ds_spd", "ds_sdr", "ds_spotrebne"], re: /spotrebn\S* dan/i },
   /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 13 písm. c)). */
   bankAccounts: { slugs: ["ds_dph_iban", "ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
 } as const;
@@ -326,12 +339,12 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
           status: "manual",
           summary: `Zoznam daňových dlžníkov (OpenData FS) neobsahuje IČO a dá sa prehľadávať len podľa názvu; ${how} (aj s inými zápismi právnej formy) sa subjekt nenašiel. Pri odlišnom zápise obchodného mena v zozname by ho vyhľadávanie minulo – overte v zozname Finančnej správy.`,
           findings: [],
-          verifyUrl: ZOZNAMY,
+          verifyUrl: FS_LIST_URL.debtors,
           automated: false,
           data: { slug, searchedBy: rows.by, trail: rows.trail },
           search: rows.log ? [rows.log] : undefined,
         } as any;
-      return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: ZOZNAMY, data: { slug, searchedBy: rows.by, trail: rows.trail }, search: rows.log ? [rows.log] : undefined };
+      return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: FS_LIST_URL.debtors, data: { slug, searchedBy: rows.by, trail: rows.trail }, search: rows.log ? [rows.log] : undefined };
     }
     const amount = debtAmount(rows[0]);
     const r0 = rows[0];
@@ -342,7 +355,7 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
       status: "critical",
       summary: `Subjekt JE v zozname daňových dlžníkov Finančnej správy${amount ? ` – nedoplatok ${amount} €` : ""} (záznam: ${where}; vyhľadané ${how}).`,
       findings: [{ severity: "critical", text: `Daňový dlžník (Finančná správa)${amount ? `, nedoplatok ${amount} €` : ""} – ${where}`, penalty: 45 }],
-      verifyUrl: ZOZNAMY,
+      verifyUrl: FS_LIST_URL.debtors,
       data: { slug, rows: rows.slice(0, 3), searchedBy: rows.by, trail: rows.trail },
       search: rows.log ? [rows.log] : undefined,
     };
@@ -366,7 +379,7 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
     // bez kľúča FS: aspoň registrácia DPH cez VIES
     return runCheck({ ...m, source: "EÚ VIES (registrácia DPH); zoznamy Finančnej správy manuálne" }, async () => {
       const v = ctx.profile.dic ? await vies(ctx.profile.dic) : null;
-      if (!v) return { status: "manual", summary: "DPH: automatické overenie nie je aktívne (chýba kľúč FS_API_KEY) a VIES neodpovedal. Overte manuálne.", findings: [], verifyUrl: ZOZNAMY, automated: false } as any;
+      if (!v) return { status: "manual", summary: "DPH: automatické overenie nie je aktívne (chýba kľúč FS_API_KEY) a VIES neodpovedal. Overte manuálne.", findings: [], verifyUrl: FS_LIST_URL.vat, automated: false } as any;
       if (v.valid) ctx.profile.icDph = `SK${ctx.profile.dic}`;
       return {
         status: "info",
@@ -374,7 +387,7 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
           ? `Registrovaný platiteľ DPH SK${ctx.profile.dic} (podľa EÚ VIES${v.name ? `, ${v.name}` : ""}). Zoznam dôvodov na zrušenie registrácie vyžaduje kľúč FS – overte manuálne.`
           : `Nie je platiteľom DPH (podľa EÚ VIES). Zoznamy Finančnej správy vyžadujú kľúč FS.`,
         findings: v.valid ? [{ severity: "positive", text: `Registrovaný platiteľ DPH SK${ctx.profile.dic} (VIES)`, penalty: -2 }] : [],
-        verifyUrl: ZOZNAMY,
+        verifyUrl: FS_LIST_URL.vat,
         data: { icDph: v.valid ? `SK${ctx.profile.dic}` : undefined, vies: v },
       };
     });
@@ -400,7 +413,7 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
         status: "manual",
         summary: `${v.valid ? `Registrovaný platiteľ DPH SK${ctx.profile.dic} (podľa EÚ VIES).` : "Nie je platiteľom DPH (podľa EÚ VIES)."} Zoznam platiteľov s dôvodmi na zrušenie registrácie Finančná správa nevrátila (${(e as Error).message.slice(0, 120)}) – overte manuálne alebo skúste znova.`,
         findings: v.valid ? [{ severity: "positive", text: `Registrovaný platiteľ DPH SK${ctx.profile.dic} (VIES)`, penalty: -2 }] : [],
-        verifyUrl: ZOZNAMY,
+        verifyUrl: FS_LIST_URL.vat,
         data: { icDph: v.valid ? `SK${ctx.profile.dic}` : undefined, vies: v },
       };
     }
@@ -423,7 +436,7 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
           ? "Nie je platiteľom DPH – registrácia bola zrušená."
           : "Subjekt nie je registrovaný pre DPH.",
       findings: f,
-      verifyUrl: ZOZNAMY,
+      verifyUrl: risk.length ? FS_LIST_URL.vatRisk : del.length ? FS_LIST_URL.vatDeleted : FS_LIST_URL.vat,
       data: { icDph, slugs: { sVat, sRisk, sDel } },
       search: [vat.log, risk.log, del.log].filter(Boolean) as SearchLog[],
     };
@@ -437,7 +450,7 @@ export async function checkIds(ctx: Ctx): Promise<CheckResult> {
     const slug = await resolve("ids");
     if (!slug) return notPublished("Index daňovej spoľahlivosti");
     const rows = await search(slug, ctx);
-    const url = `${ZOZNAMY}/index-danovej-spolahlivosti`;
+    const url = FS_LIST_URL.ids;
     if (!rows.length) return { status: "info", summary: "Subjekt nie je hodnotený v indexe daňovej spoľahlivosti.", findings: [], verifyUrl: url, search: rows.log ? [rows.log] : undefined };
     // skutočný záznam API: { ico, dic, ids: "vysoko spoľahlivý", nazov_subjektu, obec, … }
     const raw = pick(rows[0], /^ids$|index|hodnot|spolahliv|kategor/) ?? Object.values(rows[0]).find((x) => /spo[lľ]ahliv/i.test(String(x)));
@@ -470,15 +483,32 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
     const slug = await resolve("incomeTax");
     if (!slug) return notPublished("Daň z príjmov PO");
     const rows = await search(slug, ctx);
-    if (!rows.length)
+    if (!rows.length) {
+      // zoznam FS obsahuje len subjekty s nenulovou daňou → o podaní priznania hovorí Register účtovných závierok:
+      // závierka sa ukladá spolu s daňovým priznaním a výkaz ziskov a strát má riadok „Daň z príjmov“
+      const ruz = await Promise.race([ctx.ruzDone ?? Promise.resolve(null), new Promise<null>((r) => setTimeout(() => r(null), 12000))]);
+      const d = (ruz?.data || {}) as { lastFiledYear?: number; lastFiledOn?: string; expectedYear?: number; metrics?: { period: string; incomeTax?: number; profit?: number }[] };
+      const last = d.metrics?.[0];
+      const taxTxt = last?.incomeTax !== undefined ? `${last.incomeTax.toLocaleString("sk-SK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/[\u00a0\u202f]/g, " ")} €` : undefined;
+      const filedOn = d.lastFiledOn ? new Date(d.lastFiledOn).toLocaleDateString("sk-SK") : undefined;
+      const ruzLine = d.lastFiledYear
+        ? ` Podľa Registra účtovných závierok je posledná závierka za rok ${d.lastFiledYear}${filedOn ? ` uložená ${filedOn}` : ""} – ukladá sa spolu s daňovým priznaním${last?.incomeTax !== undefined ? `; daň z príjmov vo výkaze za ${last.period}: ${taxTxt}${last.incomeTax === 0 ? " (nulová daň alebo strata – preto nie je v zozname FS)" : ""}` : ""}.${d.expectedYear && d.lastFiledYear < d.expectedYear ? ` Závierka (a teda ani priznanie) za rok ${d.expectedYear} v registri nie je.` : ""}`
+        : ruz
+          ? " Register účtovných závierok neuvádza žiadnu uloženú závierku."
+          : " Register účtovných závierok neodpovedal – podanie overte v RÚZ.";
+      const filedExpected = Boolean(d.expectedYear && d.lastFiledYear && d.lastFiledYear >= d.expectedYear);
       return {
-        status: "info",
-        summary: "Subjekt sa v zozname daní z príjmov PO nenachádza (môže ísť aj o nulovú daň alebo stratu). Podanie overte podľa závierky v RÚZ.",
+        status: d.lastFiledYear && d.expectedYear && d.lastFiledYear < d.expectedYear ? "warning" : "info",
+        summary: `Subjekt nie je v zozname FS daňových subjektov s výškou dane z príjmov PO (zoznam uvádza len nenulovú daň).${ruzLine}`,
         findings: [],
-        verifyUrl: ZOZNAMY,
-        data: { slug, filed: undefined },
-        search: rows.log ? [rows.log] : undefined,
+        verifyUrl: FS_LIST_URL.incomeTax,
+        data: { slug, filed: filedExpected ? true : undefined, year: d.lastFiledYear, tax: last?.incomeTax, via: d.lastFiledYear ? "ruz" : undefined, definitive: Boolean(ruz) },
+        search: [
+          ...(rows.log ? [rows.log] : []),
+          ...(ruz?.search?.length ? [{ ...ruz.search[0], dataset: `${ruz.search[0].dataset} – závierka sa podáva s daňovým priznaním; riadok „Daň z príjmov“ výkazu`, rule: "uložená závierka za očakávaný rok = priznanie podané; daň z výkazu ziskov a strát" }] : []),
+        ],
       };
+    }
     const withYear = rows
       .map((r) => ({ r, y: Number(String(pick(r, /^rok|obdobi|zdanovac/) ?? "").match(/\d{4}/)?.[0] || 0) }))
       .sort((a, b) => b.y - a.y);
@@ -491,13 +521,39 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
       status: "ok",
       summary: `Daňové priznanie podané${top.y ? ` za rok ${top.y}` : ""}${tax !== undefined ? ` – daň ${tax} €` : ""}.`,
       findings: [],
-      verifyUrl: ZOZNAMY,
+      verifyUrl: FS_LIST_URL.incomeTax,
       data: { slug, filed: true, year: top.y || undefined, tax },
       search: rows.log ? [rows.log] : undefined,
     };
   });
 }
 
+/** Registrácia pre spotrebné dane (§ 52 ods. 5 daňového poriadku) – len informácia: druh dane, typ subjektu, dátum registrácie. */
+export async function checkExcise(ctx: Ctx): Promise<CheckResult> {
+  const m = meta("fs-excise", "Registrácia pre spotrebné dane (informácia)");
+  if (!key()) return noKey(m, "Registrácia pre spotrebné dane");
+  return runCheck(m, async () => {
+    const slug = await resolve("excise");
+    if (!slug) return { ...notPublished("Registrácia pre spotrebné dane"), verifyUrl: FS_LIST_URL.excise };
+    const rows = await search(slug, ctx);
+    if (!rows.length)
+      return { status: "info", summary: "Subjekt nie je registrovaný pre spotrebné dane (zoznam FS podľa § 52 ods. 5 daňového poriadku).", findings: [], verifyUrl: FS_LIST_URL.excise, data: { slug, registered: false, definitive: true }, search: rows.log ? [rows.log] : undefined };
+    const kinds = rows.map((r) => {
+      const kind = pick(r, /^druh_?dane$|^druh dane$|^dan$/) ?? pick(r, /druh_?dan/);
+      const type = pick(r, /druh_?danov\w*_?subj|typ_?subj|druh_?subj|^typ$/);
+      const since = pick(r, /^datum/);
+      return [kind, type, since ? `od ${since}` : ""].filter(Boolean).join(" – ");
+    });
+    return {
+      status: "info",
+      summary: `Registrovaný pre spotrebné dane (${rows.length}×): ${[...new Set(kinds)].slice(0, 5).join("; ")}. Informácia – bez vplyvu na hodnotenie.`,
+      findings: [{ severity: "info", text: `Registrácia pre spotrebné dane: ${[...new Set(kinds)].slice(0, 3).join("; ")}`, penalty: 0 }],
+      verifyUrl: FS_LIST_URL.excise,
+      data: { slug, registered: true, rows: rows.slice(0, 5), definitive: true },
+      search: rows.log ? [rows.log] : undefined,
+    };
+  });
+}
 
 import { normalizeIban, type BankAccountResult } from "../deal";
 
@@ -507,7 +563,7 @@ import { normalizeIban, type BankAccountResult } from "../deal";
  */
 export async function checkBankAccount(ctx: Ctx, ibanIn: string): Promise<BankAccountResult> {
   const iban = normalizeIban(ibanIn);
-  const verifyUrl = ZOZNAMY;
+  const verifyUrl = FS_LIST_URL.bankAccounts;
   if (!key()) return { status: "unknown", message: "Zoznam bankových účtov FS vyžaduje kľúč FS_API_KEY – overte manuálne.", verifyUrl };
   try {
     const slug = await resolve("bankAccounts");

@@ -40,6 +40,7 @@ const RAW_URLS: Record<string, (ico: string) => string[]> = {
   "fs-vat": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_dphs`, `https://iz.opendata.financnasprava.sk/api/data/ds_dphs/search?page=1&column=ico&search=${ico}`],
   "fs-ids": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_ids`, `https://iz.opendata.financnasprava.sk/api/data/ds_ids/search?page=1&column=ico&search=${ico}`],
   "fs-dppo": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_dppo`],
+  "fs-excise": () => [`https://iz.opendata.financnasprava.sk/api/lists`],
   socpoist: () => ["https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov"],
   insolvency: (ico) => [`https://replik.justice.sk/ru-verejnost-web/pages/searchKonanie.xhtml?query=${ico}`],
   rpvs: (ico) => [`https://rpvs.gov.sk/opendatav2/PartneriVerejnehoSektora?$filter=Ico eq '${ico}'`],
@@ -227,7 +228,7 @@ export const GET = handler(async (req) => {
       if (source !== "rpo") {
         const r = await runOne(ico, "rpo", {});
         if (r) Object.assign(profile, r.profile);
-        if (["fs-debtors", "fs-vat", "fs-ids", "fs-dppo"].includes(source)) {
+        if (["fs-debtors", "fs-vat", "fs-ids", "fs-dppo", "fs-excise"].includes(source)) {
           const z = await runOne(ico, "ruz", profile as any).catch(() => null);
           if (z?.profile?.dic) profile.dic = z.profile.dic;
         }

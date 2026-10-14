@@ -46,7 +46,7 @@ const sablona = {
       { text: { sk: "SPOLU VLASTNÉ IMANIE A ZÁVÄZKY" } }, { text: { sk: "Vlastné imanie r. 81 + ..." } }, { text: { sk: "Výsledok hospodárenia za účtovné obdobie po zdanení /+-/" } }, { text: { sk: "Záväzky r. 102 + ..." } },
     ] },
     { nazov: { sk: "Výkaz ziskov a strát" }, pocetDatovychStlpcov: 2, riadky: [
-      { text: { sk: "Čistý obrat (časť účt. tr. 6 podľa zákona)" } }, { text: { sk: "Výnosy z hospodárskej činnosti spolu" } }, { text: { sk: "Výsledok hospodárenia za účtovné obdobie po zdanení (+/-)" } },
+      { text: { sk: "Čistý obrat (časť účt. tr. 6 podľa zákona)" } }, { text: { sk: "Výnosy z hospodárskej činnosti spolu" } }, { text: { sk: "Daň z príjmov r. 57 + r. 58" } }, { text: { sk: "Výsledok hospodárenia za účtovné obdobie po zdanení (+/-)" } },
     ] },
   ],
 };
@@ -57,15 +57,17 @@ const vykaz = (bad: boolean) => ({
     tabulky: [
       { nazov: { sk: "Strana aktív" }, data: ["1953410", "158730", "1794680", "1444581", "", "", "", ""] },
       { nazov: { sk: "Strana pasív" }, data: bad ? ["50000", "60000", "-42000", "-1000", "-41000", "-3000", "92000", "61000"] : ["1794680", "1444581", "923155", "891686", "31469", "30000", "871525", "552895"] },
-      { nazov: { sk: "Výkaz ziskov a strát" }, data: bad ? ["12000", "40000", "12000", "40000", "-41000", "-3000"] : ["979872", "902131", "980463", "1001870", "31469", "30000"] },
+      { nazov: { sk: "Výkaz ziskov a strát" }, data: bad ? ["12000", "40000", "12000", "40000", "", "", "-41000", "-3000"] : ["979872", "902131", "980463", "1001870", "8158", "7830", "31469", "30000"] },
     ],
   },
 });
 
 function socpoistXlsx(): Buffer {
-  const rows: any[][] = [["Názov", "Adresa", "Mesto", "IČO", "Suma"]];
-  for (let i = 0; i < 1500; i++) rows.push([`Firma ${i}`, "Ulica 1", "Mesto", String(40000000 + i), "10,00 €"]);
-  rows.push(["''C.C.C.'' s.r.o.", "Námestie Biely kríž 1110/1", "Bratislava", BAD, "5 933,27 €"]);
+  // stĺpce ako v súbore SP (10/2026): Názov / Meno, IČO, Adresa, Mesto, Dlžná suma, Chýbajúce podklady za obdobie
+  const rows: any[][] = [["Názov / Meno", "IČO", "Adresa", "Mesto", "Dlžná suma", "Chýbajúce podklady za obdobie"]];
+  for (let i = 0; i < 1500; i++) rows.push([`Firma ${i}`, String(40000000 + i), "Ulica 1", "Mesto", "10,00 €", "-"]);
+  rows.push(["''C.C.C.'' s.r.o.", BAD, "Námestie Biely kríž 1110/1", "Bratislava", "5 933,27 €", "07/2026, 08/2026"]);
+  rows.push(["Bez sumy s.r.o.", "40009999", "Ulica 2", "Mesto", "-", "08/2026"]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "Dlžníci");
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
@@ -112,13 +114,14 @@ globalThis.fetch = (async (input: any, init?: any) => {
           L("ds_dphz", "Zoznam platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie", ["ic_dph"]),
           L("ds_ids", "Index daňovej spoľahlivosti", ["ico"]),
           L("ds_dppo", "Daňové subjekty PO s výškou dane z príjmov", ["ico"]),
+          L("ds_sd", "Zoznam daňových subjektov registrovaných pre spotrebné dane", ["ico", "nazov_subjektu"]),
         ]),
       );
     if (u.pathname === "/api/lists/ds_dsdd") return json({ name: "Zoznam daňových dlžníkov", slug: "ds_dsdd", searchable: ["nazov_subjektu", "obec"] });
     const slug = u.pathname.split("/")[3];
     const col = u.searchParams.get("column") || "";
     const term = u.searchParams.get("search") || "";
-    const searchable: Record<string, string[]> = { ds_dsdd: ["nazov_subjektu", "obec"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"] };
+    const searchable: Record<string, string[]> = { ds_dsdd: ["nazov_subjektu", "obec"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"], ds_sd: ["ico", "nazov_subjektu"] };
     if (!searchable[slug]) return json({ error: "List not found" }, 404);
     if (!searchable[slug].includes(col)) return json({ error: "Column is not searchable" }, 400);
     const isBad = term === BAD || term === "SK2020000001";
@@ -128,6 +131,7 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (slug === "ds_dsdd" && /URBAN/.test(term)) rows = [{ nazov_subjektu: "URBAN STAVBY s.r.o.", obec: "Košice", suma: "999,00" }]; // iná firma s podobným menom
     if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }];
     if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
+    if (slug === "ds_sd" && isBad) rows = [{ registracne_cislo: "SK52400000001", ico: BAD, nazov_subjektu: "C.C.C. s.r.o.", obec: "Bratislava", druh_dane: "Lieh", druh_danoveho_subjektu: "Schválený príjemca", datum_registracie: "12.03.2021" }];
     if (slug === "ds_dppo" && !isBad) rows = [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }];
     // presne štruktúra reálnej odpovede API (overené na produkcii)
     if (slug === "ds_ids") rows = [{ id: 1362137, dic: isBad ? "2020000001" : "2023674466", ico: term, ids: isBad ? "menej spoľahlivý" : "vysoko spoľahlivý", nazov_subjektu: isBad ? "C.C.C. s.r.o." : "URBAN & PARTNERS s.r.o., advokátska kancelária", obec: "Bratislava - mestská časť Staré Mesto", psc: "81103", ulica_cislo: "Červeňova 15", stat: "SK" }];

@@ -11,6 +11,7 @@ const SOURCES = [
   { id: "fs-vat", label: "FS – DPH a dôvody na zrušenie" },
   { id: "fs-ids", label: "FS – index daňovej spoľahlivosti" },
   { id: "fs-dppo", label: "FS – daňové priznanie PO" },
+  { id: "fs-excise", label: "FS – spotrebné dane (registrácia)" },
   { id: "socpoist", label: "Sociálna poisťovňa – dlžníci (index)" },
   { id: "insolvency", label: "REPLIK – konkurzy a likvidácie" },
   { id: "rpvs", label: "RPVS – partneri verejného sektora" },

@@ -33,6 +33,7 @@ const NAMES: Record<string, string> = {
   "fs-vat": "FS DPH",
   "fs-ids": "FS index",
   "fs-dppo": "FS DPPO",
+  "fs-excise": "FS spotrebné dane",
   socpoist: "Sociálna poisťovňa",
   insolvency: "REPLIK",
   rpvs: "RPVS",

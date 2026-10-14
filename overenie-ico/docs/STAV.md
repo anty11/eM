@@ -527,3 +527,19 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   exekúcia / reštrukturalizácia = upozornenie, zlúčenie a záložné právo = informácia); nález je označený „[výpis ORSR – v RPO chýba]“
   a záznam vyhľadávania uvádza počet zápisov a rizikových. Tú istú sekciu vyhodnocuje aj záloha identifikácie z ORSR (`fromOrsr`,
   predtým ju ignorovala). `orsr.ts`: `orsrEntries` (zápisy sekcie s dátumom „od“), `OrsrResult.legalFacts`. Test v `orsr.test.ts`.
+- **v2.11.10** – Podnety z preverovania (14. 10. 2026):
+  (3) **Odkazy „Overiť v zdroji“ pri zoznamoch FS** vedú priamo na stránku príslušného zoznamu (`FS_LIST_URL`: daňoví dlžníci, DPH /
+  dôvody na zrušenie / vymazaní, index daňovej spoľahlivosti – stránka s filtrom IČO, daň z príjmov PO, spotrebné dane, bankové účty),
+  nie na všeobecný prehľad zoznamov.
+  (4) **Daňové priznanie k dani z príjmov:** zoznam FS uvádza len subjekty s nenulovou daňou, preto „nie je v zozname“ nič nehovorí.
+  Keď subjekt v zozname nie je, kontrola doplní údaj z Registra účtovných závierok – závierka sa ukladá spolu s priznaním, takže uložená
+  závierka za očakávaný rok = priznanie podané; z výkazu ziskov a strát sa číta riadok „Daň z príjmov“ (nulová daň / strata vysvetľuje,
+  prečo subjekt v zozname FS nie je). Chýbajúca závierka za očakávaný rok = upozornenie. Kľúčový fakt uvádza zdroj (zoznam FS /
+  závierka v RÚZ).
+  (5) **Registrácia pre spotrebné dane** – nová informačná kontrola `fs-excise` v časti Dane a DPH: druh dane, druh subjektu, dátum
+  registrácie; bez vplyvu na hodnotenie.
+  (6) **Dlžníci Sociálnej poisťovne:** nález uvádza dlžnú sumu v tvare „5 434,41 €“ a tiež stĺpec „Chýbajúce podklady za obdobie“
+  (SP zapisuje aj subjekty bez dlžnej sumy, ktoré nepodali mesačné výkazy); index v Redise nesie aj toto pole a hlavičku súboru SP,
+  záznam vyhľadávania vypisuje stĺpce súboru a nájdený záznam – ak by sa suma nenašla, je vidieť, v ktorom stĺpci je.
+  (7) **Dôvera** ostáva manuálna: stránka je chránená overením „nie som robot“ a Dôvera automatizované overovanie výslovne zakazuje –
+  obchádzanie ochrany sa nerobí; odkaz otvorí zoznam s IČO v adrese, po overení v prehliadači sa výsledok zobrazí sám.

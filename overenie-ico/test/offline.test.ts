@@ -81,7 +81,9 @@ async function main() {
   assert.deepEqual((by("rpvs").data as any).kuv, ["Janko Mrkvička"], "len aktuálni KUV");
   assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
   assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);
-  assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(daň 7 830,00 €\)/);
+  assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(zoznam FS; daň 7 830,00 €\)/);
+  assert.equal(by("fs-excise").status, "info");
+  assert.match(by("fs-excise").summary, /nie je registrovaný pre spotrebné dane/);
   assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "unknown", "daňové nedoplatky len podľa názvu → nevieme naisto");
   // Verzia Firma: neverejné registre neblokujú verdikt
   const firmVerdict = computeVerdict(r.checks.filter((c) => c.id !== "fs-debtors"), { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
@@ -96,6 +98,12 @@ async function main() {
 
   // 3) Rizikový subjekt
   r = await scan(BAD);
+  // zoznam FS daní z príjmov PO subjekt nemá (nulová daň) → podanie priznania podľa závierky v RÚZ, daň z riadku výkazu
+  assert.match(by("fs-dppo").summary, /nie je v zozname FS.*Podľa Registra účtovných závierok je posledná závierka za rok \d{4}.*daň z príjmov vo výkaze/);
+  assert.equal((by("fs-dppo").data as any).via, "ruz");
+  assert.ok(by("fs-dppo").search!.length >= 2, "záznam vyhľadávania FS aj RÚZ");
+  assert.match(by("fs-excise").summary, /Registrovaný pre spotrebné dane \(1×\): Lieh – Schválený príjemca – od 12\.03\.2021/);
+  assert.equal(by("fs-excise").status, "info");
   console.log("BAD:", r.verdict.level, r.verdict.score);
   console.log(r.checks.filter((c) => c.findings.length).map((c) => `  [${c.status}] ${c.name}: ${c.findings.map((f) => f.text).join(" | ")}`).join("\n"));
   assert.equal(r.verdict.level, "not_recommended");
@@ -103,6 +111,9 @@ async function main() {
   assert.match(by("fs-debtors").summary, /nedoplatok 12\s345,67 € \(záznam: C\.C\.C\. s\. r\. o\., Gergeľova 423\/11, 95112 Ivanka pri Nitre; vyhľadané podľa obchodného mena „C\.C\.C\. s\.r\.o\.“/, "hľadané celým menom, zhoda aj pri inom zápise právnej formy a inej adrese v zozname FS");
   assert.equal(by("fs-vat").status, "critical");
   assert.equal(by("socpoist").status, "critical");
+  assert.match(by("socpoist").summary, /dlžná suma 5 933,27 € – chýbajúce podklady \(mesačné výkazy\) za obdobie 07\/2026, 08\/2026 \(záznam: ''C\.C\.C\.'' s\.r\.o\., Bratislava\)/);
+  assert.match(by("socpoist").findings[0].text, /Dlh voči Sociálnej poisťovni – dlžná suma 5 933,27 €; chýbajúce podklady za obdobie 07\/2026, 08\/2026/);
+  assert.match(by("socpoist").search![0].queries[0].note || "", /stĺpce súboru SP: Názov \/ Meno, IČO, Adresa, Mesto, Dlžná suma, Chýbajúce podklady za obdobie/);
   assert.equal(by("insolvency").status, "critical");
   assert.equal((by("insolvency").data as any).proceedings.length, 2);
   assert.equal(by("insolvency").findings.filter((f) => f.severity === "critical").length, 1, "skončené konanie je len upozornenie");

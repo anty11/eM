@@ -1,7 +1,7 @@
 import { icoChecksumValid } from "./ico";
 import { computeVerdict } from "./scoring";
 import { keyFacts } from "./keyfacts";
-import { checkIds, checkIncomeTax, checkTaxDebtors, checkVat } from "./sources/fs";
+import { checkExcise, checkIds, checkIncomeTax, checkTaxDebtors, checkVat } from "./sources/fs";
 import { checkInsolvency } from "./sources/insolvency";
 import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
@@ -15,7 +15,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.9";
+export const APP_VERSION = "2.11.10";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -58,7 +58,8 @@ async function cachedRun(ctx: Ctx, id: string, fn: () => Promise<CheckResult>, f
   }
   const before = JSON.stringify(ctx.profile);
   const check = await fn();
-  if (!ctx.asOf && ["ok", "warning", "critical"].includes(check.status) && !ctx.profile.notFound) {
+  // „info“ sa ukladá len pri jednoznačnom výsledku registra (data.definitive) – nie pri nezistiteľnom stave (napr. zablokované médiá)
+  if (!ctx.asOf && (["ok", "warning", "critical"].includes(check.status) || (check.status === "info" && (check.data as any)?.definitive)) && !ctx.profile.notFound) {
     const prev = JSON.parse(before) as Record<string, unknown>;
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(ctx.profile)) if (JSON.stringify(v) !== JSON.stringify(prev[k])) patch[k] = v;
@@ -124,6 +125,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
   const rpoCapped = capRaw("rpo", rpoP);
   for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
   const ruzP = run("ruz", checkRuz);
+  ctx.ruzDone = ruzP.catch(() => null);
   const nameFallback = () => {
     if (!ctx.profile.name && ctx.profile.ruzName) {
       ctx.profile.name = ctx.profile.ruzName;
@@ -147,6 +149,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
     cap("fs-vat", after("fs-vat", checkVat)),
     cap("fs-ids", after("fs-ids", checkIds)),
     cap("fs-dppo", after("fs-dppo", checkIncomeTax)),
+    cap("fs-excise", after("fs-excise", checkExcise)),
     cap("socpoist", run("socpoist", checkSocpoist)),
     cap("insolvency", run("insolvency", checkInsolvency)),
     cap("rpvs", run("rpvs", checkRpvs)),
@@ -176,7 +179,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
       notFound: true,
     };
   }
-  const [rpo, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await allP;
+  const [rpo, ruz, debtors, vat, ids, incomeTax, excise, socpoist, insolvency, rpvs, news] = await allP;
   nameFallback();
 
   const manual = await Promise.race([
@@ -187,7 +190,7 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
       ),
     ),
   ]);
-  const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manual];
+  const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, excise, socpoist, ruz, insolvency, rpvs, news, ...manual];
   if (!icoChecksumValid(ico))
     rpo.findings.push({ severity: "info", text: "IČO nespĺňa kontrolný súčet (môže ísť o historické IČO) – overte správnosť", penalty: 0 });
 
@@ -274,6 +277,7 @@ const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {
   "fs-vat": checkVat,
   "fs-ids": checkIds,
   "fs-dppo": checkIncomeTax,
+  "fs-excise": checkExcise,
   socpoist: checkSocpoist,
   insolvency: checkInsolvency,
   rpvs: checkRpvs,

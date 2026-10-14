@@ -13,6 +13,8 @@ interface Metrics {
   liabilities?: number;
   revenue?: number;
   profit?: number;
+  /** Daň z príjmov z výkazu ziskov a strát (riadok „Daň z príjmov“) – podklad, či bolo podané daňové priznanie s nenulovou daňou. */
+  incomeTax?: number;
 }
 
 const txt = (v: any): string => (typeof v === "string" ? v : v?.sk || v?.text || "");
@@ -78,6 +80,11 @@ async function extract(vykaz: any): Promise<{ cur: Partial<Metrics>; prev: Parti
         if (/vysledok hospodarenia za uctovne obdobie/.test(fold(txt(r.text)))) pr = i;
       });
       put("profit", pr);
+      const tx = find(/^dan z prijmov/);
+      if (tx >= 0) {
+        put("incomeTax", tx);
+        if (cur.incomeTax === undefined) cur.incomeTax = 0; // riadok je, bunka prázdna = nulová daň (strata)
+      }
     }
   });
   return { cur, prev };
