@@ -41,7 +41,7 @@ const RAW_URLS: Record<string, (ico: string) => string[]> = {
   "fs-ids": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_ids`, `https://iz.opendata.financnasprava.sk/api/data/ds_ids/search?page=1&column=ico&search=${ico}`],
   "fs-dppo": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_dppo`],
   "fs-excise": () => [`https://iz.opendata.financnasprava.sk/api/lists`],
-  exek: (ico) => [`https://obcan.justice.sk/pilot/poverenia/`, ...["poverenia", "poverenie", "exekucie"].map((r) => `https://obcan.justice.sk/pilot/api/ress-isu-service/v1/${r}?query=${ico}&page=1&size=5`)],
+  exek: () => [`https://obcan.justice.sk/pilot/poverenia/`],
   socpoist: () => ["https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov"],
   insolvency: (ico) => [`https://replik.justice.sk/ru-verejnost-web/pages/searchKonanie.xhtml?query=${ico}`],
   rpvs: (ico) => [`https://rpvs.gov.sk/opendatav2/PartneriVerejnehoSektora?$filter=Ico eq '${ico}'`],
@@ -220,11 +220,16 @@ export const GET = handler(async (req) => {
     if (source === "ov") result.index = await ovMeta().catch((e) => ({ error: (e as Error).message }));
     // exekúcie: zdroj API (kandidáti) + záznam dopytov aplikácie React na stránke poverení (odhalí skutočnú adresu API)
     if (source === "exek") {
-      const { exekResource, EXEK_PAGE } = await import("@/lib/sources/exek");
-      result.api = await exekResource().then((r) => ({ resource: r.resource, tried: r.tried }), (e) => ({ error: (e as Error).message, tried: (e as any).tried }));
+      const { getExekApi, setExekApi } = await import("@/lib/sources/exek");
+      result.learnedApi = await getExekApi();
       if (process.env.BROWSER_DISABLED !== "1") {
-        const { diskvCapture } = await import("@/lib/browser/flows");
-        result.browserCapture = await Promise.race([diskvCapture(ico, [], { url: EXEK_PAGE }), new Promise((res) => setTimeout(() => res({ error: "časový limit 70 s" }), 70000))]);
+        const { exekFlow } = await import("@/lib/browser/flows");
+        const r = await Promise.race([exekFlow(ico, { diag: true }), new Promise<null>((res) => setTimeout(() => res(null), 70000))]);
+        result.browserFlow = r ? { ...r, actions: r.actions?.slice(0, 40), pages: undefined } : { error: "časový limit 70 s" };
+        if (r?.apiTemplate) {
+          await setExekApi(r.apiTemplate);
+          result.learnedApi = r.apiTemplate;
+        }
       }
     }
     if (source === "fs") result.fsKeyConfigured = Boolean(process.env.FS_API_KEY);

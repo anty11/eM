@@ -57,9 +57,9 @@ async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: n
  * Strop pre skript v prehliadači v rámci preverenia (diagnostika má 50 s). Záťažová skúška 6. 10. 2026: Union p95 13 s, OV pri súbežnosti
  * až 50 s (časový limit) – OV radšej skôr skončí ako manuálne s dôvodom, než aby držal celé preverenie.
  */
-const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov", number> = { union: 30000, ov: 25000 };
+const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov" | "exek", number> = { union: 30000, ov: 25000, exek: 30000 };
 
-export async function browserFlow(source: "union" | "ov", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult> {
+export async function browserFlow(source: "union" | "ov" | "exek", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult & { apiTemplate?: { url: string; method: string; post?: string } }> {
   const origin = selfOrigin();
   const t0 = Date.now();
   try {

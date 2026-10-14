@@ -558,3 +558,19 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Okresného súdu Banská Bystrica vydané od 1. 4. 2017 a len z prebiehajúcich konaní, preto každý výsledok – aj „bez záznamu“ – nesie
   výhradu, že skončené a staršie exekúcie tu nie sú a úplný prehľad dáva CRE (ostáva manuálne). Názov zdroja v API sa zisťuje za behu
   (nezmyselný výraz → 0 záznamov); diagnostika `exek` ukáže skúšané zdroje aj dopyty aplikácie React na stránke poverení.
+- **v2.11.13** – **Záznam chýb zdrojov** (podnet: „niekedy vyhodíš chybu a potom sa to opraví samo“). Každé zlyhanie kontroly ostane
+  zapísané (zdroj, IČO, presná správa, trvanie, či išlo o studený štart inštancie, či o limit preverenia), aj keď ho „Skúsiť znova“ alebo
+  ďalšie preverenie prekryje; opakovanie zo stránky sa zapíše ako uspelo / zlyhalo. Administrácia → Chyby zdrojov: súhrn za zdroj
+  (počet, studené štarty, limity, úspešnosť opakovania, najčastejšie správy) a posledné záznamy, tlačidlo „Kopírovať súhrn“ na poslanie
+  do vývoja. Príčiny prechodných chýb sa budú odstraňovať podľa tohto záznamu.
+- **v2.11.14** – Podnety 14. 10. 2026 večer: **Exekúcie (poverenia)** – kandidáti API vracali 404; stránka má formulár „podľa IČO,
+  resp. názvu povinného“, preto sa overuje prehliadačom na serveri (`exekFlow`): vyplní IČO, „Hľadať poverenie“, prečíta odpoveď
+  aplikácie (JSON s počtom záznamov má prednosť pred stránkou); adresu dopytu s IČO si zapamätá (Redis `exek:api`) a ďalšie preverenia
+  idú priamo bez prehliadača. Diagnostika `exek` spustí beh s prehliadačom a ukáže zachytené dopyty aj naučenú adresu.
+  **Daň z príjmov:** keď subjekt nie je v zozname FS, súhrn uvádza len výšku dane z účtovnej závierky („Daň z príjmov za 2025 podľa
+  účtovnej závierky (uložená 18. 3. 2026): 960,00 €“); podrobnosti o zozname FS ostávajú v zázname vyhľadávania. **Spotrebné dane:**
+  názov zoznamu sa hľadá voľnejšie („spotrebn“, „SPD“); keď sa nenájde, záznam vyhľadávania vypíše všetky zoznamy, ktoré OpenData API
+  ponúka – zle zvolený názov tak vidno priamo na obrazovke.
+  **„Overiť manuálne“ → zrazu úspech:** registre bez API, ktoré server vie overiť sám (VšZP, Union, ÚVO, diskvalifikácie, OV, exekúcie),
+  sa počas pokusu ukazujú ako „Overuje sa automaticky…“, nie ako manuálne; „Overiť manuálne“ sa zobrazí až keď pokus naozaj zlyhá
+  (predtým sa položka najprv hlásila ako manuálna a o chvíľu „sama“ prešla na výsledok).

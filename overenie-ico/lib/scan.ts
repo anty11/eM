@@ -1,4 +1,5 @@
 import { icoChecksumValid } from "./ico";
+import { icoStore } from "./check";
 import { computeVerdict } from "./scoring";
 import { keyFacts } from "./keyfacts";
 import { checkExcise, checkIds, checkIncomeTax, checkTaxDebtors, checkVat } from "./sources/fs";
@@ -6,6 +7,7 @@ import { checkInsolvency } from "./sources/insolvency";
 import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
 import { checkExek } from "./sources/exek";
+import { logError } from "./errlog";
 import { checkOvViaBrowser, ovSearchLog, PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
 import { kv } from "./auth/kv";
 import { checkNews } from "./sources/news";
@@ -16,7 +18,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.12";
+export const APP_VERSION = "2.11.14";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -83,6 +85,10 @@ export type Progress = (c: CheckResult, profile: Ctx["profile"]) => void;
 export const scanIdFor = (ico: string, scannedAt: string) => `SK-${ico}-${scannedAt.replace(/[-:TZ.]/g, "").slice(0, 14)}`;
 
 export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: string; fresh?: boolean; scannedAt?: string } = {}): Promise<ScanReport> {
+  return icoStore.run(ico, () => scanInner(ico, onProgress, opts));
+}
+
+async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: string; fresh?: boolean; scannedAt?: string } = {}): Promise<ScanReport> {
   const t0 = Date.now();
   const scannedAt = opts.scannedAt || new Date().toISOString();
   const ctx: Ctx = { ico, profile: { ico }, asOf: opts.asOf };
@@ -102,10 +108,14 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
       }
       return r;
     });
-  const capRaw = (id: string, p: Promise<CheckResult>): Promise<CheckResult> =>
-    Promise.race([
+  const capRaw = (id: string, p: Promise<CheckResult>): Promise<CheckResult> => {
+    let settled = false;
+    p.then(() => (settled = true), () => (settled = true));
+    return Promise.race([
       p,
-      sleep(Math.max(1000, DEADLINE_MS - (Date.now() - t0))).then((): CheckResult => ({
+      sleep(Math.max(1000, DEADLINE_MS - (Date.now() - t0))).then((): CheckResult => {
+        if (!settled) void logError({ kind: "deadline", source: id, ico, message: `zdroj neodpovedal do ${Math.round(DEADLINE_MS / 1000)} s (limit preverenia)`, ms: DEADLINE_MS, where: "scan" });
+        return {
         id,
         ...META[id],
         status: "error",
@@ -115,8 +125,10 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
         durationMs: Date.now() - t0,
         automated: true,
         verifyUrl: META[id].sourceUrl,
-      })),
+      };
+      }),
     ]);
+  };
 
   // Všetky zdroje štartujú hneď. Podľa IČO sa pýtajú RÚZ, Sociálna poisťovňa, REPLIK, RPVS a registre bez API; na meno z RPO čakajú
   // len kontroly, ktoré ho potrebujú (FS, médiá, ÚVO, diskvalifikácie) – a najviac 14 s: ak RPO (API ŠÚ SR) odpovedá pomaly,
@@ -124,7 +136,10 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
   const rpoP = run("rpo", checkRpo);
   ctx.rpoDone = rpoP.catch(() => undefined);
   const rpoCapped = capRaw("rpo", rpoP);
-  for (const m of manualChecks(ctx)) onProgress?.(m, ctx.profile);
+  // Registre bez API, ktoré server vie overiť sám (dopyt / index / prehliadač), sa počas pokusu ukazujú ako „Overuje sa…“, nie ako
+  // „Overiť manuálne“ – inak sa položka najprv hlási ako manuálna a o chvíľu „sama“ prejde na výsledok (mätie používateľa).
+  for (const m of manualChecks(ctx))
+    onProgress?.(AUTO_MANUAL_IDS.includes(m.id) ? { ...m, status: "pending", summary: "Overuje sa automaticky…", automated: true } : m, ctx.profile);
   const ruzP = run("ruz", checkRuz);
   ctx.ruzDone = ruzP.catch(() => null);
   const nameFallback = () => {
@@ -209,6 +224,9 @@ export async function scan(ico: string, onProgress?: Progress, opts: { asOf?: st
   };
 }
 
+/** Registre bez API, ktoré sa skúšajú automaticky (ostatné – CRE, Dôvera – sú vždy manuálne). */
+export const AUTO_MANUAL_IDS: readonly string[] = [...PUBLIC_QUERY_IDS, "ov", "exek"];
+
 /** Manuálne registre: pokus o automatické overenie; neúspech = pôvodná manuálna kontrola. Výsledky sa hlásia priebežne. */
 export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => void, fresh = false, sink?: Map<string, CheckResult>): Promise<CheckResult[]> {
   const base = manualChecks(ctx);
@@ -271,8 +289,9 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
           return auto;
         }
       } catch (e) {
-        // ostáva manuálne; dôvod si zapamätáme pre diagnostiku
+        // ostáva manuálne; dôvod si zapamätáme pre diagnostiku a do záznamu chýb
         m.data = { ...(m.data || {}), autoError: (e as Error).message.slice(0, 300) };
+        void logError({ kind: "error", source: m.id, ico: ctx.ico, message: (e as Error).message, ms: Date.now() - t0, where: "manual" });
       }
       // čas automatického pokusu aj pri neúspechu (záťažová skúška, diagnostika – ktorý register zdržuje)
       return { ...m, durationMs: Date.now() - t0 };
@@ -300,11 +319,14 @@ const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {
 };
 
 /** Znovu spustí jeden zdroj (napr. po výpadku) s už známym profilom subjektu. */
-export async function runOne(ico: string, id: string, profile: Partial<CompanyProfile>): Promise<{ check: CheckResult; profile: CompanyProfile } | null> {
+export async function runOne(ico: string, id: string, profile: Partial<CompanyProfile>, opts: { retry?: boolean } = {}): Promise<{ check: CheckResult; profile: CompanyProfile } | null> {
   const fn = RUNNERS[id];
   if (!fn) return null;
   await invalidateCache(ico, id);
   const ctx: Ctx = { ico, profile: { ...profile, ico } as CompanyProfile, rpoDone: Promise.resolve(), dicReady: Promise.resolve(), resolveDic: () => undefined };
-  const check = await fn(ctx);
+  const t0 = Date.now();
+  const check = await icoStore.run(ico, () => fn(ctx));
+  // opakovanie zo stránky („Skúsiť znova“): výsledok do záznamu chýb – ukáže, ktoré chyby sú prechodné
+  if (opts.retry) void logError({ kind: check.status === "error" ? "retry-fail" : "retry-ok", source: id, ico, message: check.status === "error" ? check.summary.slice(0, 300) : `opakovanie uspelo: ${check.status}`, ms: Date.now() - t0, where: "retry" });
   return { check, profile: ctx.profile };
 }

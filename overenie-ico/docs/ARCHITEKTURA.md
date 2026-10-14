@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.12** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.14** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -67,7 +67,7 @@ flowchart LR
 | AI | `lib/ai/*.ts` | nastavenia, zadania (`specs.ts`), agent, webové vyhľadávanie, Jev |
 | Prístupy | `lib/access.ts` | proxy pre blokované registre (predvolene `justice.gov.sk` + `obcan.justice.sk`; `DIRECT_HOSTS` – Obchodný vestník – vždy priamo), prístup k exportu OV |
 | Hodnotenie | `lib/scoring.ts`, `lib/keyfacts.ts`, `lib/deal.ts` | skóre, verdikt, kľúčové fakty, indikátory obchodu |
-| Záznamy | `lib/audit.ts`, `lib/ailog.ts` | audit firmy, záznam AI overení a skriptov |
+| Záznamy | `lib/audit.ts`, `lib/ailog.ts`, `lib/errlog.ts` | audit firmy, záznam AI overení a skriptov, záznam chýb zdrojov (aj prechodných) |
 
 ---
 
@@ -221,7 +221,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `uvo` | ÚVO – zákaz účasti | GET globálne vyhľadávanie `searchType=OSZ` (najprv IČO – rozhodujúci dopyt, potom názov; 12 s na dopyt, 20 s spolu); súbežne podľa mien osôb bez titulov (štatutári, spoločníci – FO, najviac 4) – zhoda mena = možná zhoda (upozornenie, strop S výhradou, otázka na totožnosť) | „Zadaný výraz nebol nájdený.“ / „N záznamov“ | −15 upozornenie | public |
 | `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026). Stránka je len obal: zoznam vykresľuje aplikácia React (`obcan.justice.sk/pilot/isu`) s API `obcan.justice.sk/pilot/api/ress-isu-service/v1` – obe domény idú vždy cez proxy | `lib/sources/diskv.ts`: pri každom preverení dopyt `GET …/v1/diskvalifikacia?<param>=<výraz>&page=1&size=50` – raz podľa IČO a raz podľa priezviska každej preverovanej osoby – súčasní štatutári, bývalí štatutári za 3 roky (`profile.formerStatutory`), spoločníci – fyzické osoby; právnické osoby sa vynechávajú (`lib/names.ts`) (nič sa nesťahuje celé ani neukladá; pamätá sa len názov parametra vyhľadávania – zistí sa nezmyselným výrazom, ktorý musí vrátiť `numFound = 0`); vrátené záznamy sa porovnajú s IČO a menom + priezviskom (bez titulov a diakritiky). Overené na API 6. 10. 2026: parameter `query` (fulltext, ignoruje diakritiku), zoznam `diskvalifikaciaList`, záznam `{ registreGuid, meno, datumRozhodnutia, sud, adresa, suradnice }` – bez IČO a dátumu narodenia, preto pri zhode mena porovnať adresu s OR; pri viac ako 50 výsledkoch pre priezvisko ďalšie strany (najviac 4). IČO = kritické −25; zhoda mena = možná zhoda (−25, `cap` S výhradou, `ask` overiť totožnosť); bez zhody pri úplnom registri = ok | −25 | access, diskv |
 | `cre` | CRE – exekúcie | len po registrácii a s certifikátom | – | −40 kritické | – |
-| `exek` | Exekúcie – poverenia na vykonanie exekúcie (MS SR, Infosud `obcan.justice.sk/pilot/poverenia`) | `lib/sources/exek.ts`: API tej istej služby ako diskvalifikácie (`…/ress-isu-service/v1/<zdroj>?query=IČO`), zdroj sa nájde za behu (nezmyselný výraz → `numFound = 0`; kandidáti `EXEK_RESOURCES`, pevne `EXEK_API_RESOURCE`); cez proxy. Zoznam obsahuje LEN poverenia OS Banská Bystrica vydané od 1. 4. 2017 a len z prebiehajúcich konaní – „bez záznamu“ nesie túto výhradu vždy (skončené a staršie exekúcie dáva len CRE) | `data.rows, updateDate, coverageSince` | poverenie s IČO −25 upozornenie; bez záznamu = ok + informácia o rozsahu | offline |
+| `exek` | Exekúcie – poverenia na vykonanie exekúcie (MS SR, Infosud `obcan.justice.sk/pilot/poverenia`) | `lib/sources/exek.ts`: 1. naučená adresa API (Redis `exek:api`, šablóna s `{ico}` zachytená z dopytov aplikácie pri behu prehliadača) – priamy dopyt cez proxy; 2. inak prehliadač na serveri `exekFlow` (`/api/browser/flow`, zdroj `exek`): prepínač „podľa IČO, resp. názvu povinného“, pole IČO, „Hľadať poverenie“, vyhodnotí JSON odpoveď aplikácie (`judgeExekJson`: numFound + záznamy s IČO) alebo tabuľku / hlásenie na stránke a adresu dopytu si zapamätá. Zoznam obsahuje LEN poverenia OS Banská Bystrica vydané od 1. 4. 2017 a len z prebiehajúcich konaní – „bez záznamu“ nesie túto výhradu vždy (skončené a staršie exekúcie dáva len CRE) | `data.rows, updateDate, coverageSince` | poverenie s IČO −25 upozornenie; bez záznamu = ok + informácia o rozsahu | offline |
 | `dovera` | Dôvera – dlžníci | podmienky zakazujú automatizáciu | – | −25 kritické | – |
 
 ### Zadania pre AI (`lib/ai/specs.ts`)
@@ -315,6 +315,11 @@ diskvalifikáciách) s pokynom, do ktorého poľa – stránky s formulárom POS
 
 Odpoveď: `answers.result.choice`, `confidence`, `probabilities`. Prijíma sa len `clean` s istotou ≥ prah (predvolene 85 %).
 
+**Záznam chýb zdrojov** (`lib/errlog.ts`, Redis `errlog`, posledných 300; Administrácia → Chyby zdrojov, `/api/admin/errlog`): každé
+zlyhanie kontroly (`runCheck`, limit preverenia, registre bez API) a výsledok opakovania zo stránky (`retry-ok` / `retry-fail`) –
+zdroj, IČO (z `icoStore`, AsyncLocalStorage v `lib/check.ts`), správa, trvanie, príznak studeného štartu inštancie. Chyba, ktorá sa
+„sama opraví“, tak ostane dohľadateľná so skutočnou príčinou.
+
 **Záznam behu** (`lib/ailog.ts`, Redis `ailog`, posledných 200): `kind (ai|flow), source, ico, provider, model, mode, result, status,
 rejected, error, ms, steps, decidedBy, jev, evidence[], actions[] (action, ok, target {kind, name, label}, value), pages[] (url, title,
 elements, tables, text), events[]`.
@@ -403,7 +408,6 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |
 | `DISKV_API_URL` | testy | iná adresa API registra diskvalifikácií (len testy) |
-| `EXEK_API_RESOURCE` | voliteľné | pevný názov zdroja API poverení na vykonanie exekúcie (inak sa skúšajú kandidáti `EXEK_RESOURCES`) |
 | `MANUAL_DEADLINE_MS` | testy | limit pre registre bez API (predvolene 55 000 ms) |
 | `SELF_ORIGIN`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL`, `VERCEL_REGION`, `AWS_LAMBDA_FUNCTION_NAME`, `NODE_ENV` | automaticky / lokálne | interné volania (/api/edgefetch, /api/browser/flow), detekcia prostredia, región v záťažovej skúške |
 

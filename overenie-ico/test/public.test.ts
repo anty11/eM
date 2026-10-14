@@ -4,6 +4,7 @@ import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
 import { judge, queryPublicRegister, searchFromOutcome } from "../lib/sources/public";
 import { debtAmount } from "../lib/sources/fs";
+import { judgeExekJson } from "../lib/sources/exek";
 import { verifyTerm } from "../app/components/VerifyLink";
 import { ownerFirms, people, professionOf } from "../lib/sources/news";
 import { judgeOv, judgeUnion } from "../lib/browser/flows";
@@ -167,6 +168,16 @@ main().catch((e) => { console.error(e); process.exit(1); });
   assert.equal(verifyTerm({ ...base, id: "vszp" }, "50790030")?.term, "50790030");
   assert.equal(verifyTerm({ ...base, id: "news" }, "50790030"), null);
   console.log("OK – Overiť v zdroji: výraz do schránky a pokyn.");
+
+  // Exekúcie – odpoveď aplikácie poverení (JSON): počet + záznamy s IČO; prázdny výsledok; neúplný zoznam bez IČO
+  const exFound = judgeExekJson(JSON.stringify({ numFound: 1, povereniaList: [{ povinny: "SUPERQUAD SLOVAKIA s.r.o.", ico: "50565516", exekutor: "JUDr. Peter Kuna", spisovaZnacka: "6Er/123/2025" }] }), "50565516")!;
+  assert.equal(exFound.verdict, "found");
+  assert.match(exFound.rows[0], /povinny: SUPERQUAD SLOVAKIA s\.r\.o\. · ico: 50565516 · exekutor: JUDr\. Peter Kuna/);
+  assert.equal(judgeExekJson(JSON.stringify({ numFound: 0, povereniaList: [] }), "50565516")!.verdict, "clean");
+  assert.equal(judgeExekJson(JSON.stringify({ totalElements: 3, content: [{ ico: "11111111" }, { ico: "22222222" }, { ico: "33333333" }] }), "50565516")!.verdict, "clean", "celý zoznam prečítaný, bez IČO");
+  assert.equal(judgeExekJson(JSON.stringify({ numFound: 500, povereniaList: [{ ico: "11111111" }] }), "50565516")!.verdict, "unknown", "neúplný zoznam bez IČO nie je „bez záznamu“");
+  assert.equal(judgeExekJson("<html>…</html>", "50565516"), null);
+  console.log("OK – exekúcie: vyhodnotenie odpovede aplikácie poverení.");
 
   // ÚVO: popri IČO aj mená osôb (štatutári, spoločníci – FO); zhoda mena = možná zhoda (upozornenie, strop S výhradou), nie nález
   (async () => {

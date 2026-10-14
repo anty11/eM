@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Header, { useMe } from "../components/Header";
 import AccessPanel from "../components/AccessPanel";
 import AiLogPanel from "../components/AiLogPanel";
+import ErrorLogPanel from "../components/ErrorLogPanel";
 import AiSettings from "../components/AiSettings";
 import DiagPanel from "../components/DiagPanel";
 import LoadTestPanel from "../components/LoadTestPanel";
@@ -287,6 +288,7 @@ export default function AdminPage() {
         <DiagPanel />
         <LoadTestPanel />
         <AiLogPanel />
+        <ErrorLogPanel />
 
         <section className="card">
           <h2>Protokol činností</h2>

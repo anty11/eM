@@ -9,9 +9,12 @@ import { scan } from "../lib/scan";
 import { applyManual, computeVerdict } from "../lib/scoring";
 import { icoChecksumValid, normalizeIco } from "../lib/ico";
 import { filingStatus } from "../lib/sources/ruz";
+import { setExekApi } from "../lib/sources/exek";
 
 async function main() {
   installMock();
+  // exekúcie: naučená adresa API (ako po prvom behu prehliadača) – mock odpovedá na …/v1/poverenia?query=IČO
+  await setExekApi({ url: "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/poverenia?query={ico}&page=1&size=50", method: "GET" });
   // IČO
   assert.equal(normalizeIco(" 472 448 95 "), GOOD);
   assert.equal(normalizeIco("123"), null);
@@ -88,6 +91,7 @@ async function main() {
   assert.equal(by("exek").status, "ok", by("exek").summary);
   assert.match(by("exek").summary, /Bez záznamu.*UPOZORNENIE: zoznam obsahuje len poverenia .* od 1\. 4\. 2017 a len z prebiehajúcich konaní/);
   assert.equal(by("exek").search![0].queries[0].url, "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/poverenia?query=47244895&page=1&size=50");
+  assert.equal((by("exek").data as any).via, "api");
   assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "unknown", "daňové nedoplatky len podľa názvu → nevieme naisto");
   // Verzia Firma: neverejné registre neblokujú verdikt
   const firmVerdict = computeVerdict(r.checks.filter((c) => c.id !== "fs-debtors"), { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
@@ -103,7 +107,7 @@ async function main() {
   // 3) Rizikový subjekt
   r = await scan(BAD);
   // zoznam FS daní z príjmov PO subjekt nemá (nulová daň) → podanie priznania podľa závierky v RÚZ, daň z riadku výkazu
-  assert.match(by("fs-dppo").summary, /nie je v zozname FS.*Podľa Registra účtovných závierok je posledná závierka za rok \d{4}.*daň z príjmov vo výkaze/);
+  assert.match(by("fs-dppo").summary, /^Daň z príjmov za \d{4} podľa účtovnej závierky \(uložená .*\): 0,00 €\./);
   assert.equal((by("fs-dppo").data as any).via, "ruz");
   assert.ok(by("fs-dppo").search!.length >= 2, "záznam vyhľadávania FS aj RÚZ");
   assert.match(by("fs-excise").summary, /Registrovaný pre spotrebné dane \(1×\): Lieh – Schválený príjemca – od 12\.03\.2021/);

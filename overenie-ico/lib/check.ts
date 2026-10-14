@@ -1,4 +1,9 @@
 import type { CategoryId, CheckResult, CheckStatus, Finding } from "./types";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { logError } from "./errlog";
+
+/** IČO práve bežiaceho preverenia (len na záznam chýb) – nastavuje scan() a runOne(). */
+export const icoStore = new AsyncLocalStorage<string>();
 
 export interface CheckMeta {
   id: string;
@@ -21,6 +26,7 @@ export async function runCheck(meta: CheckMeta, fn: () => Promise<CheckBody>): P
     const body = await fn();
     return { automated: true, ...meta, ...body, checkedAt, durationMs: Date.now() - t0 };
   } catch (e) {
+    void logError({ kind: "error", source: meta.id, ico: icoStore.getStore() || "", message: (e as Error).message, ms: Date.now() - t0, where: "scan" });
     return {
       automated: true,
       ...meta,

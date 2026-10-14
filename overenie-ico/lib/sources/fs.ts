@@ -77,7 +77,7 @@ const DATASETS = {
   ids: { slugs: ["ds_iz_ran", "ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
   incomeTax: { slugs: ["ds_dppos", "ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
   /** Zoznam daňových subjektov registrovaných pre spotrebné dane (§ 52 ods. 5 daňového poriadku) – len informácia */
-  excise: { slugs: ["ds_sd", "ds_spd", "ds_sdr", "ds_spotrebne"], re: /spotrebn\S* dan/i },
+  excise: { slugs: ["ds_sd", "ds_spd", "ds_sdr", "ds_spotrebne", "ds_spd_reg", "ds_rspd"], re: /spotrebn|\bspd\b|spotreb\S* da[nň]/i },
   /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 13 písm. c)). */
   bankAccounts: { slugs: ["ds_dph_iban", "ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
 } as const;
@@ -492,14 +492,16 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
       const taxTxt = last?.incomeTax !== undefined ? `${last.incomeTax.toLocaleString("sk-SK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/[\u00a0\u202f]/g, " ")} €` : undefined;
       const filedOn = d.lastFiledOn ? new Date(d.lastFiledOn).toLocaleDateString("sk-SK") : undefined;
       const ruzLine = d.lastFiledYear
-        ? ` Podľa Registra účtovných závierok je posledná závierka za rok ${d.lastFiledYear}${filedOn ? ` uložená ${filedOn}` : ""} – ukladá sa spolu s daňovým priznaním${last?.incomeTax !== undefined ? `; daň z príjmov vo výkaze za ${last.period}: ${taxTxt}${last.incomeTax === 0 ? " (nulová daň alebo strata – preto nie je v zozname FS)" : ""}` : ""}.${d.expectedYear && d.lastFiledYear < d.expectedYear ? ` Závierka (a teda ani priznanie) za rok ${d.expectedYear} v registri nie je.` : ""}`
+        ? last?.incomeTax !== undefined
+          ? `Daň z príjmov za ${last.period} podľa účtovnej závierky${filedOn ? ` (uložená ${filedOn})` : ""}: ${taxTxt}.${d.expectedYear && d.lastFiledYear < d.expectedYear ? ` Závierka za rok ${d.expectedYear} v registri nie je.` : ""}`
+          : `Závierka za rok ${d.lastFiledYear}${filedOn ? ` uložená ${filedOn}` : ""} (podáva sa s daňovým priznaním); výšku dane výkaz neuvádza.${d.expectedYear && d.lastFiledYear < d.expectedYear ? ` Závierka za rok ${d.expectedYear} v registri nie je.` : ""}`
         : ruz
-          ? " Register účtovných závierok neuvádza žiadnu uloženú závierku."
-          : " Register účtovných závierok neodpovedal – podanie overte v RÚZ.";
+          ? "V zozname FS (nenulová daň) nie je a Register účtovných závierok neuvádza žiadnu uloženú závierku."
+          : "V zozname FS (nenulová daň) nie je; Register účtovných závierok neodpovedal – podanie overte v RÚZ.";
       const filedExpected = Boolean(d.expectedYear && d.lastFiledYear && d.lastFiledYear >= d.expectedYear);
       return {
         status: d.lastFiledYear && d.expectedYear && d.lastFiledYear < d.expectedYear ? "warning" : "info",
-        summary: `Subjekt nie je v zozname FS daňových subjektov s výškou dane z príjmov PO (zoznam uvádza len nenulovú daň).${ruzLine}`,
+        summary: ruzLine,
         findings: [],
         verifyUrl: FS_LIST_URL.incomeTax,
         data: { slug, filed: filedExpected ? true : undefined, year: d.lastFiledYear, tax: last?.incomeTax, via: d.lastFiledYear ? "ruz" : undefined, definitive: Boolean(ruz) },
@@ -534,7 +536,14 @@ export async function checkExcise(ctx: Ctx): Promise<CheckResult> {
   if (!key()) return noKey(m, "Registrácia pre spotrebné dane");
   return runCheck(m, async () => {
     const slug = await resolve("excise");
-    if (!slug) return { ...notPublished("Registrácia pre spotrebné dane"), verifyUrl: FS_LIST_URL.excise };
+    if (!slug) {
+      const names = await lists().catch(() => [] as Ds[]);
+      return {
+        ...notPublished("Registrácia pre spotrebné dane"),
+        verifyUrl: FS_LIST_URL.excise,
+        search: [{ dataset: "Finančná správa – OpenData, prehľad zoznamov (/lists)", total: names.length, queries: [sq("názvu zoznamu", "spotrebné dane / SPD", names.length, 0, `${API}/lists`, `žiadny zoznam s takým názvom; dostupné zoznamy: ${names.map((n) => `${n.slug} (${n.name.slice(0, 60)})`).join(", ").slice(0, 1500)}`)], rule: "zoznam, ktorého názov obsahuje „spotrebn“ alebo „SPD“; dopyt podľa IČO" }],
+      };
+    }
     const rows = await search(slug, ctx);
     if (!rows.length)
       return { status: "info", summary: "Subjekt nie je registrovaný pre spotrebné dane (zoznam FS podľa § 52 ods. 5 daňového poriadku).", findings: [], verifyUrl: FS_LIST_URL.excise, data: { slug, registered: false, definitive: true }, search: rows.log ? [rows.log] : undefined };

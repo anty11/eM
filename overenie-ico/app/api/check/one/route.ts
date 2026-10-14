@@ -14,7 +14,7 @@ export const POST = handler(async (req) => {
   const body = await req.json();
   const ico = normalizeIco(String(body.ico || ""));
   if (!ico || typeof body.id !== "string") return NextResponse.json({ error: "Neplatná požiadavka." }, { status: 400 });
-  const r = await runOne(ico, body.id, (body.profile || {}) as Partial<CompanyProfile>);
+  const r = await runOne(ico, body.id, (body.profile || {}) as Partial<CompanyProfile>, { retry: true });
   if (!r) return NextResponse.json({ error: "Neznámy zdroj." }, { status: 400 });
   return NextResponse.json(r, { headers: { "Cache-Control": "no-store" } });
 });

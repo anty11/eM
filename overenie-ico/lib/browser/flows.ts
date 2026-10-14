@@ -1,6 +1,7 @@
 import { classifyNotice } from "../sources/ov";
 import { getJevConfig, jevJudgeResult } from "../ai/jev";
 import { AI_SPECS } from "../ai/specs";
+import { judgeExekJson } from "../sources/exek";
 import { BrowserSession, renderSnapshot, type Snapshot } from "./session";
 
 /**
@@ -300,6 +301,85 @@ export async function unionFlow(ico: string, opts: { diag?: boolean } = {}): Pro
   } finally {
     await s?.close();
   }
+}
+
+/**
+ * Exekúcie – poverenia na vykonanie exekúcie (obcan.justice.sk/pilot/poverenia, aplikácia React; blokuje dátové centrá → proxy):
+ * prepínač „podľa IČO, resp. názvu povinného“, pole „IČO“, tlačidlo „Hľadať poverenie“; výsledok je tabuľka poverení alebo hlásenie
+ * o prázdnom výsledku. Popri tom sa zachytia dopyty aplikácie (XHR/fetch) – odpoveď s počtom záznamov (numFound) má prednosť pred
+ * čítaním stránky a adresa dopytu s IČO sa vráti ako šablóna (`apiTemplate`) na priame volanie bez prehliadača nabudúce.
+ */
+export async function exekFlow(ico: string, opts: { diag?: boolean } = {}): Promise<FlowResult & { apiTemplate?: { url: string; method: string; post?: string }; calls?: NetCall[] }> {
+  const t0 = Date.now();
+  const url = "https://obcan.justice.sk/pilot/poverenia/";
+  let s: BrowserSession | null = null;
+  const calls: NetCall[] = [];
+  try {
+    s = await BrowserSession.open(["obcan.justice.sk", "justice.gov.sk"], url);
+    const started = new Map<unknown, number>();
+    s.page.on("request", (r) => started.set(r, Date.now()));
+    s.page.on("response", async (r) => {
+      const req = r.request();
+      const type = req.resourceType();
+      if (type !== "xhr" && type !== "fetch") return;
+      let body = "";
+      try {
+        body = (await r.text()).slice(0, 200_000);
+      } catch {}
+      const st = started.get(req);
+      calls.push({ url: r.url(), method: req.method(), status: r.status(), type, post: req.postData()?.slice(0, 800) || undefined, body, ms: st ? Date.now() - st : undefined });
+    });
+    let snap = await s.open(url);
+    for (let i = 0; i < 6 && !snap.elements.some((e) => e.kind === "input"); i++) snap = await s.wait(1000);
+    const consent = snap.elements.find((e) => e.kind === "button" && /^(suhlasim|prijat|prijat vsetko|accept( all)?|rozumiem|ok|povolit( vsetko)?)$/.test(fold(e.label).replace(/[^a-z ]/g, "").trim()));
+    if (consent) snap = await s.click(consent.ref).catch(() => snap);
+    const radio = snap.elements.find((e) => e.kind === "radio" && /ico|nazvu povinneho/.test(fold(e.label)));
+    if (radio && radio.value !== "zaškrtnuté") snap = await s.click(radio.ref).catch(() => snap);
+    let field = snap.elements.find((e) => e.kind === "input" && /(^|[^a-z])ico([^a-z]|$)/.test(fold(`${e.label} ${e.placeholder || ""} ${e.name || ""}`)));
+    if (!field) {
+      snap = await s.wait(1500);
+      field = snap.elements.find((e) => e.kind === "input" && /(^|[^a-z])ico([^a-z]|$)/.test(fold(`${e.label} ${e.placeholder || ""} ${e.name || ""}`)));
+    }
+    if (!field) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: "pole IČO sa nenašlo", rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s.log, pages: s.pages, calls: calls.slice(0, 20) };
+    snap = await s.fill(field.ref, ico);
+    const btn = snap.elements.find((e) => e.kind === "button" && /hladat poverenie|hladat|vyhladat/.test(fold(e.label)));
+    const before = calls.length;
+    snap = btn ? await s.click(btn.ref) : await s.pressEnter(field.ref);
+    for (let i = 0; i < 8; i++) {
+      const t = fold(snap.text);
+      const jsonCall = calls.slice(before).find((c) => c.body && /^\s*[[{]/.test(c.body) && (c.url.includes(ico) || (c.post || "").includes(ico)));
+      if (jsonCall || snap.tables.length || /ziadne|nenasli|nebol najden|neboli najden|0 zaznam|nenasiel/.test(t)) break;
+      snap = await s.wait(1000);
+    }
+    // 1) odpoveď aplikácie (JSON s počtom záznamov) – spoľahlivejšia než čítanie stránky
+    const jsonCall = calls.slice(before).find((c) => c.body && /^\s*[[{]/.test(c.body) && (c.url.includes(ico) || (c.post || "").includes(ico)));
+    let apiTemplate: { url: string; method: string; post?: string } | undefined;
+    if (jsonCall) apiTemplate = { url: jsonCall.url.split(ico).join("{ico}"), method: jsonCall.method, post: jsonCall.post ? jsonCall.post.split(ico).join("{ico}") : undefined };
+    const judged = judgeExek(snap, ico, jsonCall?.body);
+    const searched = { query: ico, returned: judged.returned, matched: judged.rows.length, note: judged.note };
+    return { verdict: judged.verdict, rows: judged.rows, evidence: judged.evidence, searched, apiTemplate, url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s.log, pages: s.pages, calls: opts.diag ? calls.slice(0, 30) : calls.slice(before, before + 10).map((c) => ({ ...c, body: (c.body || "").slice(0, 1500) })) };
+  } catch (e) {
+    return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages, calls: calls.slice(0, 20) };
+  } finally {
+    await s?.close();
+  }
+}
+
+/** Vyhodnotenie výsledku poverení: JSON odpoveď (numFound + záznamy s IČO) alebo stránka (tabuľka / hlásenie o prázdnom výsledku). */
+export function judgeExek(snap: Snapshot, ico: string, jsonBody?: string): { verdict: "found" | "clean" | "unknown"; rows: string[]; evidence?: string; returned: number | null; note: string } {
+  if (jsonBody) {
+    const j = judgeExekJson(jsonBody, ico);
+    if (j) return j;
+  }
+  const t = fold(snap.text);
+  const table = snap.tables.find((tb) => tb.length > 1 && tb[0]?.length >= 2);
+  const rows = table ? table.slice(1).filter((r) => r.some((c) => new RegExp(`(^|\\D)${ico}(\\D|$)`).test(c))) : [];
+  if (rows.length) return { verdict: "found", rows: rows.slice(0, 10).map((r) => r.filter(Boolean).join(" · ").slice(0, 300)), evidence: rows[0].filter(Boolean).join(" | ").slice(0, 300), returned: table ? table.length - 1 : rows.length, note: "tabuľka poverení na stránke" };
+  if (t.includes(ico) && /ziadne|nenasli|nebol najden|neboli najden|0 zaznam|nenasiel sa|nevyhovuje/.test(t)) {
+    const m = snap.text.match(/.{0,60}(žiadne|nenašli|nebol nájden|neboli nájden|0 záznam|nenašiel sa|nevyhovuje).{0,80}/i);
+    return { verdict: "clean", rows: [], evidence: m?.[0]?.trim(), returned: 0, note: "stránka hlási prázdny výsledok" };
+  }
+  return { verdict: "unknown", rows: [], returned: null, note: table ? `tabuľka (${table.length - 1} riadkov) bez IČO a bez hlásenia o prázdnom výsledku` : "bez tabuľky aj bez hlásenia – výsledok sa nedal prečítať" };
 }
 
 /** Je výsledok hľadania už načítaný? (tabuľka s riadkom pre IČO, prázdny zoznam alebo počet „z N“ menší než celý zoznam) */
