@@ -33,6 +33,10 @@ async function main() {
   assert.equal(classifyNotice("Konkurzy a reštrukturalizácie").severity, "critical");
   assert.equal(classifyNotice("Oznámenie o vstupe do likvidácie").label, "likvidácia");
   assert.equal(classifyNotice("Zlúčenie spoločností").penalty, 0);
+  // SUPERQUAD SLOVAKIA (14. 10. 2026): oznámenie súdu o zrušení a dodatočnej likvidácii = kritické; upovedomenie exekútora = upozornenie
+  assert.equal(classifyNotice("Oznámenie súdu súvisiace so zrušením spoločnosti (družstva) a dodatočnou likvidáciou").severity, "critical");
+  assert.equal(classifyNotice("Upovedomenia a výzvy exekútorov").label, "exekúcia (upovedomenie / výzva exekútora)");
+  assert.equal(classifyNotice("Upovedomenia a výzvy exekútorov").severity, "warning");
   const xml = `<?xml version="1.0"?><vydanie><cisloVydania>190/2026</cisloVydania><datumVydania>2026-10-02</datumVydania>
     <oznamenie><typ>Konkurzy a reštrukturalizácie</typ><znacka>K012345</znacka><obchodneMeno>Zlá firma s.r.o.</obchodneMeno><ico>12345678</ico><text>Uznesenie o vyhlásení konkurzu.</text></oznamenie>
     <oznamenie><typ>Účtovné závierky</typ><znacka>Z999</znacka><obchodneMeno>Dobrá firma a.s.</obchodneMeno><ico>47244895</ico><datumZverejnenia>2026-10-02</datumZverejnenia></oznamenie>
@@ -114,6 +118,12 @@ main().catch((e) => { console.error(e); process.exit(1); });
   const ovFound = judgeOv({ ...ovBase, tables: [[ovHead, ["1", "Oznámenie o vstupe do likvidácie", "01.02.2025", "Likvidácie", "Firma s.r.o.", "22/2025"], ["2", "Podanie Obchodného registra", "13.07.2026", "Obchodný register", "Firma s.r.o.", "133/2026"]]] }, "11111111");
   assert.equal(ovFound.verdict, "found");
   assert.ok(ovFound.rows[0].startsWith("likvidácia:"));
+  // všetky negatívne oznámenia, nie len prvé (SUPERQUAD: exekútor + súd o zrušení)
+  const ovMulti = judgeOv({ ...ovBase, tables: [[ovHead, ["1", "Upovedomenia a výzvy exekútorov", "11.09.2026", "Upovedomenia a výzvy exekútorov", "JUDr. Peter Kuna (SUPERQUAD SLOVAKIA s.r.o.)", "177/2026"], ["2", "Podanie Obchodného registra", "16.01.2026", "Obchodný register", "SUPERQUAD SLOVAKIA s.r.o.", "10/2026"], ["3", "Oznámenie súdu súvisiace so zrušením spoločnosti (družstva) a dodatočnou likvidáciou", "26.09.2025", "Oznámenia súdov súvisiace so zrušením spoločnosti (družstva) a dodatočnou likvidáciou", "SUPERQUAD SLOVAKIA s.r.o.", "185/2025"]]] }, "50565516");
+  assert.equal(ovMulti.verdict, "found");
+  assert.equal(ovMulti.rows.length, 2);
+  assert.match(ovMulti.rows[0], /^exekúcia .*11\.09\.2026/);
+  assert.match(ovMulti.rows[1], /^likvidácia: Oznámenie súdu .*26\.09\.2025/);
   const ovEmpty = judgeOv({ ...ovBase, text: "IČO: 31322832 – Neboli nájdené žiadne záznamy.", tables: [] }, "31322832");
   assert.equal(ovEmpty.verdict, "clean");
   assert.equal(judgeOv({ ...ovBase, text: "úvodná stránka", tables: [] }, "31322832").verdict, "unknown");

@@ -4,6 +4,7 @@ import type { CheckResult, Ctx, Finding, SearchLog } from "../types";
 import { sq } from "../searchlog";
 import { MANUAL } from "./manual";
 import { describeStep } from "../browser/steps";
+import { classifyNotice } from "./ov";
 
 /**
  * Registre bez API, ale s verejným vyhľadávaním (justice.gov.sk – diskvalifikácie, ÚVO – zákaz účasti, VšZP a Union – dlžníci).
@@ -383,9 +384,10 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
       return {
         attempts: [
           // globálne vyhľadávanie ÚVO, výber searchType=OSZ („Osoba so zákazom“); výsledok „N záznamov“ / „Zadaný výraz nebol nájdený.“ + bloky s IČO.
-          // Najprv podľa obchodného mena (register môže indexovať len názov; nález sa potvrdí IČO v zázname), potom podľa IČO.
-          ...(ctx.profile.name ? [{ url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${enc(ctx.profile.name)}&searchType=OSZ`, label: "podľa názvu" }] : []),
+          // Najprv podľa IČO (jediný dopyt, ktorý dáva „Zadaný výraz nebol nájdený“ = bez záznamu), až potom podľa obchodného mena
+          // (register môže indexovať len názov; nález sa potvrdí IČO v zázname). ÚVO býva pomalé – 12 s na dopyt, 20 s spolu.
           { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=OSZ` },
+          ...(ctx.profile.name ? [{ url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${enc(ctx.profile.name)}&searchType=OSZ`, label: "podľa názvu" }] : []),
           { url: base, info: "stránka registra" },
         ],
         needles: [ico],
@@ -457,7 +459,17 @@ export async function checkOvViaBrowser(ctx: Ctx): Promise<CheckResult | null> {
     (err as Error & { search?: SearchLog[] }).search = ovSearchLog(ctx.ico, r);
     throw err;
   }
-  const f: Finding[] = r.verdict === "found" ? [{ severity: def.severityIfFound, text: `${def.name}: ${r.rows.slice(0, 3).join("; ")}`, penalty: def.penaltyIfFound }] : [];
+  // každé negatívne oznámenie samostatne (druh, dátum, subjekt); postih raz za každý druh (konkurz / likvidácia / zrušenie / exekúcia …)
+  const seen = new Set<string>();
+  const f: Finding[] = r.verdict === "found"
+    ? r.rows.slice(0, 20).map((row) => {
+        const label = row.split(":")[0].trim();
+        const c = classifyNotice(label);
+        const first = !seen.has(c.label);
+        seen.add(c.label);
+        return { severity: c.severity === "info" ? def.severityIfFound : c.severity, text: `Obchodný vestník: ${row}`, penalty: first ? (c.severity === "info" ? def.penaltyIfFound : c.penalty) : 0 };
+      })
+    : [];
   return {
     id: def.id,
     category: def.category,
@@ -465,8 +477,8 @@ export async function checkOvViaBrowser(ctx: Ctx): Promise<CheckResult | null> {
     source: def.source,
     sourceUrl: def.sourceUrl,
     verifyUrl: r.url || def.verifyUrl(ctx.ico, ctx.profile.name),
-    status: r.verdict === "found" ? (def.severityIfFound === "critical" ? "critical" : "warning") : "ok",
-    summary: r.verdict === "found" ? `Negatívne oznámenia v Obchodnom vestníku za posledné 3 roky (vyhľadané podľa IČO ${ctx.ico}): ${r.rows.slice(0, 3).join("; ")}.` : `Bez negatívneho oznámenia v Obchodnom vestníku – vyhľadané podľa IČO ${ctx.ico} priamo vo Vestníku; ${r.evidence || ""}.`,
+    status: r.verdict === "found" ? (f.some((x) => x.severity === "critical") ? "critical" : "warning") : "ok",
+    summary: r.verdict === "found" ? `${r.rows.length} ${r.rows.length === 1 ? "negatívne oznámenie" : r.rows.length < 5 ? "negatívne oznámenia" : "negatívnych oznámení"} v Obchodnom vestníku za posledné 3 roky (vyhľadané podľa IČO ${ctx.ico}${r.searched?.returned != null ? `, prečítaných ${r.searched.returned} podaní` : ""}): ${r.rows.join("; ")}.` : `Bez negatívneho oznámenia v Obchodnom vestníku – vyhľadané podľa IČO ${ctx.ico} priamo vo Vestníku; ${r.evidence || ""}.`,
     findings: f,
     search: ovSearchLog(ctx.ico, r),
     data: { penaltyIfFound: def.penaltyIfFound, severityIfFound: def.severityIfFound, rows: r.rows, queriedUrl: r.url, via: "browser", steps: r.steps || (r.actions || []).filter((l) => !/^wait/.test(l.action)).map(describeStep).slice(0, 30) },
@@ -532,10 +544,10 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
     }
   }
   // ÚVO: pomalý web nesmie držať celé preverenie – kratší limit na pokus a strop 15 s na celý dopyt (potom manuálne s dôvodom)
-  const probeP = probe(attempts.map((a) => ({ ...a, source: id })), needles, id === "uvo" ? 7000 : undefined, opts);
+  const probeP = probe(attempts.map((a) => ({ ...a, source: id })), needles, id === "uvo" ? 12000 : undefined, opts);
   const outcome =
     id === "uvo" && !opts.diag
-      ? await Promise.race([probeP, new Promise<ProbeOutcome>((res) => setTimeout(() => res({ result: "unknown", rows: [], attempts: [{ url: attempts[0].url, ms: 15000, error: "ÚVO neodpovedalo do 15 s", excerpt: "", verdict: "unknown" }] }), 15000))])
+      ? await Promise.race([probeP, new Promise<ProbeOutcome>((res) => setTimeout(() => res({ result: "unknown", rows: [], attempts: [{ url: attempts[0].url, ms: 20000, error: "ÚVO neodpovedalo do 20 s", excerpt: "", verdict: "unknown" }] }), 20000))])
       : await probeP;
   // Union: API portálu vyžaduje token aplikácie (401) → skriptovaný dopyt cez prehliadač na serveri (bez AI)
   if (outcome.result === "unknown" && id === "union" && process.env.BROWSER_DISABLED !== "1") {

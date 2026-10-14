@@ -543,3 +543,10 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   záznam vyhľadávania vypisuje stĺpce súboru a nájdený záznam – ak by sa suma nenašla, je vidieť, v ktorom stĺpci je.
   (7) **Dôvera** ostáva manuálna: stránka je chránená overením „nie som robot“ a Dôvera automatizované overovanie výslovne zakazuje –
   obchádzanie ochrany sa nerobí; odkaz otvorí zoznam s IČO v adrese, po overení v prehliadači sa výsledok zobrazí sám.
+- **v2.11.11** – (9) **Obchodný vestník:** pri náleze sa vypíšu všetky negatívne oznámenia (každé ako samostatný nález s druhom,
+  dátumom a subjektom; postih raz za druh), nie len prvé; „Upovedomenia a výzvy exekútorov“ sa triedia ako exekúcia (upozornenie −20),
+  „Oznámenie súdu súvisiace so zrušením spoločnosti a dodatočnou likvidáciou“ ako likvidácia (kritické). Súhrn uvádza počet prečítaných
+  podaní. (10) **ÚVO:** dopyt podľa IČO ide prvý (len ten dáva „Zadaný výraz nebol nájdený“ = bez záznamu), podľa názvu až potom;
+  limit 12 s na dopyt, 20 s spolu (predtým 7 s / 15 s – pri pomalom ÚVO sa IČO dopyt nestihol a výsledok padal na manuálne overenie,
+  hoci register záznam nemal). (8) Zdravotné poisťovne: zamestnávateľ odvádza poistné za zamestnancov do všetkých troch poisťovní,
+  preto sa overujú všetky (VšZP, Dôvera, Union) – „jedna poisťovňa“ platí len pre fyzickú osobu / SZČO.

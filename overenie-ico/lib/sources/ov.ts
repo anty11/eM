@@ -51,6 +51,7 @@ export function classifyNotice(kind: string, text = ""): { severity: Finding["se
   if (/likvid/.test(t)) return { severity: "critical", penalty: 35, label: "likvidácia" };
   if (/zrusen|vymaz/.test(t)) return { severity: "critical", penalty: 35, label: "zrušenie / výmaz" };
   if (/drazb/.test(t)) return { severity: "warning", penalty: 15, label: "dražba" };
+  if (/exekut|exekuc/.test(t)) return { severity: "warning", penalty: 20, label: "exekúcia (upovedomenie / výzva exekútora)" };
   if (/znizen.*imani|znizenie zakladneho/.test(t)) return { severity: "warning", penalty: 10, label: "zníženie základného imania" };
   if (/vyzv.*veritel|veritel/.test(t)) return { severity: "warning", penalty: 10, label: "výzva veriteľom" };
   if (/zluc|splynut|rozdelen|premen/.test(t)) return { severity: "info", penalty: 0, label: "zlúčenie / premena" };
