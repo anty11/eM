@@ -22,6 +22,8 @@ import { keyFacts as computeKeyFacts } from "@/lib/keyfacts";
 import type { CompanyProfile } from "@/lib/types";
 
 const NON_PUBLIC = MANUAL.map((m) => m.id);
+/** Registre, ktoré sa nikdy neskúšajú automaticky (platený výpis, zákaz automatizácie) */
+const ALWAYS_MANUAL = ["cre", "dovera"];
 
 const STATUS_LABEL: Record<CheckResult["status"], string> = {
   ok: "Bez záznamu",
@@ -228,7 +230,10 @@ export default function Page() {
   }, [baseChecks, answers, notes, replies, dealCheck]);
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
   const pendingCount = checks.filter((c) => c.status === "pending").length;
-  const totalAuto = checks.filter((c) => c.automated !== false && !NON_PUBLIC.includes(c.id)).length || 1;
+  // koliesko priebehu: všetky zdroje, ktoré server skúša sám (aj registre bez API – VšZP, Union, ÚVO, diskvalifikácie, OV, exekúcie);
+  // mimo sú len tie vždy ručné (CRE, Dôvera) a karta obchodu
+  const totalAuto = checks.filter((c) => !ALWAYS_MANUAL.includes(c.id) && c.id !== "deal").length || 1;
+  const alwaysManualCount = checks.filter((c) => ALWAYS_MANUAL.includes(c.id)).length;
   // neverejné registre, ktoré sa podarilo overiť automaticky (dopyt servera, index Obchodného vestníka alebo AI), sa správajú ako bežné kontroly
   const nonPublic = useMemo(() => NON_PUBLIC.filter((id) => (baseChecks.find((c) => c.id === id)?.status ?? "manual") === "manual"), [baseChecks]);
   const verdict = useMemo(() => (report ? computeVerdict(checks, { ignore: lawyer ? [] : nonPublic }) : null), [report, checks, lawyer, nonPublic]);
@@ -574,6 +579,7 @@ export default function Page() {
                   <div className="vmeta">
                     {scanSince ? <b>{Math.round((Date.now() - scanSince) / 1000)} s · </b> : null}
                     Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.
+                    {alwaysManualCount ? ` Mimo kolieska: ${alwaysManualCount} ${alwaysManualCount === 1 ? "register" : "registre"} vždy na ručné overenie (${checks.filter((c) => ALWAYS_MANUAL.includes(c.id)).map((c) => c.name.replace(/^Dlžníci zdravotnej poisťovne /, "")).join(", ")}).` : ""}
                     {scanSince && Date.now() - scanSince > 12000 ? " Niektoré registre dnes odpovedajú pomaly – po 25 s sa zdroj označí ako nedostupný a dá sa skúsiť znova." : ""}
                   </div>
                 </div>

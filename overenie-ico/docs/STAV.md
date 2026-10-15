@@ -582,3 +582,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „nie je platiteľom“); index „menej spoľahlivý“ sa uvádza aj pri neplatiteľovi. **Médiá:** skratky z iniciál a priezviská partnerov
   z názvu sa hľadajú len pri advokátskej kancelárii (pri stavebnej či obchodnej firme vznikali nezmyselné dopyty „"EAS" advokátska
   kancelária“, „"Superquad" advokát“).
+- **v2.11.16** – Koliesko priebehu počítalo len 11 zdrojov s API a registre bez API vynechalo, hoci ich server skúša sám (potom
+  záver hlásil „2/19 na ručné overenie“). Teraz počíta všetkých 17 automaticky skúšaných zdrojov; CRE a Dôvera (vždy ručné) sú
+  uvedené mimo kolieska.
