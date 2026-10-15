@@ -593,3 +593,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.11.18** – Karty „Komunikácia s partnerom“ a „Údaje o obchode a indikátory rizika“ sú až za výsledkami z registrov (pred
   záverom) – poverený zamestnanec ich vypĺňa, keď už vidí výsledok; rovnako „Údaje o obchode“ v archívnom protokole.
 - **v2.11.19** – Karta „Identifikácia subjektu“ je hneď pod vyhľadávaním (pred kolieskom priebehu a verdiktom).
+- **v2.11.20** – Názov firmy (IČO, sídlo) je priamo v paneli so skóre aj v koliesku priebehu; karta „Identifikácia subjektu“ je
+  späť pod verdiktom a kľúčovými otázkami.

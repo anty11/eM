@@ -571,7 +571,69 @@ export default function Page() {
               <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.orgName ? ` · Preverila ${report.orgName}` : ""}{report.scannedBy ? ` (${report.scannedBy})` : ""} · {lawyer ? "rozšírené overenie" : "štandardné overenie"}</div>
             </div>
 
-            {/* Identifikácia hneď pod vyhľadávaním – kto je subjekt, skôr než verdikt */}
+            {pendingCount > 0 ? (
+              <section className="card verdict caution progress-card" style={{ ["--s" as any]: Math.round(((totalAuto - pendingCount) / totalAuto) * 100) }}>
+                <div className="score"><div><div><b>{totalAuto - pendingCount}</b><br /><span>z {totalAuto}</span></div></div></div>
+                <div>
+                  <p className="vcompany">{p.name || `IČO ${p.ico}`} <span>· IČO {p.ico}{p.address ? ` · ${p.address}` : ""}</span></p>
+                  <p className="vlabel" style={{ color: "var(--ink)" }}>Preverujem…</p>
+                  <div className="vmeta">
+                    {scanSince ? <b>{Math.round((Date.now() - scanSince) / 1000)} s · </b> : null}
+                    Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.
+                    {alwaysManualCount ? ` Mimo kolieska: ${alwaysManualCount} ${alwaysManualCount === 1 ? "register" : "registre"} vždy na ručné overenie (${checks.filter((c) => ALWAYS_MANUAL.includes(c.id)).map((c) => c.name.replace(/^Dlžníci zdravotnej poisťovne /, "")).join(", ")}).` : ""}
+                    {scanSince && Date.now() - scanSince > 12000 ? " Niektoré registre dnes odpovedajú pomaly – po 25 s sa zdroj označí ako nedostupný a dá sa skúsiť znova." : ""}
+                  </div>
+                </div>
+              </section>
+            ) : (
+            <section className={`card verdict ${verdict.level}`} style={{ ["--s" as any]: verdict.score }}>
+                <div className="score"><div><div><b>{verdict.score}</b><br /><span>zo 100</span></div></div></div>
+                <div>
+                  <p className="vcompany">{p.name || "Neznámy subjekt"} <span>· IČO {p.ico}{p.address ? ` · ${p.address}` : ""}</span></p>
+                  <p className="vlabel">{verdict.label}</p>
+                  <div className="vmeta">
+                    Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}
+                    {report.incomplete ? <div className="prelim">Preverenie sa nedokončilo – spojenie so serverom sa prerušilo. Nedokončené zdroje sú označené ako nedostupné; odporúčame „Preveriť znova“.</div> : null}
+                  </div>
+                  <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
+                  {verdict.preliminary && (
+                    <span className="prelim">
+                      Predbežné hodnotenie – {verdict.pendingManual}/{totalChecks} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
+                      {lawyer && <> · <button className="linkbtn no-print" onClick={() => setShowManual(true)}>otvoriť zoznam</button></>}
+                    </span>
+                  )}
+                  {!lawyer && (
+                    <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {Object.values(aiBusy).some(Boolean) && (
+              <div className="ai-running no-print">AI dohľadáva údaje v zdrojoch, ktoré nie sú dostupné cez API ({Object.values(aiBusy).filter(Boolean).length})… Výsledok sa priebežne dopĺňa.</div>
+            )}
+            {me?.role === "admin" && typeof location !== "undefined" && new URLSearchParams(location.search).has("diag") && (() => {
+              const done = checks.filter((c) => c.status !== "manual" && c.status !== "error");
+              const failed = baseChecks.filter((c) => c.status === "error" || (c.status === "manual" && c.automated !== false));
+              const noKey = baseChecks.filter((c) => c.status === "manual" && c.automated === false && c.id.startsWith("fs-"));
+              const nonPub = baseChecks.filter((c) => NON_PUBLIC.includes(c.id) && c.status === "manual");
+              return (
+                <section className="card coverage">
+                  <h2>Pokrytie overenia</h2>
+                  <p style={{ margin: 0 }}>
+                    <b>{done.length} z {checks.length}</b> zdrojov overených automaticky{Object.values(aiResults).some((c) => c.status !== "manual") ? " (vrátane AI)" : ""}.
+                  </p>
+                  <ul className="src" style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                    {noKey.length > 0 && <li>{noKey.length}× Finančná správa – chýba bezplatný kľúč <code>FS_API_KEY</code> (admin ho doplní vo Verceli).</li>}
+                    {failed.length > 0 && <li>{failed.length}× zdroj neodpovedal alebo vrátil nejednoznačný výsledok: {failed.map((c) => c.name).join(", ")}.</li>}
+                    {nonPub.length > 0 && <li>{nonPub.length}× register bez verejného prístupu ({nonPub.map((c) => c.name.replace(/^Dlžníci /, "")).join(", ")}){report.ai?.available ? " – AI overí tie, ktoré sa dajú." : " – s AI kľúčom by sa 5 z nich overilo automaticky."}</li>}
+                  </ul>
+                </section>
+              );
+            })()}
+            <KeyFacts facts={facts} />
+
+            {/* Identifikácia pod verdiktom a kľúčovými otázkami */}
             <section className="card">
               <h2>Identifikácia subjektu</h2>
               <p className="company-name">{p.name || "Neznámy subjekt"}</p>
@@ -617,65 +679,6 @@ export default function Page() {
               </dl>
             </section>
 
-            {pendingCount > 0 ? (
-              <section className="card verdict caution progress-card" style={{ ["--s" as any]: Math.round(((totalAuto - pendingCount) / totalAuto) * 100) }}>
-                <div className="score"><div><div><b>{totalAuto - pendingCount}</b><br /><span>z {totalAuto}</span></div></div></div>
-                <div>
-                  <p className="vlabel" style={{ color: "var(--ink)" }}>Preverujem…</p>
-                  <div className="vmeta">
-                    {scanSince ? <b>{Math.round((Date.now() - scanSince) / 1000)} s · </b> : null}
-                    Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.
-                    {alwaysManualCount ? ` Mimo kolieska: ${alwaysManualCount} ${alwaysManualCount === 1 ? "register" : "registre"} vždy na ručné overenie (${checks.filter((c) => ALWAYS_MANUAL.includes(c.id)).map((c) => c.name.replace(/^Dlžníci zdravotnej poisťovne /, "")).join(", ")}).` : ""}
-                    {scanSince && Date.now() - scanSince > 12000 ? " Niektoré registre dnes odpovedajú pomaly – po 25 s sa zdroj označí ako nedostupný a dá sa skúsiť znova." : ""}
-                  </div>
-                </div>
-              </section>
-            ) : (
-            <section className={`card verdict ${verdict.level}`} style={{ ["--s" as any]: verdict.score }}>
-                <div className="score"><div><div><b>{verdict.score}</b><br /><span>zo 100</span></div></div></div>
-                <div>
-                  <p className="vlabel">{verdict.label}</p>
-                  <div className="vmeta">
-                    Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}
-                    {report.incomplete ? <div className="prelim">Preverenie sa nedokončilo – spojenie so serverom sa prerušilo. Nedokončené zdroje sú označené ako nedostupné; odporúčame „Preveriť znova“.</div> : null}
-                  </div>
-                  <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
-                  {verdict.preliminary && (
-                    <span className="prelim">
-                      Predbežné hodnotenie – {verdict.pendingManual}/{totalChecks} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
-                      {lawyer && <> · <button className="linkbtn no-print" onClick={() => setShowManual(true)}>otvoriť zoznam</button></>}
-                    </span>
-                  )}
-                  {!lawyer && (
-                    <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {Object.values(aiBusy).some(Boolean) && (
-              <div className="ai-running no-print">AI dohľadáva údaje v zdrojoch, ktoré nie sú dostupné cez API ({Object.values(aiBusy).filter(Boolean).length})… Výsledok sa priebežne dopĺňa.</div>
-            )}
-            {me?.role === "admin" && typeof location !== "undefined" && new URLSearchParams(location.search).has("diag") && (() => {
-              const done = checks.filter((c) => c.status !== "manual" && c.status !== "error");
-              const failed = baseChecks.filter((c) => c.status === "error" || (c.status === "manual" && c.automated !== false));
-              const noKey = baseChecks.filter((c) => c.status === "manual" && c.automated === false && c.id.startsWith("fs-"));
-              const nonPub = baseChecks.filter((c) => NON_PUBLIC.includes(c.id) && c.status === "manual");
-              return (
-                <section className="card coverage">
-                  <h2>Pokrytie overenia</h2>
-                  <p style={{ margin: 0 }}>
-                    <b>{done.length} z {checks.length}</b> zdrojov overených automaticky{Object.values(aiResults).some((c) => c.status !== "manual") ? " (vrátane AI)" : ""}.
-                  </p>
-                  <ul className="src" style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                    {noKey.length > 0 && <li>{noKey.length}× Finančná správa – chýba bezplatný kľúč <code>FS_API_KEY</code> (admin ho doplní vo Verceli).</li>}
-                    {failed.length > 0 && <li>{failed.length}× zdroj neodpovedal alebo vrátil nejednoznačný výsledok: {failed.map((c) => c.name).join(", ")}.</li>}
-                    {nonPub.length > 0 && <li>{nonPub.length}× register bez verejného prístupu ({nonPub.map((c) => c.name.replace(/^Dlžníci /, "")).join(", ")}){report.ai?.available ? " – AI overí tie, ktoré sa dajú." : " – s AI kľúčom by sa 5 z nich overilo automaticky."}</li>}
-                  </ul>
-                </section>
-              );
-            })()}
-            <KeyFacts facts={facts} />
 
             {report.asOf && (
               <section className="card retro">
