@@ -650,10 +650,6 @@ export default function Page() {
               </section>
             )}
 
-            <ContactCard ico={report.ico} profile={p} meEmail={me?.email} onChange={setContactSnap} />
-
-            <DealCard ico={report.ico} profile={p} deal={deal} onChange={setDeal} bank={bank} onBank={setBank} />
-
             <section className="card">
               <h2>Identifikácia subjektu</h2>
               <p className="company-name">{p.name || "Neznámy subjekt"}</p>
@@ -835,6 +831,11 @@ export default function Page() {
                 </div>
               </section>
             )}
+
+            {/* Komunikácia a obchod až po výsledkoch z registrov – poverený zamestnanec ich vypĺňa, keď už vidí, s kým má do činenia */}
+            <ContactCard ico={report.ico} profile={p} meEmail={me?.email} onChange={setContactSnap} />
+
+            <DealCard ico={report.ico} profile={p} deal={deal} onChange={setDeal} bank={bank} onBank={setBank} />
 
             <section className="card">
               <h2>{lawyer ? "Záver a poznámky povereného zamestnanca" : "Poznámky"}</h2>

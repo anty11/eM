@@ -590,3 +590,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   (`CRE_PARKED` v `lib/sources/manual.ts`) ako podklad pre budúci platený doplnok pre klienta – výpis z CRE na vyžiadanie (1,60 € za
   dopyt, registrácia prevádzkovateľa + certifikát k webovej službe CRE). Preverenie má teraz 18 položiek, z nich jedna (Dôvera) vždy
   ručne.
+- **v2.11.18** – Karty „Komunikácia s partnerom“ a „Údaje o obchode a indikátory rizika“ sú až za výsledkami z registrov (pred
+  záverom) – poverený zamestnanec ich vypĺňa, keď už vidí výsledok; rovnako „Údaje o obchode“ v archívnom protokole.

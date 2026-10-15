@@ -100,18 +100,6 @@ export default function SealedProtocol({ params }: { params: Promise<{ scanId: s
               </dl>
             </section>
 
-            {doc.deal && (doc.deal.subject || doc.deal.value || doc.deal.iban) && (
-              <section className="card">
-                <h2>Údaje o obchode</h2>
-                <dl className="profile kv">
-                  <div><dt>Smer</dt><dd>{doc.deal.direction === "sell" ? "predaj" : "nákup"}</dd></div>
-                  <div><dt>Predmet</dt><dd>{doc.deal.subject || "–"}</dd></div>
-                  <div><dt>Hodnota</dt><dd>{doc.deal.value || "–"}</dd></div>
-                  <div><dt>IBAN</dt><dd>{doc.deal.iban || "–"}</dd></div>
-                </dl>
-              </section>
-            )}
-
             {grouped.map(([cat, items]) => (
               <section className="cat" key={cat}>
                 <h3>{CATEGORIES[cat]}</h3>
@@ -129,6 +117,18 @@ export default function SealedProtocol({ params }: { params: Promise<{ scanId: s
                 ))}
               </section>
             ))}
+
+            {doc.deal && (doc.deal.subject || doc.deal.value || doc.deal.iban) && (
+              <section className="card">
+                <h2>Údaje o obchode</h2>
+                <dl className="profile kv">
+                  <div><dt>Smer</dt><dd>{doc.deal.direction === "sell" ? "predaj" : "nákup"}</dd></div>
+                  <div><dt>Predmet</dt><dd>{doc.deal.subject || "–"}</dd></div>
+                  <div><dt>Hodnota</dt><dd>{doc.deal.value || "–"}</dd></div>
+                  <div><dt>IBAN</dt><dd>{doc.deal.iban || "–"}</dd></div>
+                </dl>
+              </section>
+            )}
 
             <section className="card">
               <h2>Poznámky</h2>
