@@ -18,18 +18,24 @@ interface ManualDef {
   severityIfFound: "critical" | "warning";
 }
 
+/**
+ * ZAPARKOVANÉ – Centrálny register exekúcií (CRE, Slovenská komora exekútorov): výpis je spoplatnený (1,60 € za dopyt) a vyžaduje
+ * registráciu prevádzkovateľa + certifikát k webovej službe. Exekúcie sa od v2.11.12 overujú zo zoznamu poverení MS SR (`exek`),
+ * preto CRE nie je v preverení. Možný budúci doplnok pre klienta (platený výpis CRE na vyžiadanie) – definícia ostáva tu:
+ */
+export const CRE_PARKED: ManualDef = {
+  id: "cre",
+  category: "insolvency",
+  name: "Centrálny register exekúcií",
+  source: "Slovenská komora exekútorov – CRE",
+  sourceUrl: "https://cre.sk",
+  verifyUrl: () => "https://cre.sk",
+  note: "Výpis je spoplatnený (1,60 € za dopyt) a vyžaduje registráciu na portáli Slovenskej komory exekútorov; automatické overenie cez webovú službu CRE bude dostupné po registrácii prevádzkovateľa a nastavení certifikátu. Overte, či je vedená exekúcia voči subjektu.",
+  penaltyIfFound: 40,
+  severityIfFound: "critical",
+};
+
 export const MANUAL: ManualDef[] = [
-  {
-    id: "cre",
-    category: "insolvency",
-    name: "Centrálny register exekúcií",
-    source: "Slovenská komora exekútorov – CRE",
-    sourceUrl: "https://cre.sk",
-    verifyUrl: () => "https://cre.sk",
-    note: "Výpis je spoplatnený (1,60 € za dopyt) a vyžaduje registráciu na portáli Slovenskej komory exekútorov; automatické overenie cez webovú službu CRE bude dostupné po registrácii prevádzkovateľa a nastavení certifikátu. Overte, či je vedená exekúcia voči subjektu.",
-    penaltyIfFound: 40,
-    severityIfFound: "critical",
-  },
   {
     id: "exek",
     category: "insolvency",

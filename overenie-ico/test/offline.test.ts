@@ -142,11 +142,12 @@ async function main() {
   assert.equal(kb("age").tone, "warn");
   console.log(r.keyFacts.map((f) => `  ${f.tone.padEnd(7)} ${f.question}: ${f.answer}`).join("\n"));
 
-  // 4) Manuálne zistený záznam (CRE) zmení verdikt dobrého subjektu
+  // 4) Manuálne zistený záznam (Dôvera – dlžník) zmení verdikt dobrého subjektu; CRE je zaparkované a v preverení nie je
   process.env.FS_API_KEY = "TEST";
   r = await scan(GOOD);
-  const v2 = computeVerdict(applyManual(r.checks, { cre: "found" }));
-  assert.equal(v2.level, "not_recommended");
+  assert.ok(!r.checks.some((c) => c.id === "cre"), "CRE nie je v preverení");
+  const v2 = computeVerdict(applyManual(r.checks, { dovera: "found", vszp: "found", union: "found" }));
+  assert.notEqual(v2.level, "recommended");
 
   // 5) Vyrovnávacia pamäť je predvolene vypnutá – každé preverenie sa pýta registrov nanovo
   const before0 = calls.length;

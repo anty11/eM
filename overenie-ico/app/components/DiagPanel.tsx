@@ -22,7 +22,6 @@ const SOURCES = [
   { id: "vszp", label: "VšZP – dlžníci (bez API)" },
   { id: "union", label: "Union – dlžníci (bez API)" },
   { id: "ov", label: "Obchodný vestník (index + stránka)" },
-  { id: "cre", label: "CRE – dostupnosť" },
   { id: "dovera", label: "Dôvera – dostupnosť (len informatívne)" },
   { id: "browser", label: "Prehliadač na serveri (agent AI) – spustenie a vstupné stránky registrov" },
   { id: "ov-browser", label: "Obchodný vestník cez prehliadač (skript bez AI)" },

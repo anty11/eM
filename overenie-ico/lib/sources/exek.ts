@@ -20,7 +20,7 @@ import { browserFlow } from "./public";
 export const EXEK_PAGE = "https://obcan.justice.sk/pilot/poverenia/";
 const API_KEY = "exek:api";
 const SINCE = "1. 4. 2017";
-const CAVEAT = `zoznam obsahuje len poverenia na vykonanie exekúcie vydané Okresným súdom Banská Bystrica od ${SINCE} a len z prebiehajúcich konaní – skončené exekúcie a konania začaté pred ${SINCE} v ňom nie sú; úplný prehľad dáva Centrálny register exekúcií (CRE)`;
+const CAVEAT = `zoznam obsahuje len poverenia na vykonanie exekúcie vydané Okresným súdom Banská Bystrica od ${SINCE} a len z prebiehajúcich konaní – skončené exekúcie a konania začaté pred ${SINCE} v ňom nie sú; úplný prehľad dáva Centrálny register exekúcií (CRE, spoplatnený výpis – na vyžiadanie)`;
 
 export interface ExekApi {
   url: string;

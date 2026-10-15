@@ -585,3 +585,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.11.16** – Koliesko priebehu počítalo len 11 zdrojov s API a registre bez API vynechalo, hoci ich server skúša sám (potom
   záver hlásil „2/19 na ručné overenie“). Teraz počíta všetkých 17 automaticky skúšaných zdrojov; CRE a Dôvera (vždy ručné) sú
   uvedené mimo kolieska.
+- **v2.11.17** – **CRE zaparkované.** Centrálny register exekúcií sa v preverení neukazuje (bol vždy „Overiť manuálne“ s textom
+  o spoplatnenom výpise); exekúcie overuje zoznam poverení MS SR (`exek`) s uvedenou výhradou rozsahu. Definícia ostáva v kóde
+  (`CRE_PARKED` v `lib/sources/manual.ts`) ako podklad pre budúci platený doplnok pre klienta – výpis z CRE na vyžiadanie (1,60 € za
+  dopyt, registrácia prevádzkovateľa + certifikát k webovej službe CRE). Preverenie má teraz 18 položiek, z nich jedna (Dôvera) vždy
+  ručne.

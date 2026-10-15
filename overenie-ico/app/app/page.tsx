@@ -23,7 +23,7 @@ import type { CompanyProfile } from "@/lib/types";
 
 const NON_PUBLIC = MANUAL.map((m) => m.id);
 /** Registre, ktoré sa nikdy neskúšajú automaticky (platený výpis, zákaz automatizácie) */
-const ALWAYS_MANUAL = ["cre", "dovera"];
+const ALWAYS_MANUAL = ["dovera"];
 
 const STATUS_LABEL: Record<CheckResult["status"], string> = {
   ok: "Bez záznamu",
