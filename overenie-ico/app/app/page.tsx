@@ -571,6 +571,52 @@ export default function Page() {
               <div className="ph-meta">Číslo preverenia {report.scanId} · Stav k {fmtDate(report.scannedAt)}{report.orgName ? ` · Preverila ${report.orgName}` : ""}{report.scannedBy ? ` (${report.scannedBy})` : ""} · {lawyer ? "rozšírené overenie" : "štandardné overenie"}</div>
             </div>
 
+            {/* Identifikácia hneď pod vyhľadávaním – kto je subjekt, skôr než verdikt */}
+            <section className="card">
+              <h2>Identifikácia subjektu</h2>
+              <p className="company-name">{p.name || "Neznámy subjekt"}</p>
+              <dl className="profile kv">
+                <div><dt>IČO</dt><dd>{p.ico}</dd></div>
+                <div><dt>DIČ</dt><dd>{p.dic || "–"}</dd></div>
+                <div><dt>IČ DPH</dt><dd>{p.icDph || "–"}</dd></div>
+                <div><dt>Právna forma</dt><dd>{p.legalForm || "–"}</dd></div>
+                <div><dt>Sídlo</dt><dd>{p.address || "–"}</dd></div>
+                <div><dt>Deň vzniku</dt><dd>{p.established || "–"}{p.terminated ? ` · zánik ${p.terminated}` : ""}</dd></div>
+                <div><dt>Registrácia</dt><dd>{[p.registrationOffice, p.registrationNumber].filter(Boolean).join(", ") || "–"}</dd></div>
+                <div><dt>Hlavná činnosť</dt><dd>{p.mainActivity || "–"}</dd></div>
+                <div><dt>Základné imanie</dt><dd>{eur(p.equity)}</dd></div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <dt>Štatutárny orgán</dt>
+                  <dd>{p.statutory?.length ? p.statutory.map((s) => `${s.name} (${s.role}${s.since ? `, od ${s.since}` : ""})`).join("; ") : "–"}</dd>
+                </div>
+                {p.owners && p.owners.length > 0 && (
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <dt>Vlastníci (spoločníci)</dt>
+                    <dd>{p.owners.map((o) => `${o.name}${o.since ? ` (od ${o.since})` : ""}`).join("; ")}</dd>
+                  </div>
+                )}
+                {p.activities && p.activities.length > 0 && (
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <dt>Predmet podnikania ({p.activities.length})</dt>
+                    <dd>
+                      <ul className="print-only acts-print">{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                      {p.activities.length === 1 ? (
+                        <span className="no-print">{p.activities[0]}</span>
+                      ) : (
+                        <details className="acts no-print" open={p.activities.length <= 6}>
+                          <summary>{p.activities.length <= 6 ? `${p.activities.length} predmety podnikania` : `${p.activities.slice(0, 3).join("; ")} …`}</summary>
+                          <ul>{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                        </details>
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {p.formerNames && p.formerNames.length > 0 && (
+                  <div style={{ gridColumn: "1 / -1" }}><dt>Predchádzajúce názvy</dt><dd>{p.formerNames.join("; ")}</dd></div>
+                )}
+              </dl>
+            </section>
+
             {pendingCount > 0 ? (
               <section className="card verdict caution progress-card" style={{ ["--s" as any]: Math.round(((totalAuto - pendingCount) / totalAuto) * 100) }}>
                 <div className="score"><div><div><b>{totalAuto - pendingCount}</b><br /><span>z {totalAuto}</span></div></div></div>
@@ -649,51 +695,6 @@ export default function Page() {
                 </dl>
               </section>
             )}
-
-            <section className="card">
-              <h2>Identifikácia subjektu</h2>
-              <p className="company-name">{p.name || "Neznámy subjekt"}</p>
-              <dl className="profile kv">
-                <div><dt>IČO</dt><dd>{p.ico}</dd></div>
-                <div><dt>DIČ</dt><dd>{p.dic || "–"}</dd></div>
-                <div><dt>IČ DPH</dt><dd>{p.icDph || "–"}</dd></div>
-                <div><dt>Právna forma</dt><dd>{p.legalForm || "–"}</dd></div>
-                <div><dt>Sídlo</dt><dd>{p.address || "–"}</dd></div>
-                <div><dt>Deň vzniku</dt><dd>{p.established || "–"}{p.terminated ? ` · zánik ${p.terminated}` : ""}</dd></div>
-                <div><dt>Registrácia</dt><dd>{[p.registrationOffice, p.registrationNumber].filter(Boolean).join(", ") || "–"}</dd></div>
-                <div><dt>Hlavná činnosť</dt><dd>{p.mainActivity || "–"}</dd></div>
-                <div><dt>Základné imanie</dt><dd>{eur(p.equity)}</dd></div>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <dt>Štatutárny orgán</dt>
-                  <dd>{p.statutory?.length ? p.statutory.map((s) => `${s.name} (${s.role}${s.since ? `, od ${s.since}` : ""})`).join("; ") : "–"}</dd>
-                </div>
-                {p.owners && p.owners.length > 0 && (
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <dt>Vlastníci (spoločníci)</dt>
-                    <dd>{p.owners.map((o) => `${o.name}${o.since ? ` (od ${o.since})` : ""}`).join("; ")}</dd>
-                  </div>
-                )}
-                {p.activities && p.activities.length > 0 && (
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <dt>Predmet podnikania ({p.activities.length})</dt>
-                    <dd>
-                      <ul className="print-only acts-print">{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
-                      {p.activities.length === 1 ? (
-                        <span className="no-print">{p.activities[0]}</span>
-                      ) : (
-                        <details className="acts no-print" open={p.activities.length <= 6}>
-                          <summary>{p.activities.length <= 6 ? `${p.activities.length} predmety podnikania` : `${p.activities.slice(0, 3).join("; ")} …`}</summary>
-                          <ul>{p.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
-                        </details>
-                      )}
-                    </dd>
-                  </div>
-                )}
-                {p.formerNames && p.formerNames.length > 0 && (
-                  <div style={{ gridColumn: "1 / -1" }}><dt>Predchádzajúce názvy</dt><dd>{p.formerNames.join("; ")}</dd></div>
-                )}
-              </dl>
-            </section>
 
             {metrics.length > 0 && (
               <section className="card">
