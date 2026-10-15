@@ -537,12 +537,19 @@ export async function checkExcise(ctx: Ctx): Promise<CheckResult> {
   return runCheck(m, async () => {
     const slug = await resolve("excise");
     if (!slug) {
+      // OpenData API tento zoznam neponúka (10/2026: 10 zoznamov, žiadny o spotrebných daniach) → zoznam na webe FS cez prehliadač na serveri
       const names = await lists().catch(() => [] as Ds[]);
-      return {
-        ...notPublished("Registrácia pre spotrebné dane"),
-        verifyUrl: FS_LIST_URL.excise,
-        search: [{ dataset: "Finančná správa – OpenData, prehľad zoznamov (/lists)", total: names.length, queries: [sq("názvu zoznamu", "spotrebné dane / SPD", names.length, 0, `${API}/lists`, `žiadny zoznam s takým názvom; dostupné zoznamy: ${names.map((n) => `${n.slug} (${n.name.slice(0, 60)})`).join(", ").slice(0, 1500)}`)], rule: "zoznam, ktorého názov obsahuje „spotrebn“ alebo „SPD“; dopyt podľa IČO" }],
-      };
+      const apiLog = { dataset: "Finančná správa – OpenData, prehľad zoznamov (/lists)", total: names.length, queries: [sq("názvu zoznamu", "spotrebné dane / SPD", names.length, 0, `${API}/lists`, `žiadny zoznam s takým názvom – dostupné: ${names.map((n) => n.slug).join(", ")}`)], rule: "zoznam, ktorého názov obsahuje „spotrebn“ alebo „SPD“" };
+      if (process.env.BROWSER_DISABLED !== "1") {
+        const { browserFlow } = await import("./public");
+        const r = await browserFlow("fs-excise", ctx.ico);
+        const webLog = { dataset: "Finančná správa – web, Zoznam daňových subjektov registrovaných pre spotrebné dane (filter IČO)", queries: [sq("IČO", ctx.ico, r.searched?.returned ?? null, r.searched?.matched ?? 0, FS_LIST_URL.excise, `prehliadač na serveri${r.searched?.note ? `: ${r.searched.note}` : ""}${r.error ? `; chyba: ${r.error.slice(0, 120)}` : ""}`)], rule: "riadok zoznamu s IČO subjektu; „nie je registrovaný“ len pri hlásení o prázdnom výsledku" };
+        if (r.verdict === "found")
+          return { status: "info", summary: `Registrovaný pre spotrebné dane (${r.rows.length}×): ${r.rows.slice(0, 3).join("; ")}. Informácia – bez vplyvu na hodnotenie.`, findings: [{ severity: "info", text: `Registrácia pre spotrebné dane: ${r.rows[0]}`, penalty: 0 }], verifyUrl: FS_LIST_URL.excise, data: { registered: true, rows: r.rows, via: "browser", definitive: true }, search: [apiLog, webLog] };
+        if (r.verdict === "clean") return { status: "info", summary: "Subjekt nie je registrovaný pre spotrebné dane (zoznam FS podľa § 52 ods. 5 daňového poriadku, overené na webe FS).", findings: [], verifyUrl: FS_LIST_URL.excise, data: { registered: false, via: "browser", definitive: true }, search: [apiLog, webLog] };
+        return { ...notPublished("Registrácia pre spotrebné dane"), summary: `Registrácia pre spotrebné dane: OpenData API zoznam neponúka a stránku FS sa nepodarilo prečítať (${r.error || r.searched?.note || "výsledok sa nedal vyhodnotiť"}). Overte v zozname na stránke Finančnej správy (odkaz).`, verifyUrl: FS_LIST_URL.excise, search: [apiLog, webLog] };
+      }
+      return { ...notPublished("Registrácia pre spotrebné dane"), verifyUrl: FS_LIST_URL.excise, search: [apiLog] };
     }
     const rows = await search(slug, ctx);
     if (!rows.length)

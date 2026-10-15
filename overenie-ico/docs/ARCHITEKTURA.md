@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.14** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.15** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -205,7 +205,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `fs-vat` | DPH a dôvody na zrušenie | FS OpenData (IČ DPH, `ds_dphz`, IBAN zoznam) | `icDph`; `data.row` | dôvody na zrušenie −35 | offline |
 | `fs-ids` | Index daňovej spoľahlivosti | FS OpenData `ds_iz_ran` | `data.row.hodnotenie` | menej spoľahlivý −20 | offline |
 | `fs-dppo` | Daňové priznanie PO | FS OpenData `ds_dppos` (len subjekty s nenulovou daňou); keď subjekt v zozname nie je, podanie podľa Registra účtovných závierok (`ctx.ruzDone`: posledná uložená závierka – ukladá sa s priznaním; riadok „Daň z príjmov“ výkazu ziskov a strát = `metrics.incomeTax`) | `data.filed, year, tax, via (ruz)` | závierka za očakávaný rok chýba – upozornenie (bez postihu, postih dáva RÚZ) | offline |
-| `fs-excise` | Registrácia pre spotrebné dane | FS OpenData – zoznam „registrovaných pre spotrebné dane“ (slug podľa názvu), dopyt podľa IČO | `data.registered, rows (druh dane, druh subjektu, dátum registrácie)` | len informácia, bez vplyvu na hodnotenie; výsledok sa ukladá do pamäte (`data.definitive`) | offline |
+| `fs-excise` | Registrácia pre spotrebné dane | FS OpenData – zoznam podľa názvu („spotrebn“ / „SPD“); API ho neponúka (10/2026) → stránka zoznamu na webe FS prehliadačom na serveri (`fsListFlow`, zdroj `fs-excise` v `/api/browser/flow`: filter IČO, tabuľka alebo hlásenie o prázdnom výsledku) | `data.registered, rows (druh dane, druh subjektu, dátum registrácie)` | len informácia, bez vplyvu na hodnotenie; výsledok sa ukladá do pamäte (`data.definitive`) | offline |
 | `socpoist` | Dlžníci Sociálnej poisťovne | index v Redise z exportu (cron 04:20) | `data.row, amount, preparing` | dlžník −35 kritické | offline |
 | `insolvency` | REPLIK | HTML vyhľadávanie konaní | `data.proceedings[], dissolution, asOf` | prebiehajúce konanie – kritické, minulé −8 | offline, retro |
 | `rpvs` | RPVS | OData v2 | `data.kuv[], partnerId, cisloVlozky, deleted` | informatívne / pozitívne | offline |

@@ -4,7 +4,7 @@ import { useMemoryKV } from "../lib/auth/kv";
 import { checkOv, classifyNotice, importOvXml, parseOvXml } from "../lib/sources/ov";
 import { judge, queryPublicRegister, searchFromOutcome } from "../lib/sources/public";
 import { debtAmount } from "../lib/sources/fs";
-import { judgeExekJson } from "../lib/sources/exek";
+import { describePoverenie, judgeExekJson } from "../lib/sources/exek";
 import { verifyTerm } from "../app/components/VerifyLink";
 import { ownerFirms, people, professionOf } from "../lib/sources/news";
 import { judgeOv, judgeUnion } from "../lib/browser/flows";
@@ -172,11 +172,12 @@ main().catch((e) => { console.error(e); process.exit(1); });
   // Exekúcie – odpoveď aplikácie poverení (JSON): počet + záznamy s IČO; prázdny výsledok; neúplný zoznam bez IČO
   const exFound = judgeExekJson(JSON.stringify({ numFound: 1, povereniaList: [{ povinny: "SUPERQUAD SLOVAKIA s.r.o.", ico: "50565516", exekutor: "JUDr. Peter Kuna", spisovaZnacka: "6Er/123/2025" }] }), "50565516")!;
   assert.equal(exFound.verdict, "found");
-  assert.match(exFound.rows[0], /povinny: SUPERQUAD SLOVAKIA s\.r\.o\. · ico: 50565516 · exekutor: JUDr\. Peter Kuna/);
+  assert.equal(exFound.rows[0], "Poverenie – sp. zn. 6Er/123/2025 – exekútor JUDr. Peter Kuna – povinný SUPERQUAD SLOVAKIA s.r.o.");
   assert.equal(judgeExekJson(JSON.stringify({ numFound: 0, povereniaList: [] }), "50565516")!.verdict, "clean");
   assert.equal(judgeExekJson(JSON.stringify({ totalElements: 3, content: [{ ico: "11111111" }, { ico: "22222222" }, { ico: "33333333" }] }), "50565516")!.verdict, "clean", "celý zoznam prečítaný, bez IČO");
   assert.equal(judgeExekJson(JSON.stringify({ numFound: 500, povereniaList: [{ ico: "11111111" }] }), "50565516")!.verdict, "unknown", "neúplný zoznam bez IČO nie je „bez záznamu“");
   assert.equal(judgeExekJson("<html>…</html>", "50565516"), null);
+  assert.equal(describePoverenie({ datumPoverenia: "2025-09-11T00:00:00", datumZverejnenia: "2025-09-21T00:00:00", ecli: "ECLI:SK:OSBB:2025:6125379141.1", typ: "PRAVNICKA_OSOBA", nazov: "SUPERQUAD SLOVAKIA s.r.o.", ulica: "Agátová 3406/7A", mesto: "Bratislava - mestská časť Dúbravka", psc: "84101", ico: "50565516" }), "Poverenie z 11. 9. 2025 (zverejnené 21. 9. 2025) – ECLI:SK:OSBB:2025:6125379141.1 – povinný SUPERQUAD SLOVAKIA s.r.o., Agátová 3406/7A, 84101 Bratislava - mestská časť Dúbravka");
   console.log("OK – exekúcie: vyhodnotenie odpovede aplikácie poverení.");
 
   // ÚVO: popri IČO aj mená osôb (štatutári, spoločníci – FO); zhoda mena = možná zhoda (upozornenie, strop S výhradou), nie nález

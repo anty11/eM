@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { describeStep } from "@/lib/browser/steps";
 import { saveRun } from "@/lib/ailog";
-import { exekFlow, ovFlow, unionFlow } from "@/lib/browser/flows";
+import { exekFlow, fsListFlow, ovFlow, unionFlow } from "@/lib/browser/flows";
+import { FS_LIST_URL } from "@/lib/sources/fs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +21,15 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const ico = String(body.ico || "").replace(/\D/g, "");
   if (!/^\d{6,8}$/.test(ico)) return NextResponse.json({ error: "bad ico" }, { status: 400 });
-  if (body.source !== "union" && body.source !== "ov" && body.source !== "exek") return NextResponse.json({ error: "unknown source" }, { status: 400 });
-  const r = body.source === "ov" ? await ovFlow(ico, { diag: Boolean(body.diag) }) : body.source === "exek" ? await exekFlow(ico, { diag: Boolean(body.diag) }) : await unionFlow(ico, { diag: Boolean(body.diag) });
+  if (!["union", "ov", "exek", "fs-excise"].includes(body.source)) return NextResponse.json({ error: "unknown source" }, { status: 400 });
+  const r =
+    body.source === "ov"
+      ? await ovFlow(ico, { diag: Boolean(body.diag) })
+      : body.source === "exek"
+        ? await exekFlow(ico, { diag: Boolean(body.diag) })
+        : body.source === "fs-excise"
+          ? await fsListFlow(FS_LIST_URL.excise, ico, { diag: Boolean(body.diag) })
+          : await unionFlow(ico, { diag: Boolean(body.diag) });
   // záznam pre administráciu (Záznam AI overení) – aj skriptované dopyty, najmä tie neúspešné
   await saveRun({
     kind: "flow",

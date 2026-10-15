@@ -328,7 +328,9 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
         [w(`${any} -site:finstat.sk -site:orsr.sk -site:uvostat.sk`), "web", "other"], // PR, odborné weby, tlačové správy
       ];
       for (const v of quoted.slice(1, 4)) queries.push([g(v), "google", "firm"], [b(v), "bing", "firm"]);
-      for (const ac of acronyms(p)) queries.push([g(`"${ac}" advokátska kancelária`), "google", "other"]);
+      // skratky z iniciál a priezviská partnerov z názvu majú zmysel len pri advokátskej kancelárii (USGB, „Bošanský advokát“)
+      const lawFirm = professionOf(p) === "advokát";
+      if (lawFirm) for (const ac of acronyms(p)) queries.push([g(`"${ac}" advokátska kancelária`), "google", "other"]);
       if (surname && quoted[0]) queries.push([g(`${quoted[0]} "${surname}"`), "google", "firm"]);
       // štatutári, vlastníci a partneri z názvu kancelárie: meno + kontext, aby sa nezachytili menovci
       const persons = people(p);
@@ -338,7 +340,7 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       }
       // materská firma (vlastník – právnická osoba): správy o nej sa týkajú aj dcéry
       for (const firm of ownerFirms(p)) queries.push([g(`"${firm}" ${quoted[0] ? `(${quoted[0]} OR konateľ OR spoločnosť)` : "spoločnosť"}`), "google", "other"], [b(`"${firm}"`), "bing", "other"]);
-      for (const sn of partnerSurnames(p).slice(0, 4)) queries.push([g(`"${sn}" advokát`), "google", "person"]);
+      if (lawFirm) for (const sn of partnerSurnames(p).slice(0, 4)) queries.push([g(`"${sn}" advokát`), "google", "person"]);
 
       const [results, outlets, ddg, ddgPeople] = await Promise.all([
         Promise.allSettled(queries.map(([u]) => getText(u, { timeoutMs: 12000 }))),

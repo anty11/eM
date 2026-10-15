@@ -146,7 +146,8 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
     const idsVal = String(((ids?.data as any)?.row && Object.values((ids!.data as any).row).find((v) => /spo[lľ]ahliv/i.test(String(v)))) || "");
     if (unavailable(vat)) f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: "Automaticky neoverené – skontrolujte v zoznamoch Finančnej správy.", tone: "unknown" };
     else if (vat!.status === "critical") f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: "NIE – u platiteľa nastali dôvody na zrušenie registrácie DPH (riziko ručenia za DPH).", tone: "bad" };
-    else if (!p.icDph) f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: "Nie je platiteľom DPH.", tone: "neutral" };
+    else if (/zrušen|vymazan/i.test(vat!.summary) && !p.icDph) f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: `NIE – registrácia pre DPH bola zrušená (vymazaný platiteľ DPH podľa § 52 ods. 8 daňového poriadku)${/menej/i.test(idsVal) ? `; index daňovej spoľahlivosti: ${idsVal}` : ""}.`, tone: "bad" };
+    else if (!p.icDph) f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: `Nie je platiteľom DPH${/menej/i.test(idsVal) ? ` (index daňovej spoľahlivosti: ${idsVal})` : ""}.`, tone: /menej/i.test(idsVal) ? "warn" : "neutral" };
     else if (/menej/i.test(idsVal)) f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: `Registrovaný platiteľ ${p.icDph}, ale index daňovej spoľahlivosti: ${idsVal}.`, tone: "warn" };
     else f = { id: "vat", question: "Je spoľahlivý platiteľ DPH?", answer: `Áno – registrovaný platiteľ DPH ${p.icDph} bez dôvodov na zrušenie registrácie${idsVal ? `, index daňovej spoľahlivosti: ${idsVal}` : ""}.`, tone: "good" };
     f.source = "Finančná správa";

@@ -574,3 +574,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   **„Overiť manuálne“ → zrazu úspech:** registre bez API, ktoré server vie overiť sám (VšZP, Union, ÚVO, diskvalifikácie, OV, exekúcie),
   sa počas pokusu ukazujú ako „Overuje sa automaticky…“, nie ako manuálne; „Overiť manuálne“ sa zobrazí až keď pokus naozaj zlyhá
   (predtým sa položka najprv hlásila ako manuálna a o chvíľu „sama“ prešla na výsledok).
+- **v2.11.15** – Po preverení SUPERQUAD SLOVAKIA (15. 10. 2026, všetko automaticky vrátane exekúcií): poverenie na vykonanie exekúcie
+  sa vypisuje ľudsky („Poverenie z 11. 9. 2025 (zverejnené 21. 9. 2025) – ECLI:… – povinný …, adresa“), nie ako polia JSON.
+  **Spotrebné dane:** OpenData API zoznam skutočne neponúka (10 zoznamov, žiadny o spotrebných daniach), preto sa registrácia overuje
+  na stránke zoznamu FS prehliadačom na serveri (`fsListFlow`: filter IČO, tabuľka / hlásenie o prázdnom výsledku). **Kľúčový fakt
+  DPH:** zrušená registrácia (vymazaný platiteľ podľa § 52 ods. 8) sa ukazuje ako „NIE – registrácia bola zrušená“ (predtým neutrálne
+  „nie je platiteľom“); index „menej spoľahlivý“ sa uvádza aj pri neplatiteľovi. **Médiá:** skratky z iniciál a priezviská partnerov
+  z názvu sa hľadajú len pri advokátskej kancelárii (pri stavebnej či obchodnej firme vznikali nezmyselné dopyty „"EAS" advokátska
+  kancelária“, „"Superquad" advokát“).

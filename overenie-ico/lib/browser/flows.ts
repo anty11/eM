@@ -365,6 +365,46 @@ export async function exekFlow(ico: string, opts: { diag?: boolean } = {}): Prom
   }
 }
 
+/**
+ * Informačný zoznam na webe Finančnej správy (stránka zoznamu s filtrom IČO), keď ho OpenData API neponúka – napr. registrácia pre
+ * spotrebné dane: vyplní IČO, odošle filter, prečíta tabuľku (riadky s IČO) alebo hlásenie o prázdnom výsledku.
+ */
+export async function fsListFlow(url: string, ico: string, opts: { diag?: boolean } = {}): Promise<FlowResult> {
+  const t0 = Date.now();
+  let s: BrowserSession | null = null;
+  try {
+    s = await BrowserSession.open(["financnasprava.sk"], url);
+    let snap = await s.open(url);
+    for (let i = 0; i < 5 && !snap.elements.some((e) => e.kind === "input"); i++) snap = await s.wait(1000);
+    const pre = await searchPrelude(s, ico);
+    snap = pre.snap;
+    if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${pre.done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s.log, pages: s.pages };
+    for (let i = 0; i < 6; i++) {
+      const t = fold(snap.text);
+      const hasRow = snap.tables.some((tb) => tb.some((r) => r.some((c) => c.replace(/\s/g, "") === ico)));
+      if (hasRow || /ziadne zaznamy|nenasli sa|neboli najdene|nebol najdeny|0 zaznamov|ziadny zaznam/.test(t)) break;
+      snap = await s.wait(1000);
+    }
+    const re = new RegExp(`(^|\\D)${ico}(\\D|$)`);
+    const table = snap.tables.find((tb) => tb.some((r) => r.some((c) => re.test(c))));
+    const rows = table ? table.filter((r) => r.some((c) => re.test(c))) : [];
+    const t = fold(snap.text);
+    const empty = /ziadne zaznamy|nenasli sa ziadne|neboli najdene|nebol najdeny|0 zaznamov|ziadny zaznam|nenasiel sa/.test(t);
+    const judged: Pick<FlowResult, "verdict" | "rows" | "evidence"> = rows.length
+      ? { verdict: "found", rows: rows.slice(0, 10).map((r) => r.filter(Boolean).join(" · ").slice(0, 300)), evidence: rows[0].filter(Boolean).join(" | ").slice(0, 300) }
+      : empty && t.includes(ico)
+        ? { verdict: "clean", rows: [], evidence: snap.text.match(/.{0,60}(žiadne záznamy|nenašli sa|neboli nájdené|nebol nájdený|0 záznamov|žiadny záznam|nenašiel sa).{0,60}/i)?.[0]?.trim() }
+        : { verdict: "unknown", rows: [] };
+    const shown = snap.tables.reduce((n, tb) => n + Math.max(0, tb.length - 1), 0);
+    const searched = { query: ico, returned: judged.verdict === "clean" ? 0 : judged.verdict === "found" ? rows.length : null, matched: rows.length, note: judged.verdict === "unknown" ? `tabuľky: ${shown} riadkov, bez IČO a bez hlásenia o prázdnom výsledku` : judged.verdict === "clean" ? "zoznam hlási prázdny výsledok" : `riadky zoznamu s IČO: ${rows.length}` };
+    return { ...judged, searched, url: snap.url, ms: Date.now() - t0, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s.log, pages: s.pages, steps: pre.done };
+  } catch (e) {
+    return { verdict: "unknown", rows: [], url, ms: Date.now() - t0, error: (e as Error).message.split("\n")[0].slice(0, 300), actions: s?.log, pages: s?.pages };
+  } finally {
+    await s?.close();
+  }
+}
+
 /** Vyhodnotenie výsledku poverení: JSON odpoveď (numFound + záznamy s IČO) alebo stránka (tabuľka / hlásenie o prázdnom výsledku). */
 export function judgeExek(snap: Snapshot, ico: string, jsonBody?: string): { verdict: "found" | "clean" | "unknown"; rows: string[]; evidence?: string; returned: number | null; note: string } {
   if (jsonBody) {

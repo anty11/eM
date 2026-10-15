@@ -49,19 +49,47 @@ export function judgeExekJson(body: string, ico: string): { verdict: "found" | "
   const total = typeof j.numFound === "number" ? j.numFound : typeof j.totalElements === "number" ? j.totalElements : typeof j.total === "number" ? j.total : typeof j.count === "number" ? j.count : Array.isArray(j) ? j.length : null;
   const list: any[] = Array.isArray(j) ? j : (Object.values(j).find((v) => Array.isArray(v) && v.length && typeof v[0] === "object" && !("facetValueList" in v[0])) as any[]) || [];
   if (total === null && !Array.isArray(j) && !list.length) return null;
-  const text = (x: any) =>
-    Object.entries(flat(x))
-      .filter(([k, v]) => v && !/guid|suradnic|zemepis|^id$|url|href/i.test(k))
-      .slice(0, 10)
-      .map(([k, v]) => `${k.split(".").pop()}: ${v}`)
-      .join(" · ")
-      .slice(0, 300);
+  const text = (x: any) => describePoverenie(flat(x));
   const re = new RegExp(`(^|\\D)${ico}(\\D|$)`);
   const hits = list.filter((x) => re.test(JSON.stringify(x)));
   if (hits.length) return { verdict: "found", rows: hits.slice(0, 10).map(text), evidence: text(hits[0]), returned: total ?? list.length, note: "odpoveď aplikácie (JSON) – záznamy s IČO" };
   if (total === 0 || (total !== null && list.length === 0)) return { verdict: "clean", rows: [], evidence: "odpoveď aplikácie: 0 záznamov", returned: 0, note: "odpoveď aplikácie (JSON): 0 záznamov" };
   if (total !== null && list.length >= total) return { verdict: "clean", rows: [], evidence: `odpoveď aplikácie: ${total} záznamov, žiadny s IČO ${ico}`, returned: total, note: "odpoveď aplikácie (JSON) – bez záznamu s IČO" };
   return { verdict: "unknown", rows: [], returned: total, note: `odpoveď aplikácie: ${total ?? "?"} záznamov, prečítaných ${list.length} – bez IČO` };
+}
+
+/** Poverenie ľudsky: „Poverenie z 11. 9. 2025 (zverejnené 21. 9. 2025), ECLI:… – SUPERQUAD SLOVAKIA s.r.o., Agátová 3406/7A, Bratislava“ (polia aplikácie 10/2026). */
+export function describePoverenie(r: Record<string, string>): string {
+  const skd = (v?: string) => {
+    const m = (v || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${Number(m[3])}. ${Number(m[2])}. ${m[1]}` : v || "";
+  };
+  const get = (re: RegExp) => Object.entries(r).find(([k]) => re.test(k))?.[1];
+  const issued = get(/datumPoverenia|datum_poverenia|datumVydania/i);
+  const published = get(/datumZverejnenia|datum_zverejnenia/i);
+  const ecli = get(/ecli/i);
+  const name = get(/^nazov$|nazov_povinneho|povinny/i);
+  const addr = [get(/^ulica/i), [get(/^psc/i), get(/^mesto|^obec/i)].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const exekutor = get(/exekutor/i);
+  const znacka = get(/spisova|znacka|cislo_konania/i);
+  if (!issued && !ecli && !name) {
+    return Object.entries(r)
+      .filter(([k, v]) => v && !/guid|suradnic|zemepis|^id$|url|href/i.test(k))
+      .slice(0, 10)
+      .map(([k, v]) => `${k.split(".").pop()}: ${v}`)
+      .join(" · ")
+      .slice(0, 300);
+  }
+  return [
+    `Poverenie${issued ? ` z ${skd(issued)}` : ""}${published ? ` (zverejnené ${skd(published)})` : ""}`,
+    ecli ? ecli : "",
+    znacka ? `sp. zn. ${znacka}` : "",
+    exekutor ? `exekútor ${exekutor}` : "",
+    name ? `povinný ${name}${addr ? `, ${addr}` : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" – ")
+    .slice(0, 300);
 }
 
 function flat(o: any, prefix = "", out: Record<string, string> = {}): Record<string, string> {
