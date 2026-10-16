@@ -136,9 +136,26 @@ export interface SearchTrail {
 /** Nájdené riadky + podľa čoho sa hľadalo (`by`: ico / dic / ic_dph / name) a stopa pokusov. */
 export type SearchRows = any[] & { trail?: SearchTrail[]; by?: string; log?: SearchLog };
 
+/** Dopyt do OpenData FS s jedným opakovaním pri prechodnej chybe (5xx, 429, výpadok spojenia, časový limit) – nie pri 400/404 (tie majú význam). */
+async function fsJson<T = any>(url: string): Promise<T> {
+  try {
+    return await getJson<T>(url, { headers: hdr(), timeoutMs: 12000 });
+  } catch (e) {
+    const st = e instanceof HttpError ? e.status : 0;
+    if (st && st < 500 && st !== 429) throw e;
+    await new Promise((r) => setTimeout(r, 800));
+    return await getJson<T>(url, { headers: hdr(), timeoutMs: 12000 });
+  }
+}
+
 async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   let ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
   if (!ds?.searchable.length) ds = (await listDetail(slug)) || ds;
+  // zoznam prehľadávateľný len podľa názvu (daňoví dlžníci): bez obchodného mena sa nedá hľadať – počkať na RPO (resp. RÚZ) ešte chvíľu
+  if (!ctx.profile.name && ds?.searchable.length && ds.searchable.every((c) => /nazov|obchodne|meno|subjekt/.test(fold(c)))) {
+    await Promise.race([ctx.rpoDone ?? Promise.resolve(), new Promise((r) => setTimeout(r, 15000))]);
+    if (!ctx.profile.name && ctx.profile.ruzName) ctx.profile.name = ctx.profile.ruzName;
+  }
   const shortName = (ctx.profile.name || "")
     .replace(/,?\s*(spol\.\s*s\s*r\.\s*o\.|s\.\s*r\.\s*o\.|a\.\s*s\.|k\.\s*s\.|v\.\s*o\.\s*s\.|družstvo|advokátska kancelária).*$/i, "")
     .trim();
@@ -223,7 +240,7 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   for (const [col, val, kind] of tries) {
     try {
       const url = (page: number) => `${API}/data/${slug}/search?page=${page}&column=${encodeURIComponent(col)}&search=${encodeURIComponent(val)}`;
-      const raw = await getJson<any>(url(1), { headers: hdr() });
+      const raw = await fsJson<any>(url(1));
       let all = rowsOf(raw);
       if (!all) {
         trail.push({ column: col, kind, value: val, result: "neznámy formát odpovede" });
@@ -233,7 +250,7 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
       // hľadanie podľa názvu môže vrátiť viac strán (podobné názvy) – prečítame ďalšie, kým pribúdajú (najviac 10)
       if (kind === "name" && all.length >= 10) {
         for (let page = 2; page <= 10; page++) {
-          const more = rowsOf(await getJson<any>(url(page), { headers: hdr() }).catch(() => null));
+          const more = rowsOf(await fsJson<any>(url(page)).catch(() => null));
           if (!more?.length) break;
           all = [...all, ...more];
           if (more.length < 10) break;

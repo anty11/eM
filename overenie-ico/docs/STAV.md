@@ -602,3 +602,10 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   smer, predmet, IBAN a hodnotu. Vplyv na skóre: potvrdený indikátor = postih v bodoch (dokumentácia 8, cena 10, porušovanie predpisov
   40 – kritické, hotovosť 12, iné platby 10, preprava 6, umelé zapojenie osôb 40 – kritické, referencie len od sprostredkovateľa 8,
   tlak na čas 6); kritický indikátor dáva verdikt „Neodporúčame“ bez ohľadu na body.
+- **v2.11.22** – **Daňoví dlžníci padali na chybu**, keď preverenie začalo skôr, než RPO vrátilo obchodné meno (zoznam FS sa dá
+  prehľadať len podľa názvu): kontrola teraz na meno počká (RPO, resp. meno z RÚZ) a dopyty do OpenData FS majú jedno opakovanie pri
+  prechodnej chybe (5xx, 429, výpadok, limit 12 s). **Obchodný vestník vypadával**: v jednom preverení bežia 4 behy prehliadača naraz
+  (OV, Union, exekúcie, spotrebné dane), inštancia pustila len 3 – štvrtý čakal a OV s limitom 25 s (vrátane studeného štartu
+  Chromia a čítania až 10 strán) nestíhal. Teraz: 4 prehliadače naraz, limity OV 48 s, Union/exekúcie 40 s, spotrebné dane 35 s
+  (limit registrov bez API je 55 s) a jeden opakovaný pokus, keď beh zlyhá chybou pred polovicou limitu. Presnú príčinu ďalších
+  výpadkov ukáže Administrácia → Chyby zdrojov.

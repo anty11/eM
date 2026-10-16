@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.21** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.22** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -403,7 +403,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | Vercel | OpenAI |
 | `AI_PROVIDER`, `AI_MODEL`, `AI_SPEED`, `AI_AUTO_FALLBACK`, `AI_NO_API_SOURCES`, `AI_ALLOW_ADMIN_KEY` | Vercel / Administrácia | východiskové voľby AI; administrácia má prednosť |
 | `TYPESAFE_API_KEY`, `TYPESAFE_MODEL`, `TYPESAFE_BASE_URL` | Vercel / Administrácia | Jev |
-| `BROWSER_DISABLED`, `BROWSER_WS_ENDPOINT`, `CHROMIUM_PATH`, `BROWSER_MAX_PER_INSTANCE` | Vercel / lokálne | prehliadač: vypnúť, vzdialený (CDP), lokálny; najviac N prehliadačov naraz v jednej inštancii (predvolene 3, ďalšie čakajú) |
+| `BROWSER_DISABLED`, `BROWSER_WS_ENDPOINT`, `CHROMIUM_PATH`, `BROWSER_MAX_PER_INSTANCE` | Vercel / lokálne | prehliadač: vypnúť, vzdialený (CDP), lokálny; najviac N prehliadačov naraz v jednej inštancii (predvolene 4 – toľko behov má jedno preverenie: OV, Union, exekúcie, spotrebné dane; ďalšie čakajú) |
 | `REGISTRY_PROXY_URL`, `REGISTRY_PROXY_DOMAINS` | Vercel / Administrácia | proxy pre blokované registre |
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |

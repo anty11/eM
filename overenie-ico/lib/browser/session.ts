@@ -106,7 +106,7 @@ function sparticuzChromium() {
 /** Najviac BROWSER_MAX_PER_INSTANCE prehliadačov naraz v jednej inštancii (predvolene 3) – ďalšie čakajú, aby si nekonkurovali o CPU a pamäť. */
 let running = 0;
 const waiting: (() => void)[] = [];
-const maxPerInstance = () => Number(process.env.BROWSER_MAX_PER_INSTANCE) || 3;
+const maxPerInstance = () => Number(process.env.BROWSER_MAX_PER_INSTANCE) || 4;
 async function slot(): Promise<() => void> {
   if (running >= maxPerInstance()) await new Promise<void>((r) => waiting.push(r));
   running++;

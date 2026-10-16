@@ -57,18 +57,34 @@ async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: n
  * Strop pre skript v prehliadači v rámci preverenia (diagnostika má 50 s). Záťažová skúška 6. 10. 2026: Union p95 13 s, OV pri súbežnosti
  * až 50 s (časový limit) – OV radšej skôr skončí ako manuálne s dôvodom, než aby držal celé preverenie.
  */
-const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov" | "exek" | "fs-excise", number> = { union: 30000, ov: 25000, exek: 30000, "fs-excise": 25000 };
+/**
+ * Limity na beh prehliadača (ms). Limit registrov bez API je 55 s; v jednom preverení bežia až 4 behy naraz (OV, Union, exekúcie,
+ * spotrebné dane) a inštancia prehliadača pustí naraz BROWSER_MAX_PER_INSTANCE (4) – OV číta až 10 strán a má najvyššiu hodnotu,
+ * preto dostáva najviac času. Pri zlyhaní pred polovicou limitu sa beh raz zopakuje (studený štart Chromia, ETXTBSY, výpadok spojenia).
+ */
+const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov" | "exek" | "fs-excise", number> = { union: 40000, ov: 48000, exek: 40000, "fs-excise": 35000 };
 
 export async function browserFlow(source: "union" | "ov" | "exek" | "fs-excise", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult & { apiTemplate?: { url: string; method: string; post?: string } }> {
   const origin = selfOrigin();
   const t0 = Date.now();
-  try {
+  const limit = diag ? 50000 : BROWSER_FLOW_TIMEOUT[source];
+  const once = async (): Promise<import("../browser/flows").FlowResult & { apiTemplate?: { url: string; method: string; post?: string } }> => {
     // Zámerne bez priameho importu lib/browser – inak by sa Chromium pribalilo aj k funkcii preverenia. Lokálne nastavte SELF_ORIGIN.
     if (!origin) throw new Error("adresa nasadenia nie je známa (SELF_ORIGIN / VERCEL_URL) – prehliadač sa volá cez /api/browser/flow");
-    const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: diag ? 50000 : BROWSER_FLOW_TIMEOUT[source] });
+    const r = await fetchWithTimeout(`${origin}/api/browser/flow`, { method: "POST", headers: { "x-internal": internalToken(), "content-type": "application/json" }, body: JSON.stringify({ source, ico, diag }), timeoutMs: Math.max(5000, limit - (Date.now() - t0)) });
     const j = await r.json().catch(() => null);
     if (!j || !j.verdict) throw new Error(`prehliadač: ${j?.error || `HTTP ${r.status}`}`);
     return j;
+  };
+  try {
+    const first = await once().catch((e) => ({ verdict: "unknown" as const, rows: [] as string[], url: "", ms: Date.now() - t0, error: (e as Error).message.slice(0, 300) }));
+    // neúspech s chybou (nie „bez výsledku“) a ostáva aspoň polovica limitu → jeden opakovaný pokus
+    const transient = first.verdict === "unknown" && first.error && !/formulár|pole IČO|nenašlo/.test(first.error);
+    if (transient && !diag && Date.now() - t0 < limit / 2) {
+      const second = await once().catch((e) => ({ verdict: "unknown" as const, rows: [] as string[], url: "", ms: Date.now() - t0, error: (e as Error).message.slice(0, 300) }));
+      return second.verdict !== "unknown" ? { ...second, retried: true } as any : { ...second, error: `${second.error || first.error} (2 pokusy)` };
+    }
+    return first;
   } catch (e) {
     return { verdict: "unknown", rows: [], url: "", ms: Date.now() - t0, error: (e as Error).message.slice(0, 300) };
   }
