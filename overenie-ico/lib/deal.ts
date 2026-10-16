@@ -15,7 +15,7 @@ import type { CheckResult, Finding } from "./types";
 
 export interface Indicator {
   id: string;
-  /** Číslo indikátora v bulletine */
+  /** Poradové číslo v zozname (1–9); číslovanie bulletinu SKDP je v komentári hore */
   no: string;
   title: string;
   hint: string;
@@ -24,15 +24,15 @@ export interface Indicator {
 }
 
 export const INDICATORS: Indicator[] = [
-  { id: "docs", no: "vi", title: "Neúplná, nejasná alebo chýbajúca zmluvná dokumentácia", hint: "Zmluva, objednávka, dodací list, preberací protokol – chýbajú alebo si odporujú.", severity: "warning", penalty: 8 },
-  { id: "price", no: "vii", title: "Cenová politika mimo trhu", hint: "Cena výrazne pod alebo nad obvyklou úrovňou bez ekonomického zdôvodnenia (porovnajte s § 69 ods. 13 písm. a) ZDPH).", severity: "warning", penalty: 10 },
-  { id: "law", no: "viii", title: "Porušovanie právnych predpisov alebo nabádanie naň", hint: "Návrh fakturovať inak než sa dodáva, obísť DPH, clo, licenciu, zamestnanecké predpisy.", severity: "critical", penalty: 40 },
-  { id: "cash", no: "x", title: "Platby v hotovosti namiesto bezhotovostnej úhrady", hint: "Partner požaduje alebo ponúka úhradu faktúr v hotovosti namiesto prevodu na účet – aj pod zákonným limitom (zákon č. 394/2012 Z. z. o obmedzení platieb v hotovosti), najmä opakovane alebo tesne pod limitom.", severity: "warning", penalty: 12 },
-  { id: "payment", no: "x", title: "Iné nezvyčajné platobné metódy", hint: "Platba tretej osobe alebo na účet v inom štáte, krypto, zápočty s neznámymi subjektmi, platba vopred bez zabezpečenia.", severity: "warning", penalty: 10 },
-  { id: "transport", no: "xi", title: "Nezvyčajné podmienky prepravy", hint: "Zmena zaužívaného spôsobu prepravy, dodávateľ nevie preukázať prepravu, tovar sa fyzicky nikdy nepresunul.", severity: "warning", penalty: 6 },
-  { id: "chain", no: "xii", title: "Umelé zapojenie ďalších osôb do obchodu", hint: "Návrh fakturovať cez inú spoločnosť alebo zapojiť subjekt, ktorý v obchode nemá žiadnu úlohu.", severity: "critical", penalty: 40 },
-  { id: "refs", no: "xiii", title: "Referencie len od sprostredkovateľa", hint: "Partnera poznáme len cez tretiu osobu bez právneho vzťahu k nám; priame referencie, prevádzka ani história nie sú známe.", severity: "warning", penalty: 8 },
-  { id: "time", no: "xiv", title: "Tlak na čas", hint: "Naliehanie na rýchle uzavretie, neprimerane krátke dodacie lehoty, „ponuka platí len dnes“.", severity: "warning", penalty: 6 },
+  { id: "docs", no: "1", title: "Neúplná, nejasná alebo chýbajúca zmluvná dokumentácia", hint: "Zmluva, objednávka, dodací list, preberací protokol – chýbajú alebo si odporujú.", severity: "warning", penalty: 8 },
+  { id: "price", no: "2", title: "Cenová politika mimo trhu", hint: "Cena výrazne pod alebo nad obvyklou úrovňou bez ekonomického zdôvodnenia (porovnajte s § 69 ods. 13 písm. a) ZDPH).", severity: "warning", penalty: 10 },
+  { id: "law", no: "3", title: "Porušovanie právnych predpisov alebo nabádanie naň", hint: "Návrh fakturovať inak než sa dodáva, obísť DPH, clo, licenciu, zamestnanecké predpisy.", severity: "critical", penalty: 40 },
+  { id: "cash", no: "4", title: "Platby v hotovosti namiesto bezhotovostnej úhrady", hint: "Partner požaduje alebo ponúka úhradu faktúr v hotovosti namiesto prevodu na účet – aj pod zákonným limitom (zákon č. 394/2012 Z. z. o obmedzení platieb v hotovosti), najmä opakovane alebo tesne pod limitom.", severity: "warning", penalty: 12 },
+  { id: "payment", no: "5", title: "Iné nezvyčajné platobné metódy", hint: "Platba tretej osobe alebo na účet v inom štáte, krypto, zápočty s neznámymi subjektmi, platba vopred bez zabezpečenia.", severity: "warning", penalty: 10 },
+  { id: "transport", no: "6", title: "Nezvyčajné podmienky prepravy", hint: "Zmena zaužívaného spôsobu prepravy, dodávateľ nevie preukázať prepravu, tovar sa fyzicky nikdy nepresunul.", severity: "warning", penalty: 6 },
+  { id: "chain", no: "7", title: "Umelé zapojenie ďalších osôb do obchodu", hint: "Návrh fakturovať cez inú spoločnosť alebo zapojiť subjekt, ktorý v obchode nemá žiadnu úlohu.", severity: "critical", penalty: 40 },
+  { id: "refs", no: "8", title: "Referencie len od sprostredkovateľa", hint: "Partnera poznáme len cez tretiu osobu bez právneho vzťahu k nám; priame referencie, prevádzka ani história nie sú známe.", severity: "warning", penalty: 8 },
+  { id: "time", no: "9", title: "Tlak na čas", hint: "Naliehanie na rýchle uzavretie, neprimerane krátke dodacie lehoty, „ponuka platí len dnes“.", severity: "warning", penalty: 6 },
 ];
 
 export type IndicatorAnswer = "none" | "found";
@@ -143,31 +143,31 @@ export function buildDealCheck(
   if (subject) {
     const m = subjectMatchesActivities(subject, profile.activities || [], profile.mainActivity);
     if (!m.match && (profile.activities?.length || profile.mainActivity))
-      f.push({ severity: "warning", text: `Predmet obchodu „${subject}“ nezodpovedá predmetu podnikania partnera zapísanému v registri – overte, či ide o jeho etablovanú činnosť (indikátor i / ix)`, penalty: 8 });
+      f.push({ severity: "warning", text: `Predmet obchodu „${subject}“ nezodpovedá predmetu podnikania partnera zapísanému v registri – overte, či ide o jeho etablovanú činnosť (indikátor rizika)`, penalty: 8 });
     for (const r of regulatedFor(subject))
-      f.push({ severity: "info", text: `Regulovaná činnosť (${r.what}) – overte povolenie / zápis: ${r.where} – ${r.url} (indikátor ix)`, penalty: 0 });
+      f.push({ severity: "info", text: `Regulovaná činnosť (${r.what}) – overte povolenie / zápis: ${r.where} – ${r.url}`, penalty: 0 });
   }
   if (normalizeIban(deal.iban)) {
     if (!ibanValid(deal.iban)) f.push({ severity: "warning", text: `IBAN ${normalizeIban(deal.iban)} nie je platný (kontrolný súčet) – overte číslo účtu na faktúre`, penalty: 5 });
     else if (bank?.status === "not_listed")
-      f.push({ severity: "critical", text: `Účet ${normalizeIban(deal.iban)} nie je v zozname bankových účtov oznámených Finančnej správe – platba naň zakladá ručenie za DPH podľa § 69 ods. 13 písm. c) ZDPH (indikátor x)`, penalty: 35 });
+      f.push({ severity: "critical", text: `Účet ${normalizeIban(deal.iban)} nie je v zozname bankových účtov oznámených Finančnej správe – platba naň zakladá ručenie za DPH podľa § 69 ods. 13 písm. c) ZDPH`, penalty: 35 });
     else if (bank?.status === "listed") f.push({ severity: "positive", text: `Účet ${normalizeIban(deal.iban)} je v zozname bankových účtov oznámených Finančnej správe`, penalty: -2 });
     else if (bank?.status === "not_vat_payer") f.push({ severity: "info", text: `Partner nie je platiteľ DPH – zoznam bankových účtov FS sa naň nevzťahuje; účet ${normalizeIban(deal.iban)} overte zmluvne`, penalty: 0 });
     else f.push({ severity: "info", text: `Účet ${normalizeIban(deal.iban)} sa nepodarilo overiť v zozname FS – skontrolujte manuálne (${bank?.verifyUrl || "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy"})`, penalty: 0 });
   }
-  for (const i of found) f.push({ severity: i.severity, text: `Indikátor ${i.no}: ${i.title} – potvrdený povereným zamestnancom (SKDP 03/2024)`, penalty: i.penalty });
+  for (const i of found) f.push({ severity: i.severity, text: `Indikátor ${i.no}: ${i.title} – potvrdený povereným zamestnancom`, penalty: i.penalty });
 
   const status = f.some((x) => x.severity === "critical") ? "critical" : f.some((x) => x.severity === "warning") ? "warning" : "ok";
   const parts: string[] = [];
   if (subject) parts.push(`${deal.direction === "buy" ? "Nakupujeme" : "Dodávame"}: ${subject}${deal.value ? ` (${deal.value})` : ""}.`);
   if (normalizeIban(deal.iban)) parts.push(`Účet partnera ${normalizeIban(deal.iban)}.`);
-  parts.push(`Indikátory rizika SKDP 03/2024: posúdených ${answered.length} z ${INDICATORS.length}, potvrdených ${found.length}${answered.length < INDICATORS.length ? `, neposúdených ${INDICATORS.length - answered.length}` : ""}.`);
+  parts.push(`Indikátory rizikovosti obchodu: posúdených ${answered.length} z ${INDICATORS.length}, potvrdených ${found.length}${found.length ? ` (vplyv na skóre −${found.reduce((n, i) => n + i.penalty, 0)} b.)` : ""}${answered.length < INDICATORS.length ? `, neposúdených ${INDICATORS.length - answered.length}` : ""}.`);
 
   return {
     id: "deal",
     category: "deal",
     name: "Údaje o obchode a indikátory rizika",
-    source: "Poverený zamestnanec · Bulletin SKDP 03/2024 · zoznamy Finančnej správy SR",
+    source: "Poverený zamestnanec · zoznamy Finančnej správy SR",
     sourceUrl: "https://www.skdp.sk",
     status,
     summary: parts.join(" "),

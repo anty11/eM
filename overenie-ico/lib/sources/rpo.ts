@@ -342,7 +342,7 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
       if (statChanges >= Math.max(3, Math.ceil(statutory.length * 0.6))) f.push({ severity: "warning", text: `Časté zmeny štatutárov – ${statChanges} zmien osôb za posledné 2 roky`, penalty: 8 });
       // Indikátor (iv) SKDP 03/2024: časté zmeny vlastníkov a zmena vlastníka alebo štatutára tesne pred obchodom
       const ownerChanges = within(ownerChangeDates, 2);
-      if (ownerChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny spoločníkov – ${ownerChanges} zmien za posledné 2 roky (indikátor iv)`, penalty: 8 });
+      if (ownerChanges >= 2) f.push({ severity: "warning", text: `Časté zmeny spoločníkov – ${ownerChanges} zmien za posledné 2 roky (indikátor rizika)`, penalty: 8 });
       const daysAgo = (d?: string) => (d ? Math.floor((Date.now() - +new Date(d)) / 86400000) : Infinity);
       const recentOwner = daysAgo(ownerChangeDates[ownerChangeDates.length - 1]);
       const recentStat = daysAgo(statutoryChangeDates[statutoryChangeDates.length - 1]);
@@ -352,13 +352,13 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
       if (recentChange <= 180 && age >= 1)
         f.push({
           severity: "warning",
-          text: `Zmena ${bigBoard || recentOwner <= recentStat ? "vlastníka" : "štatutárneho orgánu"} pred ${recentChange} dňami – zmena tesne pred obchodom je indikátor rizika (iv), overte dôvod a nové osoby`,
+          text: `Zmena ${bigBoard || recentOwner <= recentStat ? "vlastníka" : "štatutárneho orgánu"} pred ${recentChange} dňami – zmena tesne pred obchodom je indikátor rizika, overte dôvod a nové osoby`,
           penalty: 10,
         });
       // Indikátor (iii): spoločník so sídlom v jurisdikcii so zvýšeným daňovým rizikom
       for (const o of owners) {
         const j = riskJurisdiction(o.country);
-        if (j) f.push({ severity: "warning", text: `Spoločník ${o.name} so sídlom v jurisdikcii so zvýšeným daňovým rizikom (${j}) – indikátor iii`, penalty: 15 });
+        if (j) f.push({ severity: "warning", text: `Spoločník ${o.name} so sídlom v jurisdikcii so zvýšeným daňovým rizikom (${j}) – indikátor rizika`, penalty: 15 });
       }
       if (!e.termination && statutory.length === 0 && /spolo[cč]nos[tť]|dru[zž]stvo/i.test(legalForm || ""))
         f.push({ severity: "warning", text: "V registri nie je uvedený žiadny aktuálny štatutárny orgán", penalty: 8 });

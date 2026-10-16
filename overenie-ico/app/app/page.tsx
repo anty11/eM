@@ -10,6 +10,7 @@ import KeyFacts from "../components/KeyFacts";
 import SearchLogView from "../components/SearchLogView";
 import VerifyLink from "../components/VerifyLink";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
+import IndicatorsCard from "../components/IndicatorsCard";
 import { buildDealCheck, type BankAccountResult, type DealInput } from "@/lib/deal";
 import type { Seal } from "@/lib/seal";
 import { shortHash } from "@/lib/seal-shared";
@@ -845,6 +846,12 @@ export default function Page() {
               <h2>{lawyer ? "Záver a poznámky povereného zamestnanca" : "Poznámky"}</h2>
               <textarea className="no-print" placeholder={lawyer ? "Doplňujúce zistenia, odporúčania pre klienta…" : "Vaše poznámky k partnerovi (vytlačia sa do protokolu)…"} value={note} onChange={(e) => setNote(e.target.value)} />
               <div className="print-only note-print">{note.trim() || "–"}</div>
+            </section>
+
+            {/* indikátory rizikovosti obchodu – úplne na záver, pred uložením protokolu */}
+            <IndicatorsCard deal={deal} onChange={setDeal} />
+
+            <section className="card">
               <div className="toolbar">
                 <input
                   placeholder="Vypracoval (meno povereného zamestnanca)"

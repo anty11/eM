@@ -595,3 +595,10 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.11.19** – Karta „Identifikácia subjektu“ je hneď pod vyhľadávaním (pred kolieskom priebehu a verdiktom).
 - **v2.11.20** – Názov firmy (IČO, sídlo) je priamo v paneli so skóre aj v koliesku priebehu; karta „Identifikácia subjektu“ je
   späť pod verdiktom a kľúčovými otázkami.
+- **v2.11.21** – **Indikátory rizikovosti obchodu**: samostatná karta úplne na záver preverenia (pred uložením protokolu),
+  číslovanie 1–9 (predtým rímske čísla z bulletinu s medzerami a dvojitým „x“), pri každom indikátore je uvedený vplyv na skóre
+  (−N b., „závažné“ pri kritických) a v hlavičke súčet za potvrdené. Odkazy na Bulletin SKDP 03/2024 sú z rozhrania preverenia
+  a z textov nálezov odstránené (ostávajú na verejnom webe v právnom základe a v komentároch kódu). Karta „Údaje o obchode“ má len
+  smer, predmet, IBAN a hodnotu. Vplyv na skóre: potvrdený indikátor = postih v bodoch (dokumentácia 8, cena 10, porušovanie predpisov
+  40 – kritické, hotovosť 12, iné platby 10, preprava 6, umelé zapojenie osôb 40 – kritické, referencie len od sprostredkovateľa 8,
+  tlak na čas 6); kritický indikátor dáva verdikt „Neodporúčame“ bez ohľadu na body.

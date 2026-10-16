@@ -8,7 +8,8 @@ import type { CompanyProfile } from "@/lib/types";
 export const EMPTY_DEAL: DealInput = { direction: "buy", subject: "", iban: "", value: "", indicators: {} };
 
 /**
- * Údaje o konkrétnom obchode a indikátory rizika podľa Bulletinu SKDP 03/2024.
+ * Údaje o konkrétnom obchode (smer, predmet, IBAN, hodnota). Indikátory rizikovosti obchodu sú v samostatnej karte IndicatorsCard
+ * na konci preverenia (podklad: Bulletin SKDP 03/2024 – v UI sa neuvádza).
  * Poverený zamestnanec zadá predmet obchodu a účet partnera (automaticky sa porovnajú s registrom a zoznamom FS)
  * a posúdi indikátory, ktoré z registrov zistiť nemožno. Všetko sa zapíše do protokolu a vstupuje do verdiktu.
  */
@@ -30,14 +31,13 @@ export default function DealCard({
   const [busy, setBusy] = useState(false);
   const lastIban = useRef<string>("");
   const set = <K extends keyof DealInput>(k: K, v: DealInput[K]) => onChange({ ...deal, [k]: v });
-  const setInd = (id: string, v: IndicatorAnswer) => onChange({ ...deal, indicators: { ...deal.indicators, [id]: deal.indicators[id] === v ? undefined : v } });
 
   const iban = normalizeIban(deal.iban);
   const validIban = iban.length > 0 && ibanValid(iban);
   const match = deal.subject.trim() ? subjectMatchesActivities(deal.subject, profile.activities || [], profile.mainActivity) : null;
   const regulated = deal.subject.trim() ? regulatedFor(deal.subject) : [];
   const answered = INDICATORS.filter((i) => deal.indicators[i.id]).length;
-  const found = INDICATORS.filter((i) => deal.indicators[i.id] === "found").length;
+
 
   // overenie účtu v zozname FS – po dopísaní platného IBAN (s odstupom)
   useEffect(() => {
@@ -69,10 +69,10 @@ export default function DealCard({
 
   return (
     <section className="card deal">
-      <h2>Údaje o obchode a indikátory rizika</h2>
+      <h2>Údaje o obchode</h2>
       <p className="hint no-print" style={{ marginTop: 0 }}>
         Čo s partnerom obchodujete a na aký účet platíte – aplikácia to porovná s registrom a so zoznamom bankových účtov Finančnej správy.
-        Indikátory nižšie z registrov zistiť nemožno; posúďte ich podľa priebehu rokovania. Všetko sa zapíše do protokolu s vaším menom a časom.
+        Všetko sa zapíše do protokolu s vaším menom a časom.
       </p>
 
       <div className="no-print">
@@ -130,31 +130,11 @@ export default function DealCard({
           </p>
         )}
 
-        <div className="field" style={{ marginTop: 14 }}>
-          <label>Indikátory rizikovosti obchodu (Bulletin SKDP 03/2024) – posúdených {answered} z {INDICATORS.length}{found ? `, potvrdených ${found}` : ""}</label>
-          <ul className="indicators">
-            {INDICATORS.map((i) => {
-              const a = deal.indicators[i.id];
-              return (
-                <li key={i.id} className={a === "found" ? "found" : a === "none" ? "clear" : ""}>
-                  <div>
-                    <b>({i.no}) {i.title}</b>
-                    <div className="src">{i.hint}</div>
-                  </div>
-                  <div className="row-actions">
-                    <button type="button" className={`mbtn ${a === "none" ? "on-clean" : ""}`} onClick={() => setInd(i.id, "none")}>Bez indikácie</button>
-                    <button type="button" className={`mbtn ${a === "found" ? "on-found" : ""}`} onClick={() => setInd(i.id, "found")}>Indikácia potvrdená</button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
       </div>
 
       {/* tlač – kompaktný prehľad (nálezy sú v riadku kontroly „Údaje o obchode a indikátory rizika“) */}
       {!deal.subject.trim() && !iban && answered === 0 ? (
-        <div className="print-only deal-print"><span className="wide">Údaje o obchode a indikátory rizika SKDP 03/2024 neboli pri tomto preverení vyplnené.</span></div>
+        <div className="print-only deal-print"><span className="wide">Údaje o obchode ani indikátory rizikovosti obchodu neboli pri tomto preverení vyplnené.</span></div>
       ) : (
       <div className="print-only deal-print">
         <span><b>Smer:</b> {deal.direction === "buy" ? "nakupujeme (dodávateľ)" : "dodávame (odberateľ)"}</span>
@@ -162,7 +142,7 @@ export default function DealCard({
         <span><b>Hodnota:</b> {deal.value.trim() || "–"}</span>
         <span className="wide"><b>Účet partnera:</b> {iban || "–"}{iban ? (!validIban ? " · neplatný IBAN" : bank ? ` · ${bank.message}` : "") : ""}</span>
         <span className="wide">
-          <b>Indikátory SKDP 03/2024:</b>{" "}
+          <b>Indikátory rizikovosti obchodu:</b>{" "}
           {INDICATORS.map((i, k) => {
             const a = deal.indicators[i.id];
             return (
