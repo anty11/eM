@@ -143,7 +143,9 @@ export async function ovFlow(ico: string, opts: { diag?: boolean; url?: string; 
     // OV funguje priamo – len jeho hostiteľ, aby prehliadač nešiel cez proxy pre justice.gov.sk
     s = await BrowserSession.open(opts.hosts || ["obchodnyvestnik.justice.gov.sk"]);
     await s.open(url);
-    const prelude = await searchPrelude(s, ico, { dateFromYearsBack: 3 });
+    // Len IČO, bez filtra dátumu: prepínač rozsahu spúšťa AutoPostBack (prekreslenie formulára, ~2–5 s a zdroj starších výpadkov);
+    // zoznam je zoradený od najnovších a čítanie sa zastaví pri prvom podaní staršom ako 3 roky – výsledok je rovnaký, rýchlejší a istejší
+    const prelude = await searchPrelude(s, ico);
     let snap = prelude.snap;
     if (!s.searched) return { verdict: "unknown", rows: [], url: snap.url, ms: Date.now() - t0, error: `formulár sa nepodarilo odoslať (${prelude.done.join(", ") || "pole IČO sa nenašlo"})`, rendered: opts.diag ? renderSnapshot(snap) : undefined, actions: s?.log, pages: s?.pages };
     // Všetky oznámenia za 3 roky: 100 na stránku, ďalšie stránky, kým sú novšie ako hranica (zoznam je zoradený od najnovších)

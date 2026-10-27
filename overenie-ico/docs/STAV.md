@@ -617,3 +617,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   a prípadný dátum zrušenia; zo zoznamu vymazaných platiteľov (§ 52 ods. 8) dátum výmazu, rok porušenia a dátum zverejnenia – nález aj
   kľúčový fakt uvádzajú „registrácia zrušená dňa …“. Keď subjekt nie je v žiadnom z týchto zoznamov, súhrn výslovne hovorí, že
   dobrovoľné / riadne zrušenie registrácie sa z OpenData FS nedá zistiť.
+- **v2.11.24** – Obchodný vestník: pevný postup vypĺňa len IČO (bez prepínača rozsahu dátumov, ktorý spúšťal AutoPostBack –
+  prekreslenie formulára, 2–5 s navyše a zdroj starších výpadkov). Zoznam je od najnovších a čítanie sa zastaví pri prvom podaní
+  staršom ako 3 roky, výsledok je rovnaký.

@@ -79,13 +79,13 @@ async function main() {
   // 0) AutoPostBack: prepínač prekreslí formulár neskôr (staré značky prvkov neplatia, IČO zmizne) – postup to musí ustáť
   const pbr = await ovFlow("11111111", { url: `${url}?pb=1`, hosts: ["127.0.0.1"] });
   assert.equal(pbr.verdict, "found", `po prekreslení formulára: ${JSON.stringify({ e: pbr.error, a: pbr.actions?.map((x) => x.action + (x.ok ? "" : " ✗ " + x.note)) })}`);
-  assert.ok(reqs.some((r) => /txtIco=11111111/.test(r) && /DatumUverejnenia=range/.test(r) && /txtOd=\d/.test(r)), "odoslané s IČO a rozsahom dátumov");
-  console.log("OK – OV po prekreslení formulára (AutoPostBack): IČO doplnené znova, rozsah dátumov, nález.");
+  assert.ok(reqs.some((r) => /txtIco=11111111/.test(r)), "odoslané s IČO");
+  assert.ok(!reqs.some((r) => /DatumUverejnenia=range/.test(r)), "bez prepínača rozsahu dátumov (AutoPostBack) – hľadá sa len podľa IČO");
+  console.log("OK – OV len podľa IČO (bez AutoPostBack rozsahu dátumov): nález.");
 
-  // 1) bez nálezu za 3 roky: rozsah dátumov nastavený cez prepínač, všetky oznámenia na jednej stránke
+  // 1) bez nálezu za 3 roky: len IČO, všetky oznámenia na jednej stránke, hranicu 3 rokov určujú dátumy v riadkoch
   const c = await ovFlow("33333333", { url, hosts: ["127.0.0.1"] });
   assert.equal(c.verdict, "clean", JSON.stringify(c).slice(0, 400));
-  assert.ok(reqs.some((r) => r.includes("DatumUverejnenia=range") && r.includes("txtOd=")), "prepínač rozsahu a dátum od");
   assert.ok(/^obdobie \d{2}\.\d{2}\.\d{4} – \d{2}\.\d{2}\.\d{4}, prečítané všetky výsledky \(\d+ podaní na \d+ stran/.test(c.evidence || ""), c.evidence);
   assert.ok(/Podanie Obchodného registra \(\d+\)/.test(c.evidence || "") && /žiadne oznámenie o likvidácii, konkurze/.test(c.evidence || ""), c.evidence);
   console.log(`OK – OV bez nálezu: ${c.evidence}.`);
