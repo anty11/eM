@@ -107,6 +107,29 @@ async function main() {
   assert.equal(rb.status, "critical");
   assert.ok(rb.findings.some((x) => x.severity === "critical" && /konanie o zrušení/.test(x.text)));
   console.log("OK – ďalšie právne skutočnosti: konanie o zrušení z výpisu ORSR (krížová kontrola aj záloha).");
+
+  // 5) RPO vráti prázdny výsledok pre existujúce IČO (výpadok indexu API) → krížová kontrola v ORSR, nie „IČO sa nenašlo“
+  globalThis.fetch = (async (input: any) => {
+    const u = new URL(String(input));
+    if (u.host === "api.statistics.sk") return new Response(JSON.stringify({ results: [] }), { headers: { "content-type": "application/json" } });
+    if (u.pathname.includes("hladaj_ico")) return new Response(hladaj);
+    return new Response(vypisBytes, { headers: { "content-type": "text/html" } });
+  }) as typeof fetch;
+  const ctxE = { ico: "31322832", profile: { ico: "31322832" }, asOf: "2026-01-10" } as Ctx;
+  const re = await checkRpo(ctxE);
+  assert.notEqual((re.data as any)?.notFound, true, "existujúci subjekt sa nesmie vyhlásiť za nenájdený");
+  assert.equal(ctxE.profile.name, "SLOVNAFT, a.s.");
+  assert.equal((re.data as any).via, "orsr");
+  assert.ok(re.search!.some((s) => /API RPO/.test(s.dataset) && s.queries[0].returned === 0), "záznam: RPO vrátilo 0");
+  // ani ORSR nič → nenájdené
+  globalThis.fetch = (async (input: any) => {
+    const u = new URL(String(input));
+    if (u.host === "api.statistics.sk") return new Response(JSON.stringify({ results: [] }), { headers: { "content-type": "application/json" } });
+    return new Response("<html>Nenašiel sa žiadny záznam</html>");
+  }) as typeof fetch;
+  const rn = await checkRpo({ ico: "00000001", profile: { ico: "00000001" } } as Ctx);
+  assert.equal((rn.data as any).notFound, true);
+  console.log("OK – prázdny výsledok RPO → krížová kontrola ORSR.");
   console.log("OK – testy zálohy z obchodného registra prešli.");
   process.exit(0);
 }

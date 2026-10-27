@@ -203,9 +203,17 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
         },
       ];
       if (!hit) {
+        // RPO občas vráti prázdny výsledok aj pre existujúce IČO (výpadok indexu API) – pred verdiktom „nenašlo sa“ krížová kontrola
+        // v Obchodnom registri (orsr.sk); ak subjekt existuje, pokračuje sa s identifikáciou z ORSR (aj pri spätnom preverení)
+        const o = await Promise.race([startOrsr(), new Promise<null>((res) => setTimeout(() => res(null), 9000))]);
+        if (o) {
+          const r = fromOrsr(ctx, o, "RPO vrátilo prázdny výsledok pre existujúce IČO");
+          r.search = [...searchLog(), ...r.search];
+          return r;
+        }
         ctx.profile.notFound = true;
         return {
-          search: searchLog(),
+          search: [...searchLog(), { dataset: "Obchodný register SR (orsr.sk) – krížová kontrola", queries: [sq("IČO", ctx.ico, 0, 0, `https://www.orsr.sk/hladaj_ico.asp?ICO=${ctx.ico}&SID=0`, "ani ORSR subjekt s týmto IČO neeviduje (alebo neodpovedal do 9 s)")], rule: "výpis subjektu s IČO" }],
           status: "critical",
           summary: "Subjekt s týmto IČO sa v Registri právnických osôb nenašiel. Skontrolujte IČO – bez identifikácie subjektu nie je možné pokračovať v ďalších kontrolách.",
           findings: [{ severity: "critical", text: "IČO nie je evidované v Registri právnických osôb", penalty: 100 }],

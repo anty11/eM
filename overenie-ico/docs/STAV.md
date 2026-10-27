@@ -620,3 +620,7 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.11.24** – Obchodný vestník: pevný postup vypĺňa len IČO (bez prepínača rozsahu dátumov, ktorý spúšťal AutoPostBack –
   prekreslenie formulára, 2–5 s navyše a zdroj starších výpadkov). Zoznam je od najnovších a čítanie sa zastaví pri prvom podaní
   staršom ako 3 roky, výsledok je rovnaký.
+- **v2.11.25** – „IČO sa v registri nenašlo“ pri existujúcej firme (MO KÚTNY s.r.o., 55146554, spätné preverenie 27. 10. 2026):
+  API RPO občas vráti prázdny výsledok aj pre existujúce IČO. Pred verdiktom „nenašlo sa“ sa teraz urobí krížová kontrola v ORSR; ak
+  subjekt existuje, pokračuje sa s identifikáciou z ORSR (aj pri spätnom preverení, s poznámkou o chýbajúcej histórii) a preverenie
+  beží ďalej. „Nenájdené“ ostáva len vtedy, keď IČO nemá ani ORSR.
