@@ -630,3 +630,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   `FIRMAPI_KEY`; bez kľúča alebo pri chybe FirmAPI (neplatný kľúč, vyčerpané kredity, funkcia mimo plánu, limit) ostáva Dôvera
   manuálna s uvedeným dôvodom. Diagnostika „FirmAPI – stav dlžníka“ ukáže surovú odpoveď (aj exekúcie, insolvenciu, DPH – podklad
   na ďalšie krížové kontroly).
+- **v2.11.27** – Dôvera bez kľúča FirmAPI je rovno manuálna (nezobrazuje sa „Overuje sa…“); napojenie na FirmAPI ostáva pripravené
+  a zapne sa zadaním kľúča v Administrácii → Prístupy (účet sa založí neskôr).

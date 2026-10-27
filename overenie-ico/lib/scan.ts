@@ -8,6 +8,7 @@ import { manualChecks } from "./sources/manual";
 import { checkOv } from "./sources/ov";
 import { checkExek } from "./sources/exek";
 import { checkDoveraViaFirmapi } from "./sources/firmapi";
+import { getFirmapiKey } from "./access";
 import { logError } from "./errlog";
 import { checkOvViaBrowser, ovSearchLog, PUBLIC_QUERY_IDS, queryPublicRegister } from "./sources/public";
 import { kv } from "./auth/kv";
@@ -19,7 +20,7 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.26";
+export const APP_VERSION = "2.11.27";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
@@ -144,8 +145,10 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
   const rpoCapped = capRaw("rpo", rpoP);
   // Registre bez API, ktoré server vie overiť sám (dopyt / index / prehliadač), sa počas pokusu ukazujú ako „Overuje sa…“, nie ako
   // „Overiť manuálne“ – inak sa položka najprv hlási ako manuálna a o chvíľu „sama“ prejde na výsledok (mätie používateľa).
+  // Dôvera sa skúša automaticky len s kľúčom FirmAPI – bez neho je rovno manuálna (žiadne „Overuje sa…“, ktoré by sa hneď zmenilo)
+  const doveraAuto = Boolean(await getFirmapiKey().catch(() => null));
   for (const m of manualChecks(ctx))
-    onProgress?.(AUTO_MANUAL_IDS.includes(m.id) ? { ...m, status: "pending", summary: "Overuje sa automaticky…", automated: true } : m, ctx.profile);
+    onProgress?.(AUTO_MANUAL_IDS.includes(m.id) && (m.id !== "dovera" || doveraAuto) ? { ...m, status: "pending", summary: "Overuje sa automaticky…", automated: true } : m, ctx.profile);
   const ruzP = run("ruz", checkRuz);
   ctx.ruzDone = ruzP.catch(() => null);
   const nameFallback = () => {
