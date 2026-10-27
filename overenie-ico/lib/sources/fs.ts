@@ -452,13 +452,26 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
     const delYear = del[0] ? pick(del[0], /rok_?porus|porusen/) : undefined;
     const delPublished = del[0] ? pick(del[0], /dat_?zverej|zverejn/) : undefined;
     const delDesc = del.length ? `vymazaný platiteľ DPH podľa § 52 ods. 8 daňového poriadku${delOn ? ` – výmaz ${skd(delOn)}` : ""}${delYear ? `, rok porušenia ${delYear}` : ""}${delPublished ? `, zverejnené ${skd(delPublished)}` : ""}` : "";
+    // denný index z exportu FS (lib/sources/fsexports.ts): dátum registrácie, a história – deň, keď subjekt zo zoznamu platiteľov vypadol
+    const hist = await vatHistory(ctx.ico).catch(() => ({ meta: null }) as Awaited<ReturnType<typeof vatHistory>>);
+    const histLog: SearchLog | null = hist.meta
+      ? {
+          dataset: "Finančná správa – export zoznamu platiteľov DPH, denný index a história zrušení (od spustenia indexu)",
+          total: hist.meta.vatCount,
+          asOf: skd(hist.meta.date),
+          queries: [sq("IČO", ctx.ico, hist.current ? 1 : 0, hist.current ? 1 : 0, FS_LIST_URL.vat, `${hist.current ? `v aktuálnom zozname (registrovaný od ${skd(hist.current.registeredFrom) || "?"})` : "v aktuálnom zozname nie je"}${hist.gone ? `; zo zoznamu vypadol medzi ${skd(hist.gone.lastSeen)} a ${skd(hist.gone.firstMissing)}` : ""}; história sa buduje od ${skd(hist.meta.firstSnapshot || hist.meta.date)}`)],
+          rule: "subjekt v dennej snímke zoznamu platiteľov; zánik registrácie = deň, keď zo zoznamu vypadol (FS archív nevedie)",
+        }
+      : null;
+    const goneWindow = !vat.length && hist.gone ? `registrácia pre DPH zanikla medzi ${skd(hist.gone.lastSeen)} a ${skd(hist.gone.firstMissing)} (podľa denných snímok zoznamu FS${hist.gone.icDph ? `, ${hist.gone.icDph}` : ""})` : "";
     if (risk.length)
       f.push({
         severity: "critical",
         text: "Platiteľ DPH v zozname Finančnej správy „dôvody na zrušenie registrácie“ – varovný signál pre ručenie odberateľa za DPH (§ 69 ods. 13 ZDPH)",
         penalty: 35,
       });
-    if (!vat.length && del.length) f.push({ severity: "warning", text: `Registrácia pre DPH bola zrušená z úradnej moci (${delDesc})`, penalty: 8 });
+    if (!vat.length && del.length) f.push({ severity: "warning", text: `Registrácia pre DPH bola zrušená z úradnej moci (${delDesc})${goneWindow ? `; ${goneWindow}` : ""}`, penalty: 8 });
+    else if (goneWindow) f.push({ severity: "warning", text: `Registrácia pre DPH zanikla – ${goneWindow}`, penalty: 6 });
     if (vat.length && cancelledOn) f.push({ severity: "warning", text: `Registrácia pre DPH zrušená dňa ${skd(cancelledOn)}${regFrom ? ` (registrovaný od ${skd(regFrom)})` : ""}${del.length ? `; ${delDesc}` : ""}`, penalty: 6 });
     if (vat.length && !risk.length && !cancelledOn) f.push({ severity: "positive", text: `Registrovaný platiteľ DPH${icDph ? ` (${icDph})` : ""}${regFrom ? ` od ${skd(regFrom)}` : ""}${regKind ? `, ${regKind}` : ""} bez dôvodov na zrušenie`, penalty: -2 });
     return {
@@ -468,12 +481,14 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
           ? `Registrácia pre DPH${icDph ? ` ${icDph}` : ""} bola zrušená dňa ${skd(cancelledOn)}${regFrom ? ` (registrovaný od ${skd(regFrom)})` : ""}.${del.length ? ` ${delDesc[0].toUpperCase()}${delDesc.slice(1)}.` : ""}`
           : `Registrovaný platiteľ DPH${icDph ? ` ${icDph}` : ""}${regFrom ? ` od ${skd(regFrom)}` : ""}${regKind ? ` (${regKind})` : ""}.${risk.length ? " POZOR: v zozname subjektov s dôvodmi na zrušenie registrácie." : ""}`
         : del.length
-          ? `Nie je platiteľom DPH – registrácia bola zrušená z úradnej moci: ${delDesc}.`
-          : "Subjekt nie je registrovaný pre DPH (nie je v zozname registrovaných ani v zozname vymazaných platiteľov podľa § 52 ods. 8; dobrovoľné alebo riadne zrušenie registrácie sa z OpenData FS nedá zistiť – pri významnom obchode overte v zozname FS alebo na VIES).",
+          ? `Nie je platiteľom DPH – registrácia bola zrušená z úradnej moci: ${delDesc}.${goneWindow ? ` ${goneWindow[0].toUpperCase()}${goneWindow.slice(1)}.` : ""}`
+          : goneWindow
+            ? `Nie je platiteľom DPH – ${goneWindow}.`
+            : `Subjekt nie je registrovaný pre DPH (nie je v zozname registrovaných ani v zozname vymazaných platiteľov podľa § 52 ods. 8${hist.meta ? `; v denných snímkach zoznamu od ${skd(hist.meta.firstSnapshot || hist.meta.date)} nebol` : ""}; staršie riadne zrušenie registrácie FS nezverejňuje).`,
       findings: f,
       verifyUrl: risk.length ? FS_LIST_URL.vatRisk : del.length ? FS_LIST_URL.vatDeleted : FS_LIST_URL.vat,
-      data: { icDph, slugs: { sVat, sRisk, sDel }, registeredFrom: regFrom, registrationKind: regKind, cancelledOn: cancelledOn || delOn, deletedExOfficio: del.length > 0, deletedYear: delYear, rows: { vat: vat.slice(0, 2), del: del.slice(0, 2) } },
-      search: [vat.log, risk.log, del.log].filter(Boolean) as SearchLog[],
+      data: { icDph, slugs: { sVat, sRisk, sDel }, registeredFrom: regFrom || hist.current?.registeredFrom, registrationKind: regKind || hist.current?.kind, cancelledOn: cancelledOn || delOn || hist.gone?.firstMissing, cancelledWindow: hist.gone ? [hist.gone.lastSeen, hist.gone.firstMissing] : undefined, deletedExOfficio: del.length > 0, deletedYear: delYear, rows: { vat: vat.slice(0, 2), del: del.slice(0, 2) } },
+      search: [vat.log, risk.log, del.log, histLog].filter(Boolean) as SearchLog[],
     };
   });
 }
@@ -570,6 +585,13 @@ export async function checkExcise(ctx: Ctx): Promise<CheckResult> {
   const m = meta("fs-excise", "Registrácia pre spotrebné dane (informácia)");
   if (!key()) return noKey(m, "Registrácia pre spotrebné dane");
   return runCheck(m, async () => {
+    // 1) denný index z exportu FS (cis_spds.zip) – bez prehliadača
+    const idx = await exciseByIco(ctx.ico).catch(() => null);
+    if (idx) {
+      const log = { dataset: "Finančná správa – export zoznamu registrovaných pre spotrebné dane (cis_spds.zip), denný index", total: idx.meta.exciseCount, asOf: idx.meta.date.split("-").reverse().join(". "), queries: [sq("IČO", ctx.ico, idx.lines.length, idx.lines.length, FS_LIST_URL.excise, "priame vyhľadanie v indexe exportu")], rule: "záznam s IČO subjektu v zozname registrovaných pre spotrebné dane (§ 52 ods. 5 daňového poriadku)" };
+      if (!idx.lines.length) return { status: "info", summary: `Subjekt nie je registrovaný pre spotrebné dane (export zoznamu FS, stav k ${log.asOf}).`, findings: [], verifyUrl: FS_LIST_URL.excise, data: { registered: false, via: "export", definitive: true }, search: [log] };
+      return { status: "info", summary: `Registrovaný pre spotrebné dane (${idx.lines.length}×): ${idx.lines.slice(0, 5).join("; ")}. Informácia – bez vplyvu na hodnotenie (export zoznamu FS, stav k ${log.asOf}).`, findings: [{ severity: "info", text: `Registrácia pre spotrebné dane: ${idx.lines.slice(0, 3).join("; ")}`, penalty: 0 }], verifyUrl: FS_LIST_URL.excise, data: { registered: true, rows: idx.lines, via: "export", definitive: true }, search: [log] };
+    }
     const slug = await resolve("excise");
     if (!slug) {
       // OpenData API tento zoznam neponúka (10/2026: 10 zoznamov, žiadny o spotrebných daniach) → zoznam na webe FS cez prehliadač na serveri
@@ -607,6 +629,7 @@ export async function checkExcise(ctx: Ctx): Promise<CheckResult> {
 }
 
 import { normalizeIban, type BankAccountResult } from "../deal";
+import { exciseByIco, vatHistory } from "./fsexports";
 
 /**
  * Overí, či je účet partnera v zozname bankových účtov platiteľov DPH oznámených Finančnej správe.

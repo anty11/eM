@@ -56,7 +56,8 @@ export const GET = handler(async (req) => {
   const p = new URL(req.url).searchParams;
   // Diagnostika jedného registra bez API: ?source=diskv|uvo|vszp|union&ico=…&name=… – vráti všetky pokusy s výňatkami odpovedí,
   // aby sa dali doladiť adresy a rozpoznávanie výsledku bez hádania.
-  const source = p.get("source");
+  const sourceRaw = p.get("source");
+  const source = sourceRaw === "fs-exports-build" ? "fs-exports" : sourceRaw;
   if (source) {
     const ico = p.get("ico") || "47244895";
     const names = (p.get("name") || "").split(";").map((n) => n.trim()).filter(Boolean);
@@ -219,6 +220,24 @@ export const GET = handler(async (req) => {
     result.raw = raw;
     if (source === "ov") result.index = await ovMeta().catch((e) => ({ error: (e as Error).message }));
     // exekúcie: zdroj API (kandidáti) + záznam dopytov aplikácie React na stránke poverení (odhalí skutočnú adresu API)
+    if (source === "fs-exports") {
+      const { buildFsExports, fsExportsMeta, downloadExport, parseXmlRows, FS_EXPORT } = await import("@/lib/sources/fsexports");
+      result.before = await fsExportsMeta();
+      if (sourceRaw === "fs-exports-build" || p.get("build") === "1") {
+        result.build = await buildFsExports().then((m) => m, (e) => ({ error: (e as Error).message }));
+      } else {
+        // len náhľad štruktúry menšieho exportu (spotrebné dane) – značka riadku, polia, 2 riadky
+        try {
+          const ex = await downloadExport(FS_EXPORT.excise);
+          const p = parseXmlRows(ex.text, 50);
+          result.excisePreview = { file: ex.name, bytes: ex.bytes, rowTag: p.rowTag, fields: p.fields, rows: p.rows.slice(0, 2), head: ex.text.slice(0, 600) };
+        } catch (e) {
+          result.excisePreview = { error: (e as Error).message };
+        }
+      }
+      result.ms = Date.now() - t0;
+      return NextResponse.json(result);
+    }
     if (source === "firmapi") {
       const { firmapiCompany } = await import("@/lib/sources/firmapi");
       const { getFirmapiKey } = await import("@/lib/access");

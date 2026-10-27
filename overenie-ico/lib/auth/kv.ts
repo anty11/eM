@@ -18,6 +18,8 @@ export interface KV {
   hget(key: string, field: string): Promise<string | null>;
   hgetall(key: string): Promise<Record<string, string>>;
   hdel(key: string, field: string): Promise<void>;
+  /** Premenuje kľúč (atomické prepnutie nového indexu na ostrý). */
+  rename(key: string, newKey: string): Promise<void>;
 }
 
 class RedisKV implements KV {
@@ -68,6 +70,9 @@ class RedisKV implements KV {
   }
   async hdel(key: string, field: string) {
     await this.r.hdel(key, field);
+  }
+  async rename(key: string, newKey: string) {
+    await this.r.rename(key, newKey);
   }
 }
 
@@ -134,6 +139,12 @@ class MemoryKV implements KV {
     const cur = { ...(this.live(key)?.v || {}) };
     delete cur[field];
     this.m.set(key, { v: cur });
+  }
+  async rename(key: string, newKey: string) {
+    const e = this.live(key);
+    if (!e) throw new Error("no such key");
+    this.m.set(newKey, e);
+    this.m.delete(key);
   }
 }
 

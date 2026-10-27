@@ -632,3 +632,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   na ďalšie krížové kontroly).
 - **v2.11.27** – Dôvera bez kľúča FirmAPI je rovno manuálna (nezobrazuje sa „Overuje sa…“); napojenie na FirmAPI ostáva pripravené
   a zapne sa zadaním kľúča v Administrácii → Prístupy (účet sa založí neskôr).
+- **v2.11.28** – **História zrušenia registrácie DPH a spotrebné dane z exportov FS.** Finančná správa zverejňuje exporty zoznamov
+  (ZIP+XML, len aktuálny stav, archív nevedie). Nočná úloha `/api/cron/fs-exports` (05:10) stiahne `ds_dphs.zip` (platitelia DPH, ~13 MB)
+  a `cis_spds.zip` (spotrebné dane) a postaví index v Redise: platitelia podľa IČO (dátum a druh registrácie), množina IČO ako gzip
+  a **história zrušení** – kto včera v zozname bol a dnes nie je, dostane okno zániku registrácie s presnosťou na deň (od spustenia
+  úlohy; staršie riadne zrušenia FS nezverejňuje, vymazaných z úradnej moci dáva `ds_dphv` s presným dátumom). Kontrola DPH uvádza
+  „registrácia zanikla medzi … a …“ a dátum registrácie aj pre subjekty, kde OpenData dátum neuvádza. Spotrebné dane idú z indexu bez
+  prehliadača. Parser XML je bez znalosti schémy (značka riadku a polia sa zistia zo súboru; diagnostika „FS exporty – náhľad“ ich
+  ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).

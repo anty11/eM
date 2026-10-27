@@ -14,6 +14,8 @@ const SOURCES = [
   { id: "fs-excise", label: "FS – spotrebné dane (registrácia)" },
   { id: "exek", label: "Exekúcie – poverenia (MS SR, API Infosud)" },
   { id: "firmapi", label: "FirmAPI – stav dlžníka (Dôvera a i.)" },
+  { id: "fs-exports", label: "FS exporty – náhľad štruktúry (DPH, spotrebné dane)" },
+  { id: "fs-exports-build", label: "FS exporty – postaviť index teraz (DPH história, spotrebné dane)" },
   { id: "socpoist", label: "Sociálna poisťovňa – dlžníci (index)" },
   { id: "insolvency", label: "REPLIK – konkurzy a likvidácie" },
   { id: "rpvs", label: "RPVS – partneri verejného sektora" },
