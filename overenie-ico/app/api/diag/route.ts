@@ -219,6 +219,14 @@ export const GET = handler(async (req) => {
     result.raw = raw;
     if (source === "ov") result.index = await ovMeta().catch((e) => ({ error: (e as Error).message }));
     // exekúcie: zdroj API (kandidáti) + záznam dopytov aplikácie React na stránke poverení (odhalí skutočnú adresu API)
+    if (source === "firmapi") {
+      const { firmapiCompany } = await import("@/lib/sources/firmapi");
+      const { getFirmapiKey } = await import("@/lib/access");
+      result.keyConfigured = Boolean(await getFirmapiKey());
+      result.firmapi = await firmapiCompany(ico, "debtor_status,execution_authorizations,insolvency,erased_vat,tax").then((r) => ({ status: r.status, url: r.url, error: r.error, data: r.data }), (e) => ({ error: (e as Error).message }));
+      result.ms = Date.now() - t0;
+      return NextResponse.json(result);
+    }
     if (source === "exek") {
       const { getExekApi, setExekApi } = await import("@/lib/sources/exek");
       result.learnedApi = await getExekApi();
@@ -233,7 +241,7 @@ export const GET = handler(async (req) => {
       }
     }
     if (source === "fs") result.fsKeyConfigured = Boolean(process.env.FS_API_KEY);
-    if (["fs", "cre", "dovera"].includes(source)) {
+    if (["fs", "cre"].includes(source)) {
       result.ms = Date.now() - t0;
       return NextResponse.json(result);
     }

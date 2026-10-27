@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface Status {
   proxy: { active: boolean; origin: "env" | "admin" | null; server?: string; domains: string[]; enabled: boolean; envLocked: boolean };
   ov: { configured: boolean; origin: "env" | "admin" | null; exportUrl: string; user: string; hasPassword: boolean; envLocked: boolean };
+  firmapi?: { configured: boolean; origin: "env" | "admin" | null; hint: string; envLocked: boolean };
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -16,6 +17,7 @@ interface Status {
 export default function AccessPanel() {
   const [st, setSt] = useState<Status | null>(null);
   const [proxyUrl, setProxyUrl] = useState("");
+  const [firmapiKey, setFirmapiKey] = useState("");
   const [domains, setDomains] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [ovUrl, setOvUrl] = useState("");
@@ -165,6 +167,35 @@ export default function AccessPanel() {
             <button className="btn" disabled={busy} onClick={() => save({ ov: { exportUrl: ovUrl, user: ovUser, password: ovPass } }, "Prístup k Obchodnému vestníku uložený – import prebehne v noci, alebo ho spustite v sekcii Obchodný vestník.")}>Uložiť prístup</button>
             {st.ov.origin === "admin" && <button className="btn ghost" disabled={busy} onClick={() => confirm("Zmazať prístup k exportu?") && save({ ov: { clear: true } }, "Prístup zmazaný.")}>Zmazať</button>}
           </div>
+        </>
+      )}
+      <h3 style={{ margin: "16px 0 4px" }}>FirmAPI.sk – dlžníci Dôvery (licencovaný agregátor)</h3>
+      <p>
+        Stav:{" "}
+        {st.firmapi?.configured ? (
+          <span className="pill s-ok">Kľúč nastavený {st.firmapi.hint}{st.firmapi.origin === "env" ? " · z premenných prostredia" : ""} – Dôvera sa overuje automaticky</span>
+        ) : (
+          <span className="pill s-manual">Bez kľúča – Dôvera ostáva na ručné overenie</span>
+        )}
+      </p>
+      {st.firmapi?.envLocked ? (
+        <p className="hint">Kľúč je v premenných prostredia (FIRMAPI_KEY) – zmeny robte tam.</p>
+      ) : (
+        <>
+          <div className="contact-grid">
+            <div className="field">
+              <label htmlFor="fa-k">Kľúč API{st.firmapi?.configured ? " (uložený – vyplňte len pri zmene)" : ""}</label>
+              <input id="fa-k" type="password" autoComplete="off" value={firmapiKey} onChange={(e) => setFirmapiKey(e.target.value)} placeholder="fa_…" />
+            </div>
+          </div>
+          <div className="toolbar">
+            <button className="btn" disabled={busy || !firmapiKey.trim()} onClick={() => save({ firmapi: { key: firmapiKey } }, "Kľúč FirmAPI uložený – Dôvera sa od ďalšieho preverenia overuje automaticky.")}>Uložiť kľúč</button>
+            {st.firmapi?.origin === "admin" && <button className="btn ghost" disabled={busy} onClick={() => confirm("Zmazať kľúč FirmAPI?") && save({ firmapi: { clear: true } }, "Kľúč zmazaný.")}>Zmazať</button>}
+          </div>
+          <p className="hint">
+            Účet a kľúč: firmapi.sk (bezplatný účet bez karty; stav dlžníka je rozsah „debtor_status“ – overte v cenníku, že je v pláne). Dôvera zoznam aktualizuje
+            mesačne okolo 25., FirmAPI ho preberá – v protokole je uvedený poskytovateľ a stav dát. Overenie kľúča: Diagnostika → „FirmAPI – stav dlžníka“.
+          </p>
         </>
       )}
       {msg && <div className={msg.ok ? "okmsg" : "err"}>{msg.text}</div>}

@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.25** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.26** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -222,7 +222,7 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `diskv` | Register diskvalifikácií | justice.gov.sk – 403 z dátových centier → proxy Webshare (HTTP 200 od 6. 10. 2026). Stránka je len obal: zoznam vykresľuje aplikácia React (`obcan.justice.sk/pilot/isu`) s API `obcan.justice.sk/pilot/api/ress-isu-service/v1` – obe domény idú vždy cez proxy | `lib/sources/diskv.ts`: pri každom preverení dopyt `GET …/v1/diskvalifikacia?<param>=<výraz>&page=1&size=50` – raz podľa IČO a raz podľa priezviska každej preverovanej osoby – súčasní štatutári, bývalí štatutári za 3 roky (`profile.formerStatutory`), spoločníci – fyzické osoby; právnické osoby sa vynechávajú (`lib/names.ts`) (nič sa nesťahuje celé ani neukladá; pamätá sa len názov parametra vyhľadávania – zistí sa nezmyselným výrazom, ktorý musí vrátiť `numFound = 0`); vrátené záznamy sa porovnajú s IČO a menom + priezviskom (bez titulov a diakritiky). Overené na API 6. 10. 2026: parameter `query` (fulltext, ignoruje diakritiku), zoznam `diskvalifikaciaList`, záznam `{ registreGuid, meno, datumRozhodnutia, sud, adresa, suradnice }` – bez IČO a dátumu narodenia, preto pri zhode mena porovnať adresu s OR; pri viac ako 50 výsledkoch pre priezvisko ďalšie strany (najviac 4). IČO = kritické −25; zhoda mena = možná zhoda (−25, `cap` S výhradou, `ask` overiť totožnosť); bez zhody pri úplnom registri = ok | −25 | access, diskv |
 | `cre` | CRE – exekúcie – **ZAPARKOVANÉ** (od v2.11.17 nie je v preverení; definícia `CRE_PARKED` v `manual.ts`): výpis je spoplatnený (1,60 €) a vyžaduje registráciu + certifikát; exekúcie overuje `exek`. Možný platený doplnok pre klienta (výpis CRE na vyžiadanie) | – | – | – | – |
 | `exek` | Exekúcie – poverenia na vykonanie exekúcie (MS SR, Infosud `obcan.justice.sk/pilot/poverenia`) | `lib/sources/exek.ts`: 1. naučená adresa API (Redis `exek:api`, šablóna s `{ico}` zachytená z dopytov aplikácie pri behu prehliadača) – priamy dopyt cez proxy; 2. inak prehliadač na serveri `exekFlow` (`/api/browser/flow`, zdroj `exek`): prepínač „podľa IČO, resp. názvu povinného“, pole IČO, „Hľadať poverenie“, vyhodnotí JSON odpoveď aplikácie (`judgeExekJson`: numFound + záznamy s IČO) alebo tabuľku / hlásenie na stránke a adresu dopytu si zapamätá. Zoznam obsahuje LEN poverenia OS Banská Bystrica vydané od 1. 4. 2017 a len z prebiehajúcich konaní – „bez záznamu“ nesie túto výhradu vždy (skončené a staršie exekúcie dáva len CRE) | `data.rows, updateDate, coverageSince` | poverenie s IČO −25 upozornenie; bez záznamu = ok + informácia o rozsahu | offline |
-| `dovera` | Dôvera – dlžníci | podmienky zakazujú automatizáciu | – | −25 kritické | – |
+| `dovera` | Dôvera – dlžníci | stránka Dôvery zakazuje automatizáciu (a chráni ju overením „nie som robot“) → **licencovaný agregátor FirmAPI.sk** (`lib/sources/firmapi.ts`: `GET https://firmapi.sk/v1/company/ico/{ico}?scope=debtor_status`, hlavička `X-API-Key`; kľúč z Administrácie → Prístupy alebo `FIRMAPI_KEY`); záznam so `source: dovera` = dlžník (`debt_amount`, `listed_since`), inak bez záznamu; v protokole poskytovateľ a `meta.enriched_at`. Bez kľúča / pri chybe FirmAPI (401 kľúč, 402 kredity, 403 plán, 429 limit) ostáva manuálne s dôvodom | `data.rows, via: firmapi` | −25 kritické | offline |
 
 ### Zadania pre AI (`lib/ai/specs.ts`)
 
@@ -397,6 +397,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` (alebo Upstash ekvivalent), `ALLOW_MEMORY_STORE` | Vercel | databáza; pamäťová len lokálne |
 | `APP_MODE` | Vercel | predvolená verzia rozhrania (`firma` = Štandard, `advokat` = Rozšírené) |
 | `FS_API_KEY` | Vercel | OpenData Finančnej správy |
+| `FIRMAPI_KEY`, `FIRMAPI_BASE_URL` | voliteľné | kľúč FirmAPI.sk (inak z Administrácie → Prístupy, šifrovaný v Redise) a iná adresa API (testy) |
 | `CRON_SECRET` | Vercel | ochrana cron úloh |
 | `ORDER_WEBHOOK_URL` | Vercel | upozornenie na objednávku |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `ANTHROPIC_BETA`, `ANTHROPIC_BASE_URL` | Vercel | Claude (workspace pre kľúč organizácie; base URL pre testy) |

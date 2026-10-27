@@ -13,6 +13,8 @@ import { kv } from "./auth/kv";
 export interface AccessSettings {
   proxy?: { enc?: string; hint?: string; domains?: string[]; enabled?: boolean };
   ov?: { exportUrl?: string; user?: string; passEnc?: string };
+  /** FirmAPI.sk – licencovaný agregátor (dlžníci zdravotných poisťovní vrátane Dôvery, exekúcie…): kľúč API, šifrovaný */
+  firmapi?: { keyEnc?: string; hint?: string };
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -123,6 +125,18 @@ export async function getOvAccess(): Promise<{ exportUrl: string; user?: string;
   return { exportUrl: s.ov.exportUrl, user: s.ov.user, password, origin: "admin" };
 }
 
+/** Kľúč FirmAPI.sk: prostredie (FIRMAPI_KEY) → administrácia. */
+export async function getFirmapiKey(): Promise<{ key: string; origin: "env" | "admin" } | null> {
+  if (process.env.FIRMAPI_KEY?.trim()) return { key: process.env.FIRMAPI_KEY.trim(), origin: "env" };
+  const s = await stored();
+  if (!s.firmapi?.keyEnc) return null;
+  try {
+    return { key: decrypt(s.firmapi.keyEnc), origin: "admin" };
+  } catch {
+    return null;
+  }
+}
+
 export async function accessStatus() {
   const s = await stored();
   const p = await getProxyConfig().catch(() => null);
@@ -144,6 +158,12 @@ export async function accessStatus() {
       hasPassword: Boolean(process.env.OV_EXPORT_URL ? process.env.OV_PASSWORD : s.ov?.passEnc),
       envLocked: Boolean(process.env.OV_EXPORT_URL),
     },
+    firmapi: {
+      configured: Boolean(process.env.FIRMAPI_KEY?.trim() || s.firmapi?.keyEnc),
+      origin: process.env.FIRMAPI_KEY?.trim() ? "env" : s.firmapi?.keyEnc ? "admin" : null,
+      hint: process.env.FIRMAPI_KEY?.trim() ? `…${process.env.FIRMAPI_KEY.trim().slice(-4)}` : s.firmapi?.hint || "",
+      envLocked: Boolean(process.env.FIRMAPI_KEY?.trim()),
+    },
     updatedAt: s.updatedAt,
     updatedBy: s.updatedBy,
   };
@@ -159,6 +179,7 @@ export async function saveAccess(
   input: {
     proxy?: { url?: string; domains?: string[] | string; enabled?: boolean; clear?: boolean };
     ov?: { exportUrl?: string; user?: string; password?: string; clear?: boolean };
+    firmapi?: { key?: string; clear?: boolean };
   },
   by: string,
 ) {
@@ -206,6 +227,18 @@ export async function saveAccess(
       if (input.ov.password) ov.passEnc = encrypt(input.ov.password);
       next.ov = ov;
       notes.push("prístup OV upravený");
+    }
+  }
+  if (input.firmapi) {
+    if (process.env.FIRMAPI_KEY?.trim()) throw new AccessError("Kľúč FirmAPI je v premenných prostredia (FIRMAPI_KEY) – zmeny robte tam.", 409);
+    if (input.firmapi.clear) {
+      next.firmapi = {};
+      notes.push("kľúč FirmAPI zmazaný");
+    } else if (input.firmapi.key?.trim()) {
+      const k = input.firmapi.key.trim();
+      if (k.length < 8 || /\s/.test(k)) throw new AccessError("Kľúč FirmAPI nevyzerá správne.");
+      next.firmapi = { keyEnc: encrypt(k), hint: `…${k.slice(-4)}` };
+      notes.push("kľúč FirmAPI uložený");
     }
   }
   await kv().set(KEY, next);

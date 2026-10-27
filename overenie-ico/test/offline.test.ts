@@ -13,6 +13,7 @@ import { setExekApi } from "../lib/sources/exek";
 
 async function main() {
   installMock();
+  process.env.FIRMAPI_KEY = "TEST"; // Dôvera cez FirmAPI (mock)
   // exekúcie: naučená adresa API (ako po prvom behu prehliadača) – mock odpovedá na …/v1/poverenia?query=IČO
   await setExekApi({ url: "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/poverenia?query={ico}&page=1&size=50", method: "GET" });
   // IČO
@@ -89,6 +90,10 @@ async function main() {
   assert.match(by("fs-excise").summary, /nie je registrovaný pre spotrebné dane/);
   // exekúcie: poverenia (len prebiehajúce, od 1. 4. 2017) – bez záznamu vždy s výhradou
   assert.equal(by("exek").status, "ok", by("exek").summary);
+  // Dôvera cez FirmAPI: bez záznamu, s poskytovateľom a stavom dát
+  assert.equal(by("dovera").status, "ok", by("dovera").summary);
+  assert.match(by("dovera").summary, /NIE JE v zozname dlžníkov Dôvery \(podľa FirmAPI\.sk, stav k 26\. 10\. 2026/);
+  assert.equal(by("dovera").automated, true);
   assert.match(by("exek").summary, /Bez záznamu.*UPOZORNENIE: zoznam obsahuje len poverenia .* od 1\. 4\. 2017 a len z prebiehajúcich konaní/);
   assert.equal(by("exek").search![0].queries[0].url, "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/poverenia?query=47244895&page=1&size=50");
   assert.equal((by("exek").data as any).via, "api");
@@ -112,6 +117,9 @@ async function main() {
   assert.ok(by("fs-dppo").search!.length >= 2, "záznam vyhľadávania FS aj RÚZ");
   assert.match(by("fs-excise").summary, /Registrovaný pre spotrebné dane \(1×\): Lieh – Schválený príjemca – od 12\.03\.2021/);
   assert.equal(by("exek").status, "warning");
+  assert.equal(by("dovera").status, "critical", by("dovera").summary);
+  assert.match(by("dovera").findings[0].text, /Dlh voči zdravotnej poisťovni Dôvera – 3 820,14 € \(v zozname od 25\. 7\. 2026\)/);
+  assert.ok(by("dovera").search![0].sample?.some((s) => /socpoist/.test(s)), "ostatné zdroje FirmAPI v ukážke");
   assert.match(by("exek").findings[0].text, /Prebiehajúca exekúcia – poverenie .*6Er\/123\/2025/);
   assert.equal(by("exek").findings[0].penalty, 25);
   assert.equal(by("fs-excise").status, "info");

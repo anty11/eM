@@ -150,6 +150,13 @@ globalThis.fetch = (async (input: any, init?: any) => {
     const list = q === BAD ? [{ registreGuid: "poverenie_1", povinny: `C.C.C. s.r.o., IČO ${BAD}`, opravneny: "Sociálna poisťovňa", exekutor: "JUDr. Peter Kuna", datumVydania: "12.05.2025", spisovaZnacka: "6Er/123/2025" }] : [];
     return json({ numFound: list.length, page: 0, size: 50, updateDate: "13.10.2026", filterList: [], povereniaList: list });
   }
+  // FirmAPI.sk (licencovaný agregátor) – stav dlžníka; BAD je dlžníkom Dôvery
+  if (u.host === "firmapi.sk") {
+    if (!init?.headers?.["X-API-Key"]) return json({ error: "unauthorized", message: "Neplatný alebo chýbajúci API kľúč" }, 401);
+    const ico = u.pathname.split("/").pop() || "";
+    const isBad = ico === BAD;
+    return json({ ico, name: isBad ? "C.C.C. s.r.o." : "URBAN & PARTNERS s.r.o., advokátska kancelária", debtor_status: { is_debtor: isBad, sources: isBad ? [{ source: "dovera", debtor_name: "C.C.C. s.r.o.", debt_amount: "3820.14", listed_since: "2026-07-25" }, { source: "socpoist", debtor_name: "C.C.C. s.r.o.", debt_amount: "5933.27", listed_since: "2026-06-01" }] : [] }, meta: { enriched_at: "2026-10-26T03:00:00Z" } });
+  }
   if (u.host === "replik.justice.sk") {
     // Štruktúra reálnej stránky REPLIK: filter s druhmi konaní je na stránke vždy, hľadané IČO sa opakuje v hlavičke
     const filters = `<select><option>Konkurz</option><option>Malý konkurz</option><option>Reštrukturalizácia</option><option>Oddlženie</option><option>Likvidácia</option></select>`;

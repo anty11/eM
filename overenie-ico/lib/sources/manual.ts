@@ -65,7 +65,7 @@ export const MANUAL: ManualDef[] = [
     source: "Dôvera – zoznam dlžníkov",
     sourceUrl: "https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov",
     verifyUrl: (ico: string) => `https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov?q=${ico}`,
-    note: "Dôvera výslovne zakazuje automatizované overovanie svojho zoznamu dlžníkov a stránku chráni overením „nie som robot“, preto sa táto položka overuje vždy ručne. Odkaz otvorí zoznam s IČO v adrese – po overení v prehliadači sa výsledok zobrazí sám.",
+    note: "Dôvera automatizované overovanie svojho zoznamu dlžníkov na stránke zakazuje; automaticky sa overuje cez licencovaný agregátor FirmAPI.sk (kľúč v Administrácii → Prístupy). Bez kľúča, alebo keď FirmAPI neodpovie, overte ručne – odkaz otvorí zoznam s IČO v adrese, po overení v prehliadači sa výsledok zobrazí sám.",
     penaltyIfFound: 25,
     severityIfFound: "critical",
   },

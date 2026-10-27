@@ -624,3 +624,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   API RPO občas vráti prázdny výsledok aj pre existujúce IČO. Pred verdiktom „nenašlo sa“ sa teraz urobí krížová kontrola v ORSR; ak
   subjekt existuje, pokračuje sa s identifikáciou z ORSR (aj pri spätnom preverení, s poznámkou o chýbajúcej histórii) a preverenie
   beží ďalej. „Nenájdené“ ostáva len vtedy, keď IČO nemá ani ORSR.
+- **v2.11.26** – **Dôvera automaticky cez FirmAPI.sk** (licencovaný agregátor, podnet používateľa): `scope=debtor_status`, záznam so
+  zdrojom „dovera“ = dlžník so sumou a dátumom „v zozname od“, inak bez záznamu; súhrn uvádza poskytovateľa a stav dát (`enriched_at`),
+  záznam vyhľadávania aj ostatné zdroje z odpovede (ukážka). Kľúč sa zadáva v Administrácii → Prístupy (šifrovaný) alebo cez
+  `FIRMAPI_KEY`; bez kľúča alebo pri chybe FirmAPI (neplatný kľúč, vyčerpané kredity, funkcia mimo plánu, limit) ostáva Dôvera
+  manuálna s uvedeným dôvodom. Diagnostika „FirmAPI – stav dlžníka“ ukáže surovú odpoveď (aj exekúcie, insolvenciu, DPH – podklad
+  na ďalšie krížové kontroly).

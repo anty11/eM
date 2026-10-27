@@ -13,6 +13,7 @@ const SOURCES = [
   { id: "fs-dppo", label: "FS – daňové priznanie PO" },
   { id: "fs-excise", label: "FS – spotrebné dane (registrácia)" },
   { id: "exek", label: "Exekúcie – poverenia (MS SR, API Infosud)" },
+  { id: "firmapi", label: "FirmAPI – stav dlžníka (Dôvera a i.)" },
   { id: "socpoist", label: "Sociálna poisťovňa – dlžníci (index)" },
   { id: "insolvency", label: "REPLIK – konkurzy a likvidácie" },
   { id: "rpvs", label: "RPVS – partneri verejného sektora" },
