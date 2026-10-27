@@ -402,7 +402,7 @@ export function attemptsFor(id: string, ctx: Ctx): { attempts: Attempt[]; needle
         attempts: [
           // globálne vyhľadávanie ÚVO, výber searchType=OSZ („Osoba so zákazom“); výsledok „N záznamov“ / „Zadaný výraz nebol nájdený.“ + bloky s IČO.
           // Najprv podľa IČO (jediný dopyt, ktorý dáva „Zadaný výraz nebol nájdený“ = bez záznamu), až potom podľa obchodného mena
-          // (register môže indexovať len názov; nález sa potvrdí IČO v zázname). ÚVO býva pomalé – 12 s na dopyt, 20 s spolu.
+          // (register môže indexovať len názov; nález sa potvrdí IČO v zázname). ÚVO býva pomalé – 14 s na dopyt, 30 s spolu.
           { url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${ico}&searchType=OSZ` },
           ...(ctx.profile.name ? [{ url: `https://www.uvo.gov.sk/vyhladavanie/globalne-vyhladavanie?globalSearch=${enc(ctx.profile.name)}&searchType=OSZ`, label: "podľa názvu" }] : []),
           { url: base, info: "stránka registra" },
@@ -602,15 +602,15 @@ export async function queryPublicRegister(id: string, ctx: Ctx, opts: { diag?: b
     }
   }
   // ÚVO: pomalý web nesmie držať celé preverenie – kratší limit na pokus a strop 15 s na celý dopyt (potom manuálne s dôvodom)
-  const probeP = probe(attempts.map((a) => ({ ...a, source: id })), needles, id === "uvo" ? 12000 : undefined, opts);
+  const probeP = probe(attempts.map((a) => ({ ...a, source: id })), needles, id === "uvo" ? 14000 : undefined, opts);
   // ÚVO: súbežne aj podľa mien osôb (štatutári, spoločníci – FO): zákaz účasti môže mať aj fyzická osoba – podnikateľ;
   // zhoda mena = možná zhoda (overiť totožnosť), nie nález s IČO
   const personsP = id === "uvo" ? uvoPersonProbes(ctx) : Promise.resolve([] as UvoPersonAttempt[]);
   const outcome =
     id === "uvo" && !opts.diag
-      ? await Promise.race([probeP, new Promise<ProbeOutcome>((res) => setTimeout(() => res({ result: "unknown", rows: [], attempts: [{ url: attempts[0].url, ms: 20000, error: "ÚVO neodpovedalo do 20 s", excerpt: "", verdict: "unknown" }] }), 20000))])
+      ? await Promise.race([probeP, new Promise<ProbeOutcome>((res) => setTimeout(() => res({ result: "unknown", rows: [], attempts: [{ url: attempts[0].url, ms: 30000, error: "ÚVO neodpovedalo do 30 s", excerpt: "", verdict: "unknown" }] }), 30000))])
       : await probeP;
-  const persons = id === "uvo" ? await Promise.race([personsP, new Promise<UvoPersonAttempt[]>((res) => setTimeout(() => res([]), Math.max(2000, 20000 - (Date.now() - t0))))]) : [];
+  const persons = id === "uvo" ? await Promise.race([personsP, new Promise<UvoPersonAttempt[]>((res) => setTimeout(() => res([]), Math.max(2000, 30000 - (Date.now() - t0))))]) : [];
   for (const pa of persons) outcome.attempts.push(pa.attempt);
   const personHits = persons.filter((pa) => pa.attempt.verdict === "found");
   const personsUnknown = persons.filter((pa) => pa.attempt.verdict === "unknown");

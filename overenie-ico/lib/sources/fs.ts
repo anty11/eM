@@ -350,18 +350,20 @@ export async function checkTaxDebtors(ctx: Ctx): Promise<CheckResult> {
     const rows = await search(slug, ctx);
     const how = rows.by === "ico" ? `podľa IČO ${ctx.ico}` : rows.by === "dic" ? `podľa DIČ ${ctx.profile.dic}` : rows.by === "ic_dph" ? "podľa IČ DPH" : `podľa obchodného mena „${rows.trail?.find((t) => t.kind === "name")?.value || ctx.profile.name || ""}“`;
     if (!rows.length) {
-      // len podľa mena: iný zápis názvu v zozname FS by subjekt minul – do právneho dokumentu nie ako „NIE JE“, ale na overenie
-      if (rows.by === "name")
-        return {
-          status: "manual",
-          summary: `Zoznam daňových dlžníkov (OpenData FS) neobsahuje IČO a dá sa prehľadávať len podľa názvu; ${how} (aj s inými zápismi právnej formy) sa subjekt nenašiel. Pri odlišnom zápise obchodného mena v zozname by ho vyhľadávanie minulo – overte v zozname Finančnej správy.`,
-          findings: [],
-          verifyUrl: FS_LIST_URL.debtors,
-          automated: false,
-          data: { slug, searchedBy: rows.by, trail: rows.trail },
-          search: rows.log ? [rows.log] : undefined,
-        } as any;
-      return { status: "ok", summary: `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`, findings: [], verifyUrl: FS_LIST_URL.debtors, data: { slug, searchedBy: rows.by, trail: rows.trail }, search: rows.log ? [rows.log] : undefined };
+      // Zoznam nemá IČO – hľadá sa celým obchodným menom vo všetkých zápisoch právnej formy aj menom bez právnej formy (API hľadá
+      // podreťazec). Keď API na všetky dopyty odpovedalo a nič sa nenašlo, je to výsledok, nie manuálna úloha; metóda je v súhrne
+      // a v zázname vyhľadávania. Manuálne ostáva len vtedy, keď sa podľa mena hľadať nedalo (meno neznáme – vyhodí chybu vyššie).
+      const variants = (rows.trail || []).filter((t) => t.kind === "name").map((t) => t.value);
+      return {
+        status: "ok",
+        summary: rows.by === "name"
+          ? `Subjekt NIE JE v zozname daňových dlžníkov – zoznam FS neobsahuje IČO, hľadané podľa celého obchodného mena (${variants.length} ${variants.length === 1 ? "zápis" : variants.length < 5 ? "zápisy" : "zápisov"}: ${variants.map((v) => `„${v}“`).join(", ")}), bez záznamu.`
+          : `Subjekt NIE JE v zozname daňových dlžníkov (OpenData Finančnej správy, vyhľadané ${how}).`,
+        findings: [],
+        verifyUrl: FS_LIST_URL.debtors,
+        data: { slug, searchedBy: rows.by, trail: rows.trail, byNameOnly: rows.by === "name" },
+        search: rows.log ? [rows.log] : undefined,
+      };
     }
     const amount = debtAmount(rows[0]);
     const r0 = rows[0];
@@ -437,24 +439,40 @@ export async function checkVat(ctx: Ctx): Promise<CheckResult> {
     const f: Finding[] = [];
     const icDph = vat[0] ? pick(vat[0], /ic_?dph/) : undefined;
     if (icDph) ctx.profile.icDph = String(icDph);
+    // dátumy a druh registrácie zo záznamov (názvy stĺpcov v OpenData sa líšia – hľadá sa podľa významu)
+    const skd = (v: unknown) => {
+      const s = String(v ?? "").trim();
+      const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m1 ? `${Number(m1[3])}. ${Number(m1[2])}. ${m1[1]}` : s;
+    };
+    const regFrom = vat[0] ? pick(vat[0], /datum_?reg|reg.*datum|dat_?reg/) : undefined;
+    const regKind = vat[0] ? pick(vat[0], /druh|typ_?reg/) : undefined;
+    const cancelledOn = vat[0] ? pick(vat[0], /zrus|dat_?zru|datum_?zru|ukon|zanik/) : undefined; // zoznam registrovaných môže niesť aj dátum zrušenia
+    const delOn = del[0] ? pick(del[0], /dat_?vymaz|datum_?vymaz|vymaz/) : undefined;
+    const delYear = del[0] ? pick(del[0], /rok_?porus|porusen/) : undefined;
+    const delPublished = del[0] ? pick(del[0], /dat_?zverej|zverejn/) : undefined;
+    const delDesc = del.length ? `vymazaný platiteľ DPH podľa § 52 ods. 8 daňového poriadku${delOn ? ` – výmaz ${skd(delOn)}` : ""}${delYear ? `, rok porušenia ${delYear}` : ""}${delPublished ? `, zverejnené ${skd(delPublished)}` : ""}` : "";
     if (risk.length)
       f.push({
         severity: "critical",
         text: "Platiteľ DPH v zozname Finančnej správy „dôvody na zrušenie registrácie“ – varovný signál pre ručenie odberateľa za DPH (§ 69 ods. 13 ZDPH)",
         penalty: 35,
       });
-    if (!vat.length && del.length) f.push({ severity: "warning", text: "Registrácia pre DPH bola zrušená (vymazaný platiteľ DPH)", penalty: 8 });
-    if (vat.length && !risk.length) f.push({ severity: "positive", text: `Registrovaný platiteľ DPH${icDph ? ` (${icDph})` : ""} bez dôvodov na zrušenie`, penalty: -2 });
+    if (!vat.length && del.length) f.push({ severity: "warning", text: `Registrácia pre DPH bola zrušená z úradnej moci (${delDesc})`, penalty: 8 });
+    if (vat.length && cancelledOn) f.push({ severity: "warning", text: `Registrácia pre DPH zrušená dňa ${skd(cancelledOn)}${regFrom ? ` (registrovaný od ${skd(regFrom)})` : ""}${del.length ? `; ${delDesc}` : ""}`, penalty: 6 });
+    if (vat.length && !risk.length && !cancelledOn) f.push({ severity: "positive", text: `Registrovaný platiteľ DPH${icDph ? ` (${icDph})` : ""}${regFrom ? ` od ${skd(regFrom)}` : ""}${regKind ? `, ${regKind}` : ""} bez dôvodov na zrušenie`, penalty: -2 });
     return {
       status: risk.length ? "critical" : f.some((x) => x.severity === "warning") ? "warning" : vat.length ? "ok" : "info",
       summary: vat.length
-        ? `Registrovaný platiteľ DPH${icDph ? ` ${icDph}` : ""}.${risk.length ? " POZOR: v zozname subjektov s dôvodmi na zrušenie registrácie." : ""}`
+        ? cancelledOn
+          ? `Registrácia pre DPH${icDph ? ` ${icDph}` : ""} bola zrušená dňa ${skd(cancelledOn)}${regFrom ? ` (registrovaný od ${skd(regFrom)})` : ""}.${del.length ? ` ${delDesc[0].toUpperCase()}${delDesc.slice(1)}.` : ""}`
+          : `Registrovaný platiteľ DPH${icDph ? ` ${icDph}` : ""}${regFrom ? ` od ${skd(regFrom)}` : ""}${regKind ? ` (${regKind})` : ""}.${risk.length ? " POZOR: v zozname subjektov s dôvodmi na zrušenie registrácie." : ""}`
         : del.length
-          ? "Nie je platiteľom DPH – registrácia bola zrušená."
-          : "Subjekt nie je registrovaný pre DPH.",
+          ? `Nie je platiteľom DPH – registrácia bola zrušená z úradnej moci: ${delDesc}.`
+          : "Subjekt nie je registrovaný pre DPH (nie je v zozname registrovaných ani v zozname vymazaných platiteľov podľa § 52 ods. 8; dobrovoľné alebo riadne zrušenie registrácie sa z OpenData FS nedá zistiť – pri významnom obchode overte v zozname FS alebo na VIES).",
       findings: f,
       verifyUrl: risk.length ? FS_LIST_URL.vatRisk : del.length ? FS_LIST_URL.vatDeleted : FS_LIST_URL.vat,
-      data: { icDph, slugs: { sVat, sRisk, sDel } },
+      data: { icDph, slugs: { sVat, sRisk, sDel }, registeredFrom: regFrom, registrationKind: regKind, cancelledOn: cancelledOn || delOn, deletedExOfficio: del.length > 0, deletedYear: delYear, rows: { vat: vat.slice(0, 2), del: del.slice(0, 2) } },
       search: [vat.log, risk.log, del.log].filter(Boolean) as SearchLog[],
     };
   });

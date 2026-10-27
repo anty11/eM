@@ -129,7 +129,7 @@ globalThis.fetch = (async (input: any, init?: any) => {
     // adresa v zozname FS iná ako sídlo v RPO (ako HZ Stavby s.r.o. 10/2026) – zhoda podľa celého obchodného mena
     if (slug === "ds_dsdd" && /C\.C\.C\./.test(term)) rows = [{ nazov_subjektu: "C.C.C. s. r. o.", obec: "Ivanka pri Nitre", psc: "95112", ulica_cislo: "Gergeľova 423/11", suma_nedoplatkov: 12345.67 }];
     if (slug === "ds_dsdd" && /URBAN/.test(term)) rows = [{ nazov_subjektu: "URBAN STAVBY s.r.o.", obec: "Košice", suma: "999,00" }]; // iná firma s podobným menom
-    if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466" }];
+    if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466", druh_registracie: "platiteľ DPH", datum_registracie: "2015-03-01" }];
     if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
     if (slug === "ds_sd" && isBad) rows = [{ registracne_cislo: "SK52400000001", ico: BAD, nazov_subjektu: "C.C.C. s.r.o.", obec: "Bratislava", druh_dane: "Lieh", druh_danoveho_subjektu: "Schválený príjemca", datum_registracie: "12.03.2021" }];
     if (slug === "ds_dppo" && !isBad) rows = [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }];

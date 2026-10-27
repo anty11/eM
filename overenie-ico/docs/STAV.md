@@ -609,3 +609,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   Chromia a čítania až 10 strán) nestíhal. Teraz: 4 prehliadače naraz, limity OV 48 s, Union/exekúcie 40 s, spotrebné dane 35 s
   (limit registrov bez API je 55 s) a jeden opakovaný pokus, keď beh zlyhá chybou pred polovicou limitu. Presnú príčinu ďalších
   výpadkov ukáže Administrácia → Chyby zdrojov.
+- **v2.11.23** – Menej zbytočných manuálnych položiek (podnet: imvest s.r.o., 27. 10. 2026):
+  **Daňoví dlžníci:** nenájdenie celým obchodným menom vo všetkých zápisoch právnej formy je „bez záznamu“ s uvedenou metódou (zoznam
+  nemá IČO), nie manuálna úloha; kľúčový fakt „nedoplatky“ je pri tom „Nie“. **Spotrebné dane** (informačná kontrola cez prehliadač)
+  majú limit 50 s namiesto 25 s a po limite sú „informácia – nepodarilo sa overiť“, nie chyba v zozname na manuálne overenie.
+  **ÚVO:** 14 s na dopyt, 30 s spolu. **DPH – zrušenie registrácie a kedy:** zo zoznamu registrovaných sa číta dátum a druh registrácie
+  a prípadný dátum zrušenia; zo zoznamu vymazaných platiteľov (§ 52 ods. 8) dátum výmazu, rok porušenia a dátum zverejnenia – nález aj
+  kľúčový fakt uvádzajú „registrácia zrušená dňa …“. Keď subjekt nie je v žiadnom z týchto zoznamov, súhrn výslovne hovorí, že
+  dobrovoľné / riadne zrušenie registrácie sa z OpenData FS nedá zistiť.

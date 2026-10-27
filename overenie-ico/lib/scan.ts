@@ -18,10 +18,14 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.22";
+export const APP_VERSION = "2.11.23";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
+/** Dlhší limit pre zdroje, ktoré idú cez prehliadač na serveri (spotrebné dane na webe FS) – v rámci limitu registrov bez API (55 s). */
+const DEADLINE_BY_ID: Record<string, number> = { "fs-excise": 50000 };
+/** Len informačné zdroje: po limite „informácia – nepodarilo sa overiť“, nie chyba (neobjavia sa v zozname na manuálne overenie). */
+const INFO_ONLY_IDS = ["fs-excise"];
 /** Registre bez API (vrátane dopytu cez prehliadač na serveri – spustenie Chromia a hľadanie trvá 5 – 15 s) majú vlastný, dlhší limit. */
 /** Limit pre registre bez API (MANUAL_DEADLINE_MS len pre testy). */
 const manualDeadlineMs = () => Number(process.env.MANUAL_DEADLINE_MS) || 55000;
@@ -111,15 +115,16 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
   const capRaw = (id: string, p: Promise<CheckResult>): Promise<CheckResult> => {
     let settled = false;
     p.then(() => (settled = true), () => (settled = true));
+    const limit = DEADLINE_BY_ID[id] || DEADLINE_MS;
     return Promise.race([
       p,
-      sleep(Math.max(1000, DEADLINE_MS - (Date.now() - t0))).then((): CheckResult => {
-        if (!settled) void logError({ kind: "deadline", source: id, ico, message: `zdroj neodpovedal do ${Math.round(DEADLINE_MS / 1000)} s (limit preverenia)`, ms: DEADLINE_MS, where: "scan" });
+      sleep(Math.max(1000, limit - (Date.now() - t0))).then((): CheckResult => {
+        if (!settled) void logError({ kind: "deadline", source: id, ico, message: `zdroj neodpovedal do ${Math.round(limit / 1000)} s (limit preverenia)`, ms: limit, where: "scan" });
         return {
         id,
         ...META[id],
-        status: "error",
-        summary: `Zdroj neodpovedal do ${Math.round(DEADLINE_MS / 1000)} s. Skúste „Preveriť znova“ alebo overte v zdroji.`,
+        status: INFO_ONLY_IDS.includes(id) ? "info" : "error",
+        summary: INFO_ONLY_IDS.includes(id) ? `Informácia – zdroj neodpovedal do ${Math.round(limit / 1000)} s, údaj sa nepodarilo overiť (bez vplyvu na hodnotenie). Overte v zdroji.` : `Zdroj neodpovedal do ${Math.round(limit / 1000)} s. Skúste „Preveriť znova“ alebo overte v zdroji.`,
         findings: [],
         checkedAt: new Date().toISOString(),
         durationMs: Date.now() - t0,

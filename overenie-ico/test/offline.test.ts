@@ -65,9 +65,9 @@ async function main() {
   // 2) S kľúčom FS
   process.env.FS_API_KEY = "TEST";
   r = await scan(GOOD);
-  // zoznam daňových dlžníkov FS sa dá prehľadať len podľa názvu (nemá IČO) → nenájdenie nie je „NIE JE dlžník“, ale overenie podľa IČO
-  assert.equal(by("fs-debtors").status, "manual");
-  assert.match(by("fs-debtors").summary, /len podľa názvu; podľa obchodného mena „URBAN & PARTNERS s\.r\.o\., advokátska kancelária“ \(aj s inými zápismi právnej formy\) sa subjekt nenašiel/);
+  // zoznam daňových dlžníkov FS sa dá prehľadať len podľa názvu (nemá IČO) → nenájdenie celým menom vo všetkých zápisoch = bez záznamu, s uvedenou metódou
+  assert.equal(by("fs-debtors").status, "ok");
+  assert.match(by("fs-debtors").summary, /NIE JE v zozname daňových dlžníkov – zoznam FS neobsahuje IČO, hľadané podľa celého obchodného mena \(\d zápis\w*: „URBAN & PARTNERS s\.r\.o\., advokátska kancelária“/);
   assert.ok(((by("fs-debtors").data as any)?.trail || []).some((t: any) => t.kind === "name" && /riadkov|404/.test(t.result)), "stopa vyhľadávania");
   assert.equal(by("fs-vat").status, "ok");
   assert.equal(r.profile.icDph, "SK2023674466");
@@ -92,7 +92,7 @@ async function main() {
   assert.match(by("exek").summary, /Bez záznamu.*UPOZORNENIE: zoznam obsahuje len poverenia .* od 1\. 4\. 2017 a len z prebiehajúcich konaní/);
   assert.equal(by("exek").search![0].queries[0].url, "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/poverenia?query=47244895&page=1&size=50");
   assert.equal((by("exek").data as any).via, "api");
-  assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "unknown", "daňové nedoplatky len podľa názvu → nevieme naisto");
+  assert.equal(r.keyFacts.find((f) => f.id === "arrears")!.tone, "good", "daňové nedoplatky: hľadané celým menom, bez záznamu");
   // Verzia Firma: neverejné registre neblokujú verdikt
   const firmVerdict = computeVerdict(r.checks.filter((c) => c.id !== "fs-debtors"), { ignore: ["cre", "vszp", "dovera", "union", "ov", "diskv", "uvo"] });
   assert.equal(firmVerdict.preliminary, false, "vo verzii Firma nesmie byť verdikt predbežný kvôli neverejným registrom");
