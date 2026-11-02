@@ -2,13 +2,17 @@
 import assert from "node:assert/strict";
 import * as XLSX from "xlsx";
 export const GOOD = "47244895";
+/** Rizikový subjekt: vznik pred 10 mesiacmi, zmena vlastníka pred 3 mesiacmi – relatívne k dnešku, aby testy nezostarli */
+const isoMonthsAgo = (m: number) => { const d = new Date(); d.setMonth(d.getMonth() - m); return d.toISOString().slice(0, 10); };
+export const YOUNG = isoMonthsAgo(10);
+export const RECENT = isoMonthsAgo(3);
 export const BAD = "31318177";
 
 const rpoEntity = (ico: string, bad: boolean) => ({
   id: bad ? 1 : 784628,
   identifiers: [{ value: ico, validFrom: "2013-01-09" }],
   fullNames: bad
-    ? [{ value: "C.C.C. s.r.o.", validFrom: "2025-11-01" }]
+    ? [{ value: "C.C.C. s.r.o.", validFrom: YOUNG }]
     : [
         { value: "URBAN s.r.o., advokátska kancelária", validFrom: "2013-01-09", validTo: "2017-12-31" },
         { value: "URBAN GAŠPEREC BOŠANSKÝ, s.r.o., advokátska kancelária", validFrom: "2022-10-04", validTo: "2024-01-15" },
@@ -18,14 +22,14 @@ const rpoEntity = (ico: string, bad: boolean) => ({
     { validFrom: "2024-01-16", street: "Červeňova", regNumber: 0, buildingNumber: "15", postalCodes: ["811 03"], municipality: { value: "Bratislava - mestská časť Staré Mesto" }, country: { value: "Slovenská republika", code: "703" } },
   ],
   legalForms: [{ value: { value: "Spoločnosť s ručením obmedzeným", code: "112" }, validFrom: "2013-01-09" }],
-  establishment: bad ? "2025-11-01" : "2013-01-09",
+  establishment: bad ? YOUNG : "2013-01-09",
   statutoryBodies: [
     { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: "2013-01-09", validTo: "2022-10-03", personName: { formatedName: "Ferko Mrkvička" } },
-    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: bad ? "2025-11-01" : "2022-10-04", personName: { formatedName: "Janko Mrkvička" } },
+    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: bad ? YOUNG : "2022-10-04", personName: { formatedName: "Janko Mrkvička" } },
   ],
   stakeholders: [
     { stakeholderType: { value: "Spoločník" }, validFrom: "2013-01-09", validTo: "2024-01-15", personName: { formatedName: "Ferko Mrkvička" } },
-    { stakeholderType: { value: "Spoločník" }, validFrom: bad ? "2026-08-01" : "2024-01-16", personName: { formatedName: "Janko Mrkvička" } },
+    { stakeholderType: { value: "Spoločník" }, validFrom: bad ? RECENT : "2024-01-16", personName: { formatedName: "Janko Mrkvička" } },
   ],
   activities: [
     { economicActivityDescription: "poskytovanie právnych služieb,", validFrom: "2013-01-09" },

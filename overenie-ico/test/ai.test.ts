@@ -18,6 +18,7 @@ async function main() {
   useMemoryKV();
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.OPENAI_API_KEY;
+  process.env.BROWSER_DISABLED = "1"; // test overuje cestu cez webové vyhľadávanie so simulovaným API – bez prehliadača na stroji
 
   // Každý manuálny register má AI zadanie (alebo zdôvodnenie, prečo nie)
   for (const m of MANUAL) assert.ok(AI_SPECS[m.id], `chýba AI zadanie pre ${m.id}`);

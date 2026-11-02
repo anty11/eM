@@ -645,3 +645,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
 - **v2.11.30** – Z preverenia odstránené odkazy na FinStat, FOAF a Index podnikateľa (pozostatok z čias, keď aplikácia overovala
   menej; protokolu uberali na váhe). Pri Médiách ostávajú Google a „Google – negatívne výrazy“ (vyhľadávače server často blokujú);
   Centrálny register zmlúv je uvedený pri RPVS (verejný sektor).
+  Testy: dátumy rizikového subjektu v mocku sú relatívne k dnešku (vznik pred 10 mesiacmi, zmena vlastníka pred 3 mesiacmi), aby
+  test „mladá firma“ nezostarol; test AI vypína prehliadač (`BROWSER_DISABLED=1`), aby bežal rovnako na stroji s Chromiom aj bez neho.
