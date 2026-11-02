@@ -33,7 +33,7 @@ export async function checkRpvs(ctx: Ctx): Promise<CheckResult> {
         return {
           search,
           status: "info",
-          summary: "Subjekt nie je zapísaný v RPVS (zápis je povinný len pri plneniach od štátu nad zákonné limity).",
+          summary: `Subjekt nie je zapísaný v RPVS (zápis je povinný len pri plneniach od štátu nad zákonné limity). Zmluvy so štátom: Centrálny register zmlúv – https://www.crz.gov.sk/zmluvy/?art_ico=${ctx.ico}`,
           findings: [],
           verifyUrl,
         };
@@ -58,7 +58,7 @@ export async function checkRpvs(ctx: Ctx): Promise<CheckResult> {
       return {
         search,
         status: "ok",
-        summary: `Zapísaný v RPVS${cislo ? ` (vložka č. ${cislo})` : ""}${deleted ? " – zápis ukončený" : ""}.${kuv.length ? ` Koneční užívatelia výhod: ${kuv.join(", ")}.` : ""}`,
+        summary: `Zapísaný v RPVS${cislo ? ` (vložka č. ${cislo})` : ""}${deleted ? " – zápis ukončený" : ""}.${kuv.length ? ` Koneční užívatelia výhod: ${kuv.join(", ")}.` : ""} Zmluvy so štátom: Centrálny register zmlúv – https://www.crz.gov.sk/zmluvy/?art_ico=${ctx.ico}`,
         findings: kuv.length ? [{ severity: "info", text: `KUV podľa RPVS: ${kuv.join(", ")}`, penalty: 0 }] : [],
         verifyUrl: partnerId ? `https://rpvs.gov.sk/rpvs/Partner/Partner/Detail/${partnerId}` : verifyUrl,
         data: { kuv, partnerId, cisloVlozky: cislo, deleted },

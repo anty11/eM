@@ -310,10 +310,6 @@ export async function checkNews(ctx: Ctx): Promise<CheckResult> {
       const links = {
         google: `https://www.google.com/search?q=${encodeURIComponent(`${q} OR "${ctx.ico}"`)}&tbm=nws&tbs=qdr:y`,
         googleNegative: `https://www.google.com/search?q=${encodeURIComponent(`${q} (podvod OR exekúcia OR konkurz OR polícia OR pokuta OR dlh)`)}`,
-        finstat: `https://finstat.sk/${ctx.ico}`,
-        indexPodnikatela: `https://www.indexpodnikatela.sk/${ctx.ico}`,
-        foaf: `https://www.foaf.sk/${ctx.ico}`,
-        crz: `https://www.crz.gov.sk/zmluvy/?art_ico=${ctx.ico}`,
       };
       const g = (query: string) => `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=sk&gl=SK&ceid=SK:sk`;
       const b = (query: string) => `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss&setlang=sk&cc=SK&qft=${encodeURIComponent('sortbydate="1"')}`;

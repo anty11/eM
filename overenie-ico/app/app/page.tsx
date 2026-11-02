@@ -830,7 +830,7 @@ export default function Page() {
                 <div className="links no-print">
                   {Object.entries(((news.data as any)?.links || {}) as Record<string, string>).map(([k, u]) => (
                     <a key={k} className="chip" href={u} target="_blank" rel="noreferrer">
-                      {{ google: "Google", googleNegative: "Google – negatívne výrazy", finstat: "FinStat", indexPodnikatela: "Index podnikateľa", foaf: "FOAF", crz: "Register zmlúv" }[k] || k} ↗
+                      {{ google: "Google", googleNegative: "Google – negatívne výrazy" }[k] || k} ↗
                     </a>
                   ))}
                 </div>

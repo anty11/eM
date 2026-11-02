@@ -642,3 +642,6 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.30** – Z preverenia odstránené odkazy na FinStat, FOAF a Index podnikateľa (pozostatok z čias, keď aplikácia overovala
+  menej; protokolu uberali na váhe). Pri Médiách ostávajú Google a „Google – negatívne výrazy“ (vyhľadávače server často blokujú);
+  Centrálny register zmlúv je uvedený pri RPVS (verejný sektor).
