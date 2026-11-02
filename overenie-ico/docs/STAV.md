@@ -640,3 +640,5 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   „registrácia zanikla medzi … a …“ a dátum registrácie aj pre subjekty, kde OpenData dátum neuvádza. Spotrebné dane idú z indexu bez
   prehliadača. Parser XML je bez znalosti schémy (značka riadku a polia sa zistia zo súboru; diagnostika „FS exporty – náhľad“ ich
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
+- **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
+  profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
