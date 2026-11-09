@@ -190,6 +190,16 @@ async function lookupStored(ico: string): Promise<{ meta: SpMeta; d: Debtor | nu
   }
 }
 
+/**
+ * Rýchly dopyt do uloženého indexu dlžníkov SP (pre prepojené firmy osôb): záznam dlžníka, null = v zozname nie je,
+ * undefined = index nie je k dispozícii (nedá sa vyhodnotiť). Index nestavia ani neobnovuje – to robí hlavná kontrola.
+ */
+export async function spDebtorByIco(ico: string): Promise<{ amount?: string; name: string; city?: string; missing?: string; asOf: number } | null | undefined> {
+  const s = await lookupStored(ico);
+  if (!s) return undefined;
+  return s.d ? { ...s.d, asOf: s.meta.updatedAt } : null;
+}
+
 export async function checkSocpoist(ctx: Ctx): Promise<CheckResult> {
   return runCheck(
     {

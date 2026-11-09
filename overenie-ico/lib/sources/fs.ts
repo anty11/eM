@@ -290,6 +290,39 @@ async function search(slug: string, ctx: Ctx): Promise<SearchRows> {
   return done([], "name");
 }
 
+/**
+ * Rýchly dopyt do zoznamu daňových dlžníkov pre prepojené firmy osôb: jedno volanie podľa celého obchodného mena
+ * (zoznam nemá IČO), zhoda celého mena vrátane právnej formy. Vracia riadok dlžníka, null = v zozname nie je,
+ * undefined = nedá sa overiť (bez kľúča, chyba API).
+ */
+export async function taxDebtorQuick(ico: string, name: string): Promise<{ row: any; amount?: string } | null | undefined> {
+  if (!key() || !name) return undefined;
+  try {
+    const slug = (await resolve("debtors")) || "ds_dsdd";
+    let ds = (await lists().catch(() => [] as Ds[])).find((d) => d.slug === slug);
+    if (!ds?.searchable.length) ds = (await listDetail(slug)) || ds;
+    const col = (ds?.searchable || []).find((c) => /nazov|obchodne|meno|subjekt/.test(fold(c))) || "nazov_subjektu";
+    const url = `${API}/data/${slug}/search?page=1&column=${encodeURIComponent(col)}&search=${encodeURIComponent(name.replace(/\s+/g, " ").trim().slice(0, 80))}`;
+    let rows: any[] | null;
+    try {
+      rows = rowsOf(await fsJson<any>(url));
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 404) return null; // „Search not found“ – v zozname nie je
+      return undefined;
+    }
+    if (!rows) return undefined;
+    const hit = rows.find((r) => {
+      const s = JSON.stringify(r);
+      if (s.includes(ico)) return true;
+      const rowName = String(Object.entries(r).find(([k]) => /nazov|obchodne|meno|subjekt/.test(fold(k)))?.[1] || "");
+      return Boolean(rowName && companyKey(rowName) === companyKey(name));
+    });
+    return hit ? { row: hit, amount: debtAmount(hit) } : null;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Zoznam, ktorý API nezverejňuje – informácia namiesto chyby. */
 function notPublished(what: string): CheckBodyLike {
   return {

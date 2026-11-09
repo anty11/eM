@@ -5,6 +5,7 @@ import { useState } from "react";
 const SOURCES = [
   { id: "rpo", label: "Obchodný register / RPO (API ŠÚ SR)" },
   { id: "orsr", label: "Obchodný register SR (orsr.sk) – záloha identifikácie" },
+  { id: "persons", label: "Prepojenia osôb – ďalšie firmy štatutárov a spoločníkov (RPO podľa osoby)" },
   { id: "ruz", label: "Register účtovných závierok (API)" },
   { id: "fs", label: "Finančná správa – zoznamy a stĺpce (API)" },
   { id: "fs-debtors", label: "FS – daňoví dlžníci" },

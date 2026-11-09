@@ -113,6 +113,20 @@ export const CATEGORIES: Record<CategoryId, string> = {
   deal: "Údaje o obchode a indikátory rizika",
 };
 
+/** Osoba z registra (štatutár, spoločník). Meno a priezvisko zvlášť a bydlisko slúžia na hľadanie jej ďalších firiem a odlíšenie menovcov. */
+export interface Person {
+  name: string;
+  role: string;
+  since?: string;
+  /** krstné meno / priezvisko z RPO (personName.givenNames / familyNames) – ak register uvádza */
+  given?: string;
+  family?: string;
+  /** bydlisko (obec, prípadne ulica) z RPO – na porovnanie s inými zápismi tej istej osoby */
+  residence?: string;
+  /** zápis je právnická osoba (materská firma), nie človek */
+  entity?: boolean;
+}
+
 export interface CompanyProfile {
   /** Názov a sídlo z Registra účtovných závierok – záloha, keď Register právnických osôb neodpovie včas */
   ruzName?: string;
@@ -129,12 +143,12 @@ export interface CompanyProfile {
   registrationOffice?: string;
   registrationNumber?: string;
   mainActivity?: string;
-  statutory?: { name: string; role: string; since?: string }[];
+  statutory?: Person[];
   /** Bývalí štatutári (zápis skončil v posledných 3 rokoch) – register diskvalifikácií, médiá; zmena tesne pred obchodom. */
-  formerStatutory?: { name: string; role: string; since?: string; until?: string }[];
+  formerStatutory?: (Person & { until?: string })[];
   equity?: number;
   activities?: string[];
-  owners?: { name: string; role: string; since?: string; country?: string }[];
+  owners?: (Person & { country?: string })[];
   lastOwnershipChange?: string;
   lastStatutoryChange?: string;
   /** IČO sa v Registri právnických osôb nenašlo – ostatné kontroly sa nevykonávajú. */

@@ -140,6 +140,25 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
     });
   }
 
+  // 6b. Ďalšie firmy osôb (prepojenia)
+  {
+    const pc = c("persons");
+    const pd = (pc?.data || {}) as any;
+    const links = (pd.persons || []) as { companies: { name: string; verified: boolean; risky: boolean; flags: string[]; terminated?: string }[] }[];
+    const comps = links.flatMap((l) => l.companies);
+    const uniq = comps.filter((x, i, arr) => arr.findIndex((y) => y.name === x.name) === i);
+    const risky = uniq.filter((x) => x.verified && x.risky);
+    let f: KeyFact;
+    if (!pc || pc.status === "error" || pc.status === "pending") f = { id: "persons", question: "Majú štatutári a spoločníci ďalšie firmy s negatívnym záznamom?", answer: "Nepodarilo sa overiť – vyhľadajte osoby v Obchodnom registri.", tone: "unknown" };
+    else if (pc.status === "info" && !links.length) f = { id: "persons", question: "Majú štatutári a spoločníci ďalšie firmy s negatívnym záznamom?", answer: "V registri nie je zapísaná fyzická osoba, ktorej ďalšie firmy by sa dali preveriť.", tone: "neutral" };
+    else if (risky.length)
+      f = { id: "persons", question: "Majú štatutári a spoločníci ďalšie firmy s negatívnym záznamom?", answer: `ÁNO – ${risky.length} z ${uniq.length} ďalších firiem: ${risky.slice(0, 3).map((x) => `${x.name} (${x.flags.filter((g) => !/^zanikla/.test(g)).join(", ")})`).join("; ")}.`, tone: "bad" };
+    else if (!uniq.length) f = { id: "persons", question: "Majú štatutári a spoločníci ďalšie firmy s negatívnym záznamom?", answer: "Nie – osoby nemajú v registri ďalšie firmy (mimo menovcov s iným bydliskom).", tone: "good" };
+    else f = { id: "persons", question: "Majú štatutári a spoločníci ďalšie firmy s negatívnym záznamom?", answer: `Nie – ${uniq.length} ${uniq.length === 1 ? "ďalšia firma" : uniq.length <= 4 ? "ďalšie firmy" : "ďalších firiem"} bez negatívneho záznamu v sledovaných registroch${uniq.some((x) => !x.verified) ? " (časť zhoda len podľa mena)" : ""}.`, tone: "good" };
+    f.source = "RPO – vyhľadávanie podľa osoby";
+    facts.push(f);
+  }
+
   // 7. Spoľahlivý platiteľ DPH
   {
     let f: KeyFact;

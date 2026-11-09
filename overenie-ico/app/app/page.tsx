@@ -8,6 +8,7 @@ import Header, { useMe } from "../components/Header";
 import ContactCard from "../components/ContactCard";
 import KeyFacts from "../components/KeyFacts";
 import SearchLogView from "../components/SearchLogView";
+import PersonsTable from "../components/PersonsTable";
 import VerifyLink from "../components/VerifyLink";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
 import IndicatorsCard from "../components/IndicatorsCard";
@@ -745,6 +746,7 @@ export default function Page() {
                     <span className={`pill s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
                     <div className="sum">{c.summary}</div>
                     <SearchLogView search={c.search} />
+                    {c.id === "persons" && <PersonsTable persons={(c.data as any)?.persons} />}
                     {c.status === "manual" && (c.data as any)?.autoNote && <div className="src">Automatický pokus: {String((c.data as any).autoNote)}</div>}
                     {Array.isArray((c.data as any)?.steps) && (c.data as any).steps.length > 0 && !c.ai && (
                       <details className="ai-trace">

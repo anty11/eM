@@ -389,3 +389,12 @@ textarea { width: 100%; min-height: 80px; }
   .search-log details > *:not(summary) { display: block; }
   .search-log .mono { font-size: 7.5pt; word-break: break-all; }
 }
+
+/* Prepojenia osôb – ďalšie firmy štatutárov a spoločníkov */
+.check .persons { grid-column: 1 / -1; display: grid; gap: 6px; }
+.check table.persons-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.check table.persons-table th, .check table.persons-table td { text-align: left; vertical-align: top; padding: 5px 10px 5px 0; border-top: 1px solid var(--line); }
+.check table.persons-table thead th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 12px; }
+.check table.persons-table tr.f-warning td { color: inherit; }
+.check table.persons-table tr.f-warning td:last-child { color: var(--warn); font-weight: 600; }
+@media print { .check table.persons-table { font-size: 9px; } .check table.persons-table th, .check table.persons-table td { padding: 2px 6px 2px 0; } }

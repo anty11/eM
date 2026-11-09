@@ -8,6 +8,25 @@ export const YOUNG = isoMonthsAgo(10);
 export const RECENT = isoMonthsAgo(3);
 export const BAD = "31318177";
 
+// Osoba v oboch subjektoch (test prepojení osôb): v GOOD býva v Bratislave, v BAD v Košiciach – menovci sa odlišujú bydliskom
+const JANKO = { formatedName: "Janko Mrkvička", givenNames: ["Janko"], familyNames: ["Mrkvička"] };
+const BRATISLAVA = { street: "Dunajská", buildingNumber: "5", municipality: { value: "Bratislava - mestská časť Staré Mesto" }, country: { value: "Slovenská republika", code: "703" } };
+const KOSICE = { street: "Hlavná", buildingNumber: "9", municipality: { value: "Košice - mestská časť Staré Mesto" }, country: { value: "Slovenská republika", code: "703" } };
+const NITRA = { street: "Štefánikova", buildingNumber: "1", municipality: { value: "Nitra" }, country: { value: "Slovenská republika", code: "703" } };
+/** Ďalšie firmy Janka Mrkvičku z Košíc (BAD): 501 v konkurze a dlžník SP, 502 zaniknutá; 503 je menovec z Nitry */
+const LINKED: Record<string, any> = {
+  501: { id: 501, identifiers: [{ value: "36000001" }], fullNames: [{ value: "MRKVA TRADE s.r.o., v konkurze", validFrom: "2018-01-01" }], establishment: "2018-01-01",
+    statutoryBodies: [{ stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: "2018-01-01", personName: JANKO, address: KOSICE }],
+    stakeholders: [{ stakeholderType: { value: "Spoločník" }, validFrom: "2018-01-01", personName: JANKO, address: KOSICE }],
+    otherLegalFacts: [{ value: "Uznesením Okresného súdu Košice I zo dňa 2.3.2026 bol vyhlásený konkurz na majetok dlžníka MRKVA TRADE s.r.o.", validFrom: "2026-03-02" }] },
+  502: { id: 502, identifiers: [{ value: "36000002" }], fullNames: [{ value: "ZANIK s.r.o.", validFrom: "2019-05-01" }], establishment: "2019-05-01", termination: "2024-05-01",
+    statutoryBodies: [], stakeholders: [{ stakeholderType: { value: "Spoločník" }, validFrom: "2019-05-01", validTo: "2024-05-01", personName: JANKO, address: KOSICE }],
+    otherLegalFacts: [{ value: "Spoločnosť zrušená likvidáciou a vymazaná z obchodného registra.", validFrom: "2024-05-01" }] },
+  503: { id: 503, identifiers: [{ value: "36000003" }], fullNames: [{ value: "NITRA MENOVEC s.r.o.", validFrom: "2020-01-01" }], establishment: "2020-01-01",
+    statutoryBodies: [{ stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: "2020-01-01", personName: JANKO, address: NITRA }], stakeholders: [] },
+};
+const stub = (e: any) => ({ id: e.id, identifiers: e.identifiers, fullNames: e.fullNames, establishment: e.establishment, termination: e.termination });
+
 const rpoEntity = (ico: string, bad: boolean) => ({
   id: bad ? 1 : 784628,
   identifiers: [{ value: ico, validFrom: "2013-01-09" }],
@@ -25,11 +44,11 @@ const rpoEntity = (ico: string, bad: boolean) => ({
   establishment: bad ? YOUNG : "2013-01-09",
   statutoryBodies: [
     { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: "2013-01-09", validTo: "2022-10-03", personName: { formatedName: "Ferko Mrkvička" } },
-    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: bad ? YOUNG : "2022-10-04", personName: { formatedName: "Janko Mrkvička" } },
+    { stakeholderType: { value: "Konateľ" }, statutoryBodyMember: { value: "Konateľ" }, validFrom: bad ? YOUNG : "2022-10-04", personName: JANKO, address: bad ? KOSICE : BRATISLAVA },
   ],
   stakeholders: [
     { stakeholderType: { value: "Spoločník" }, validFrom: "2013-01-09", validTo: "2024-01-15", personName: { formatedName: "Ferko Mrkvička" } },
-    { stakeholderType: { value: "Spoločník" }, validFrom: bad ? RECENT : "2024-01-16", personName: { formatedName: "Janko Mrkvička" } },
+    { stakeholderType: { value: "Spoločník" }, validFrom: bad ? RECENT : "2024-01-16", personName: JANKO, address: bad ? KOSICE : BRATISLAVA },
   ],
   activities: [
     { economicActivityDescription: "poskytovanie právnych služieb,", validFrom: "2013-01-09" },
@@ -72,6 +91,7 @@ function socpoistXlsx(): Buffer {
   for (let i = 0; i < 1500; i++) rows.push([`Firma ${i}`, String(40000000 + i), "Ulica 1", "Mesto", "10,00 €", "-"]);
   rows.push(["''C.C.C.'' s.r.o.", BAD, "Námestie Biely kríž 1110/1", "Bratislava", "5 933,27 €", "07/2026, 08/2026"]);
   rows.push(["Bez sumy s.r.o.", "40009999", "Ulica 2", "Mesto", "-", "08/2026"]);
+  rows.push(["MRKVA TRADE s.r.o.", "36000001", "Hlavná 9", "Košice", "1 200,00 €", "05/2026"]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), "Dlžníci");
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
@@ -92,7 +112,16 @@ globalThis.fetch = (async (input: any, init?: any) => {
   if (u.host === "api.statistics.sk") {
     // pomalé RPO (test, že ostatné zdroje naň nečakajú)
     if (process.env.MOCK_RPO_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.MOCK_RPO_DELAY_MS)));
+    // vyhľadávanie podľa osoby (prepojenia): štatutár Mrkvička → GOOD, BAD, 501, 503; spoločník → GOOD, BAD, 501, 502
+    if (url.includes("/search") && (u.searchParams.get("statutoryBodyFamilyName") || u.searchParams.get("stakeholderPersonFamilyName"))) {
+      const fam = (u.searchParams.get("statutoryBodyFamilyName") || u.searchParams.get("stakeholderPersonFamilyName") || "").toLowerCase();
+      if (!fam.includes("mrkvi")) return json({ results: [] });
+      const ids = u.searchParams.get("statutoryBodyFamilyName") ? [501, 503] : [501, 502];
+      return json({ results: [stub(rpoEntity(GOOD, false)), stub(rpoEntity(BAD, true)), ...ids.map((i) => stub(LINKED[i]))] });
+    }
     if (url.includes("/search")) return json({ results: icoParam === "00000000" ? [] : [rpoEntity(icoParam, icoParam === BAD)] });
+    const em = url.match(/entity\/(50[123])\?/);
+    if (em) return json(LINKED[em[1]]);
     return json(rpoEntity(bad ? BAD : GOOD, bad));
   }
   if (u.host === "www.registeruz.sk") {

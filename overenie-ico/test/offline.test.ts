@@ -58,6 +58,16 @@ async function main() {
   assert.deepEqual(r.profile.owners?.map((o) => o.name), ["Janko Mrkvička"]);
   const kf = (id: string) => r.keyFacts.find((f) => f.id === id)!;
   assert.match(kf("filed").answer, /^Áno – posledná závierka za rok 2025, uložená/);
+  // prepojenia osôb: Janko Mrkvička z Bratislavy – firmy menovca z Košíc a Nitry sa vylúčia podľa bydliska, nič sa nepenalizuje
+  assert.equal(by("persons").status, "ok", by("persons").summary);
+  assert.deepEqual(r.profile.statutory?.map((s) => [s.given, s.family, s.residence]), [["Janko", "Mrkvička", "Dunajská, Bratislava - mestská časť Staré Mesto"]]);
+  const pl = (by("persons").data as any).persons as any[];
+  assert.equal(pl.length, 1, "tá istá osoba ako štatutár aj spoločník sa preveruje raz");
+  assert.equal(pl[0].companies.length, 0);
+  assert.equal(pl[0].excluded, 4, "BAD (Košice), 501, 502 (Košice) a 503 (Nitra) sú menovci");
+  assert.match(by("persons").summary, /^1 osoba \(Janko Mrkvička\): žiadna ďalšia firma\./);
+  assert.match(searchLine(by("persons").search![0]), /podľa štatutár – meno a priezvisko „Janko Mrkvička“ – vrátil 4 záznamy, zhoda 0 \(v štatutárnom orgáne\)/);
+  assert.match(by("persons").verifyUrl || "", /hladaj_osoba\.asp\?PR=Mrkvi%C4%8Dka&MENO=Janko/);
   assert.equal(kf("dissolution").tone, "good");
   assert.match(kf("age").answer, /^13 rokov/);
   assert.equal(kf("vat").tone, "unknown"); // bez kľúča FS
@@ -149,6 +159,19 @@ async function main() {
   assert.equal(kb("ownership").tone, "warn", "zmena vlastníka pred menej ako 6 mesiacmi");
   assert.equal(kb("age").tone, "warn");
   console.log(r.keyFacts.map((f) => `  ${f.tone.padEnd(7)} ${f.question}: ${f.answer}`).join("\n"));
+  // prepojenia osôb: Janko Mrkvička z Košíc má MRKVA TRADE (konkurz, dlžník SP) a zaniknutú ZANIK; GOOD a 503 sú menovci
+  const pb = by("persons");
+  assert.equal(pb.status, "warning", pb.summary);
+  const pbl = (pb.data as any).persons[0];
+  assert.deepEqual(pbl.companies.map((c: any) => [c.name, c.verified, c.risky, c.flags]), [
+    ["MRKVA TRADE s.r.o., v konkurze", true, true, ["konkurz", "dlžník Sociálnej poisťovne (1 200,00 €)"]],
+    ["ZANIK s.r.o.", true, false, ["zanikla 1. 5. 2024"]],
+  ]);
+  assert.equal(pbl.excluded, 2);
+  assert.ok(pb.findings.some((f) => f.severity === "warning" && /v konkurze \/ reštrukturalizácii: MRKVA TRADE s\.r\.o\., v konkurze \(IČO 36000001\) – Janko Mrkvička, Konateľ/.test(f.text) && f.penalty === 12), JSON.stringify(pb.findings));
+  assert.ok(pb.findings.some((f) => f.severity === "warning" && /s dlhom: MRKVA TRADE.*dlžník Sociálnej poisťovne \(1 200,00 €\)/.test(f.text) && f.penalty === 10));
+  assert.ok(pb.findings.some((f) => f.severity === "info" && /Zaniknuté firmy osôb za posledných 5 rokov: ZANIK s\.r\.o\. \(1\. 5\. 2024\)/.test(f.text)));
+  assert.match(pb.summary, /2 firmy mimo preverovaného subjektu – 1 s aktuálnou funkciou, 1 zaniknutých; rizikové: 1 \(konkurz, dlžník Sociálnej poisťovne \(1 200,00 €\)\)\./);
 
   // 4) Manuálne zistený záznam (Dôvera – dlžník) zmení verdikt dobrého subjektu; CRE je zaparkované a v preverení nie je
   process.env.FS_API_KEY = "TEST";

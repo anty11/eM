@@ -642,6 +642,17 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.31** – Nový zdroj **Prepojenia osôb – ďalšie firmy štatutárov a spoločníkov** (`persons`, kategória Obchodný register):
+  API RPO sa prehľadá podľa mena a priezviska každého aktuálneho štatutára, spoločníka (FO) a bývalého štatutára do 3 rokov
+  (parametre `statutoryBody…` / `stakeholderPerson…`), pri každej nájdenej firme sa načíta výpis a osoba sa uzná len pri zhode
+  mena, priezviska a obce bydliska (menovci s iným bydliskom sa vylúčia; bez bydliska „zhoda len podľa mena“ bez vplyvu na skóre).
+  Pri prepojených firmách sa zisťuje zánik, likvidácia / konanie o zrušení, konkurz a reštrukturalizácia, exekúcia v zápise,
+  dlh voči SP (index), zrušená DPH (denný index exportov FS) a daňový dlh (jeden dopyt podľa názvu). Nálezy sú upozornenia
+  (konkurz −12, dlh −10, likvidácia −8, zrušená DPH −8, exekúcia −6, 3+ zaniknuté firmy za 5 rokov −8), tabuľka prepojení pri
+  kontrole aj v protokole, nová kľúčová otázka „Majú štatutári a spoločníci ďalšie firmy s negatívnym záznamom?“, položka
+  v diagnostike. Profil osôb z RPO nesie `given`, `family`, `residence` (aj pre ďalšie zdroje). Výpisy iných firiem sa ukladajú
+  odľahčené na deň (`rpo:slim:{id}`), aby opakované preverenia register nezaťažovali. Limit zdroja 45 s. Upozornenie: parametre
+  vyhľadávania podľa osoby sú podľa dokumentácie RPO API (rpo.minv.sk) – prvé overenie na produkcii cez Diagnostika → „Prepojenia osôb“.
 - **v2.11.30** – Z preverenia odstránené odkazy na FinStat, FOAF a Index podnikateľa (pozostatok z čias, keď aplikácia overovala
   menej; protokolu uberali na váhe). Pri Médiách ostávajú Google a „Google – negatívne výrazy“ (vyhľadávače server často blokujú);
   Centrálny register zmlúv je uvedený pri RPVS (verejný sektor).

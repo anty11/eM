@@ -14,18 +14,20 @@ import { checkOvViaBrowser, ovSearchLog, PUBLIC_QUERY_IDS, queryPublicRegister }
 import { kv } from "./auth/kv";
 import { checkNews } from "./sources/news";
 import { checkRpo } from "./sources/rpo";
+import { checkPersons } from "./sources/persons";
 import { checkRpvs } from "./sources/rpvs";
 import { checkRuz } from "./sources/ruz";
 import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.30";
+export const APP_VERSION = "2.11.31";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
 /** Dlhší limit pre zdroje, ktoré idú cez prehliadač na serveri (spotrebné dane na webe FS) – v rámci limitu registrov bez API (55 s). */
-const DEADLINE_BY_ID: Record<string, number> = { "fs-excise": 50000 };
+/** Prepojenia osôb čakajú na RPO (až 25 s) a potom robia desiatky dopytov do RPO – vlastný limit. */
+const DEADLINE_BY_ID: Record<string, number> = { "fs-excise": 50000, persons: 45000 };
 /** Len informačné zdroje: po limite „informácia – nepodarilo sa overiť“, nie chyba (neobjavia sa v zozname na manuálne overenie). */
 const INFO_ONLY_IDS = ["fs-excise"];
 /** Registre bez API (vrátane dopytu cez prehliadač na serveri – spustenie Chromia a hľadanie trvá 5 – 15 s) majú vlastný, dlhší limit. */
@@ -169,6 +171,7 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
   const manualP = resolveManual({ ...ctx, rpoDone: nameReady } as Ctx, (c) => onProgress?.(c, ctx.profile), fresh, manualDone);
   const allP = Promise.all([
     cap("rpo", rpoCapped),
+    cap("persons", run("persons", checkPersons)),
     cap("ruz", ruzP),
     cap("fs-debtors", after("fs-debtors", checkTaxDebtors)),
     cap("fs-vat", after("fs-vat", checkVat)),
@@ -204,7 +207,7 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
       notFound: true,
     };
   }
-  const [rpo, ruz, debtors, vat, ids, incomeTax, excise, socpoist, insolvency, rpvs, news] = await allP;
+  const [rpo, persons, ruz, debtors, vat, ids, incomeTax, excise, socpoist, insolvency, rpvs, news] = await allP;
   nameFallback();
 
   const manual = await Promise.race([
@@ -215,7 +218,7 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
       ),
     ),
   ]);
-  const checks: CheckResult[] = [rpo, debtors, vat, ids, incomeTax, excise, socpoist, ruz, insolvency, rpvs, news, ...manual];
+  const checks: CheckResult[] = [rpo, persons, debtors, vat, ids, incomeTax, excise, socpoist, ruz, insolvency, rpvs, news, ...manual];
   if (!icoChecksumValid(ico))
     rpo.findings.push({ severity: "info", text: "IČO nespĺňa kontrolný súčet (môže ísť o historické IČO) – overte správnosť", penalty: 0 });
 
@@ -318,6 +321,7 @@ export async function resolveManual(ctx: Ctx, onProgress?: (c: CheckResult) => v
 
 const RUNNERS: Record<string, (c: Ctx) => Promise<CheckResult>> = {
   rpo: checkRpo,
+  persons: checkPersons,
   ruz: checkRuz,
   "fs-debtors": checkTaxDebtors,
   "fs-vat": checkVat,

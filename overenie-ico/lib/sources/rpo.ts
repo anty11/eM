@@ -120,6 +120,22 @@ export function legalFactFindings(facts: string[], via?: string): Finding[] {
   return f;
 }
 
+/**
+ * Identifikačné údaje osoby zo zápisu RPO (štatutár / spoločník): meno a priezvisko zvlášť, bydlisko (obec a ulica) a príznak,
+ * že ide o právnickú osobu. Slúžia na hľadanie ďalších firiem tej istej osoby a na odlíšenie menovcov podľa bydliska.
+ */
+export function personIdent(s: any): { given?: string; family?: string; residence?: string; entity?: boolean } {
+  const pn = s?.personName;
+  const given = (pn?.givenNames || []).filter(Boolean).join(" ") || undefined;
+  const family = (pn?.familyNames || []).filter(Boolean).join(" ") || undefined;
+  const a = s?.address || (Array.isArray(s?.addresses) ? current(s.addresses)[0] || s.addresses[0] : undefined);
+  const residence = a ? [a.street, a.municipality?.value].filter(Boolean).join(", ") || a.formatedAddress || undefined : undefined;
+  const entity = !pn && Boolean(s?.identifier || s?.fullName || s?.fullNames?.length);
+  return { ...(given ? { given } : {}), ...(family ? { family } : {}), ...(residence ? { residence } : {}), ...(entity ? { entity: true } : {}) };
+}
+
+export const RPO_BASE = BASE;
+
 function fmtAddress(a: any): string {
   if (!a) return "";
   const street = [a.street, [a.regNumber || null, a.buildingNumber].filter(Boolean).join("/")].filter(Boolean).join(" ");
@@ -233,19 +249,20 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
       const name = current(names)[0]?.value || names[names.length - 1]?.value;
       const addr = current(e.addresses)[0] || (e.addresses || [])[0];
       const legalForm = current(e.legalForms)[0]?.value?.value;
-      const statutory = current(e.statutoryBodies).map((s: any) => ({
-        name: s.personName?.formatedName || s.fullName || s.fullNames?.[0]?.value || [s.personName?.givenNames, s.personName?.familyNames].flat().filter(Boolean).join(" "),
-        role: s.statutoryBodyMember?.value || s.stakeholderType?.value || "štatutár",
-        since: s.validFrom,
-      }));
-      const equity = current(e.equities).find((q: any) => typeof q.value === "number")?.value;
       const personName = (s: any) =>
         s.personName?.formatedName || s.fullName || s.fullNames?.[0]?.value || [s.personName?.givenNames, s.personName?.familyNames].flat().filter(Boolean).join(" ");
+      const statutory = current(e.statutoryBodies).map((s: any) => ({
+        name: personName(s),
+        role: s.statutoryBodyMember?.value || s.stakeholderType?.value || "štatutár",
+        since: s.validFrom,
+        ...personIdent(s),
+      }));
+      const equity = current(e.equities).find((q: any) => typeof q.value === "number")?.value;
       // bývalí štatutári za posledné 3 roky (nie tí, čo sú stále v orgáne pod iným zápisom)
       const currentNames = new Set(statutory.map((s) => fold(s.name || "")));
       const formerStatutory = (e.statutoryBodies || [])
         .filter((s: any) => s.validTo && yearsSince(s.validTo) < 3 && personName(s) && !currentNames.has(fold(personName(s))))
-        .map((s: any) => ({ name: personName(s), role: s.statutoryBodyMember?.value || s.stakeholderType?.value || "štatutár", since: s.validFrom, until: s.validTo }))
+        .map((s: any) => ({ name: personName(s), role: s.statutoryBodyMember?.value || s.stakeholderType?.value || "štatutár", since: s.validFrom, until: s.validTo, ...personIdent(s) }))
         .filter((s: any, i: number, arr: any[]) => arr.findIndex((x) => fold(x.name) === fold(s.name)) === i)
         .slice(0, 8);
 
@@ -265,7 +282,7 @@ async function checkRpoInner(ctx: Ctx): Promise<CheckResult> {
         const c = a?.country;
         return c ? String(c.value || c.name || "") : undefined;
       };
-      const owners = current(ownerRows).map((s: any) => ({ name: personName(s), role: s.stakeholderType?.value || "spoločník", since: s.validFrom, country: countryOf(s) }));
+      const owners = current(ownerRows).map((s: any) => ({ name: personName(s), role: s.stakeholderType?.value || "spoločník", since: s.validFrom, country: countryOf(s), ...personIdent(s) }));
       /**
        * Skutočné zmeny osôb (nie aktualizácie zápisu): dátum, ku ktorému sa zmenila množina mien.
        * Register zapisuje novú položku aj pri zmene adresy či funkcie tej istej osoby a pri opätovnom zvolení člena orgánu –
