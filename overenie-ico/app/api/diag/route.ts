@@ -40,7 +40,6 @@ const RAW_URLS: Record<string, (ico: string) => string[]> = {
   "fs-vat": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_dphs`, `https://iz.opendata.financnasprava.sk/api/data/ds_dphs/search?page=1&column=ico&search=${ico}`],
   "fs-ids": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_ids`, `https://iz.opendata.financnasprava.sk/api/data/ds_ids/search?page=1&column=ico&search=${ico}`],
   "fs-dppo": (ico) => [`https://iz.opendata.financnasprava.sk/api/lists/ds_dppo`],
-  "fs-excise": () => [`https://iz.opendata.financnasprava.sk/api/lists`],
   exek: () => [`https://obcan.justice.sk/pilot/poverenia/`],
   socpoist: () => ["https://www.socpoist.sk/nastroje-sluzby/zoznam-dlznikov"],
   insolvency: (ico) => [`https://replik.justice.sk/ru-verejnost-web/pages/searchKonanie.xhtml?query=${ico}`],
@@ -226,13 +225,13 @@ export const GET = handler(async (req) => {
       if (sourceRaw === "fs-exports-build" || p.get("build") === "1") {
         result.build = await buildFsExports().then((m) => m, (e) => ({ error: (e as Error).message }));
       } else {
-        // len náhľad štruktúry menšieho exportu (spotrebné dane) – značka riadku, polia, 2 riadky
+        // len náhľad štruktúry exportu platiteľov DPH – značka riadku, polia, 2 riadky (export má ~13 MB, číta sa celý)
         try {
-          const ex = await downloadExport(FS_EXPORT.excise);
+          const ex = await downloadExport(FS_EXPORT.vat);
           const p = parseXmlRows(ex.text, 50);
-          result.excisePreview = { file: ex.name, bytes: ex.bytes, rowTag: p.rowTag, fields: p.fields, rows: p.rows.slice(0, 2), head: ex.text.slice(0, 600) };
+          result.vatPreview = { file: ex.name, bytes: ex.bytes, rowTag: p.rowTag, fields: p.fields, rows: p.rows.slice(0, 2), head: ex.text.slice(0, 600) };
         } catch (e) {
-          result.excisePreview = { error: (e as Error).message };
+          result.vatPreview = { error: (e as Error).message };
         }
       }
       result.ms = Date.now() - t0;
@@ -270,7 +269,7 @@ export const GET = handler(async (req) => {
       if (source !== "rpo") {
         const r = await runOne(ico, "rpo", {});
         if (r) Object.assign(profile, r.profile);
-        if (["fs-debtors", "fs-vat", "fs-ids", "fs-dppo", "fs-excise"].includes(source)) {
+        if (["fs-debtors", "fs-vat", "fs-ids", "fs-dppo"].includes(source)) {
           const z = await runOne(ico, "ruz", profile as any).catch(() => null);
           if (z?.profile?.dic) profile.dic = z.profile.dic;
         }

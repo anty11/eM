@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.31** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.32** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -206,7 +206,6 @@ zdrojoch – nič neoverené nesmie vyzerať ako „bezpečný partner“.
 | `fs-vat` | DPH a dôvody na zrušenie | FS OpenData (IČ DPH, `ds_dphz`, IBAN zoznam) | `icDph`; `data.row` | dôvody na zrušenie −35 | offline + denný index exportu `ds_dphs.zip` (`fsexports.ts`): dátum/druh registrácie a **história zrušení** – subjekt, ktorý v snímke z predchádzajúceho dňa bol a dnes nie je, dostane okno zániku registrácie (Redis `fsx:vat:gone`); FS archív zoznamu nevedie, história sa buduje od spustenia úlohy |
 | `fs-ids` | Index daňovej spoľahlivosti | FS OpenData `ds_iz_ran` | `data.row.hodnotenie` | menej spoľahlivý −20 | offline |
 | `fs-dppo` | Daňové priznanie PO | FS OpenData `ds_dppos` (len subjekty s nenulovou daňou); keď subjekt v zozname nie je, podanie podľa Registra účtovných závierok (`ctx.ruzDone`: posledná uložená závierka – ukladá sa s priznaním; riadok „Daň z príjmov“ výkazu ziskov a strát = `metrics.incomeTax`) | `data.filed, year, tax, via (ruz)` | závierka za očakávaný rok chýba – upozornenie (bez postihu, postih dáva RÚZ) | offline |
-| `fs-excise` | Registrácia pre spotrebné dane | 1. denný index z exportu FS `cis_spds.zip` (`lib/sources/fsexports.ts`, cron `/api/cron/fs-exports` 05:10, Redis `fsx:excise` IČO → druh dane – druh subjektu – od); 2. bez indexu: OpenData API (zoznam neponúka) → stránka zoznamu na webe FS prehliadačom (`fsListFlow`) | `data.registered, rows (druh dane, druh subjektu, dátum registrácie)` | len informácia, bez vplyvu na hodnotenie; výsledok sa ukladá do pamäte (`data.definitive`) | offline |
 | `socpoist` | Dlžníci Sociálnej poisťovne | index v Redise z exportu (cron 04:20) | `data.row, amount, preparing` | dlžník −35 kritické | offline |
 | `insolvency` | REPLIK | HTML vyhľadávanie konaní | `data.proceedings[], dissolution, asOf` | prebiehajúce konanie – kritické, minulé −8 | offline, retro |
 | `rpvs` | RPVS | OData v2 | `data.kuv[], partnerId, cisloVlozky, deleted` | informatívne / pozitívne | offline |
@@ -352,7 +351,7 @@ flowchart LR
 | `retro.test.ts` | spätné preverenie k dátumu |
 | `public.test.ts` | rozpoznávanie VšZP, Union, ÚVO, OV (tabuľky, hlásenia) |
 | `ovflow.test.ts` | OV v prehliadači: len IČO (bez prepínača dátumov / AutoPostBack), 100 na stranu, nález na 2. strane, hranica 3 rokov podľa dátumov v riadkoch, staré oznámenie |
-| `fsexports.test.ts` | exporty FS (ZIP+XML): parser riadkov bez schémy, denný index platiteľov DPH, história zrušení (okno dní), spotrebné dane |
+| `fsexports.test.ts` | exporty FS (ZIP+XML): parser riadkov bez schémy, denný index platiteľov DPH, história zrušení (okno dní) |
 | `browserpool.test.ts` | prehliadače v jednej inštancii: limit súbežnosti, čakanie, uvoľnenie slotu |
 | `loadtest.test.ts` | záťažová skúška: percentily, štatistika zdrojov, rozpoznanie obmedzovania (403/429/časový limit) |
 | `diskv.test.ts` | Register diskvalifikácií cez API: tvar odpovede, zistenie parametra vyhľadávania, dopyt podľa IČO a priezvisk (bez sťahovania registra), mená s titulmi, bývalí štatutári a spoločníci, verdikty |
@@ -406,7 +405,7 @@ s IČO, stránkovanie, dátumový rozsah, neaktívne polia a prepínače, „nev
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | Vercel | OpenAI |
 | `AI_PROVIDER`, `AI_MODEL`, `AI_SPEED`, `AI_AUTO_FALLBACK`, `AI_NO_API_SOURCES`, `AI_ALLOW_ADMIN_KEY` | Vercel / Administrácia | východiskové voľby AI; administrácia má prednosť |
 | `TYPESAFE_API_KEY`, `TYPESAFE_MODEL`, `TYPESAFE_BASE_URL` | Vercel / Administrácia | Jev |
-| `BROWSER_DISABLED`, `BROWSER_WS_ENDPOINT`, `CHROMIUM_PATH`, `BROWSER_MAX_PER_INSTANCE` | Vercel / lokálne | prehliadač: vypnúť, vzdialený (CDP), lokálny; najviac N prehliadačov naraz v jednej inštancii (predvolene 4 – toľko behov má jedno preverenie: OV, Union, exekúcie, spotrebné dane; ďalšie čakajú) |
+| `BROWSER_DISABLED`, `BROWSER_WS_ENDPOINT`, `CHROMIUM_PATH`, `BROWSER_MAX_PER_INSTANCE` | Vercel / lokálne | prehliadač: vypnúť, vzdialený (CDP), lokálny; najviac N prehliadačov naraz v jednej inštancii (predvolene 4 – jedno preverenie má 3 behy: OV, Union, exekúcie; ďalšie čakajú) |
 | `REGISTRY_PROXY_URL`, `REGISTRY_PROXY_DOMAINS` | Vercel / Administrácia | proxy pre blokované registre |
 | `OV_EXPORT_URL`, `OV_USER`, `OV_PASSWORD` | Vercel / Administrácia | export Obchodného vestníka |
 | `CHECK_CACHE_MIN` | Vercel | pamäť výsledkov (predvolene vypnutá) |

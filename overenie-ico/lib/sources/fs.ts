@@ -17,7 +17,6 @@ export const FS_LIST_URL = {
   vatDeleted: `${ZOZNAMY}/detail/_c7c3ebc0-a880-4289-82b3-a3d100ece6b6`,
   ids: `${ZOZNAMY}/detail/_3ae2281c-3b96-40d9-86c3-af1d00cfb1df`,
   incomeTax: `${ZOZNAMY}/detail/_b8ef7dea-48c9-4dfd-880b-a90e00e611f0`,
-  excise: `${ZOZNAMY}/detail/_c8ed25c8-8593-40ac-a233-a275008a12f9`,
   bankAccounts: `${ZOZNAMY}/detail/_3a11bae5-4c60-46fd-b57e-ae0700a98ee7`,
 } as const;
 
@@ -76,8 +75,6 @@ const DATASETS = {
   vatDeleted: { slugs: ["ds_dphv"], re: /vymazan\S* .*dph/i },
   ids: { slugs: ["ds_iz_ran", "ds_ids", "ds_idsp", "ds_indexds"], re: /spo[lľ]ahliv/i },
   incomeTax: { slugs: ["ds_dppos", "ds_dppo", "ds_vdppo", "ds_dpppo"], re: /(vysk\S* dane|dan\S* z prijmov).*(pravnick|po\b)|pravnick\S* osob\S* .*dan/i },
-  /** Zoznam daňových subjektov registrovaných pre spotrebné dane (§ 52 ods. 5 daňového poriadku) – len informácia */
-  excise: { slugs: ["ds_sd", "ds_spd", "ds_sdr", "ds_spotrebne", "ds_spd_reg", "ds_rspd"], re: /spotrebn|\bspd\b|spotreb\S* da[nň]/i },
   /** Zoznam platiteľov DPH s číslami bankových účtov oznámených FS (§ 6 ods. 6 ZDPH) – platba na neoznámený účet zakladá ručenie (§ 69 ods. 13 písm. c)). */
   bankAccounts: { slugs: ["ds_dph_iban", "ds_dphbu", "ds_bu", "ds_dphucty", "ds_ucty"], re: /bankov\S* [uú][cč]t|cisl\S* [uú][cč]t/i },
 } as const;
@@ -613,56 +610,8 @@ export async function checkIncomeTax(ctx: Ctx): Promise<CheckResult> {
   });
 }
 
-/** Registrácia pre spotrebné dane (§ 52 ods. 5 daňového poriadku) – len informácia: druh dane, typ subjektu, dátum registrácie. */
-export async function checkExcise(ctx: Ctx): Promise<CheckResult> {
-  const m = meta("fs-excise", "Registrácia pre spotrebné dane (informácia)");
-  if (!key()) return noKey(m, "Registrácia pre spotrebné dane");
-  return runCheck(m, async () => {
-    // 1) denný index z exportu FS (cis_spds.zip) – bez prehliadača
-    const idx = await exciseByIco(ctx.ico).catch(() => null);
-    if (idx) {
-      const log = { dataset: "Finančná správa – export zoznamu registrovaných pre spotrebné dane (cis_spds.zip), denný index", total: idx.meta.exciseCount, asOf: idx.meta.date.split("-").reverse().join(". "), queries: [sq("IČO", ctx.ico, idx.lines.length, idx.lines.length, FS_LIST_URL.excise, "priame vyhľadanie v indexe exportu")], rule: "záznam s IČO subjektu v zozname registrovaných pre spotrebné dane (§ 52 ods. 5 daňového poriadku)" };
-      if (!idx.lines.length) return { status: "info", summary: `Subjekt nie je registrovaný pre spotrebné dane (export zoznamu FS, stav k ${log.asOf}).`, findings: [], verifyUrl: FS_LIST_URL.excise, data: { registered: false, via: "export", definitive: true }, search: [log] };
-      return { status: "info", summary: `Registrovaný pre spotrebné dane (${idx.lines.length}×): ${idx.lines.slice(0, 5).join("; ")}. Informácia – bez vplyvu na hodnotenie (export zoznamu FS, stav k ${log.asOf}).`, findings: [{ severity: "info", text: `Registrácia pre spotrebné dane: ${idx.lines.slice(0, 3).join("; ")}`, penalty: 0 }], verifyUrl: FS_LIST_URL.excise, data: { registered: true, rows: idx.lines, via: "export", definitive: true }, search: [log] };
-    }
-    const slug = await resolve("excise");
-    if (!slug) {
-      // OpenData API tento zoznam neponúka (10/2026: 10 zoznamov, žiadny o spotrebných daniach) → zoznam na webe FS cez prehliadač na serveri
-      const names = await lists().catch(() => [] as Ds[]);
-      const apiLog = { dataset: "Finančná správa – OpenData, prehľad zoznamov (/lists)", total: names.length, queries: [sq("názvu zoznamu", "spotrebné dane / SPD", names.length, 0, `${API}/lists`, `žiadny zoznam s takým názvom – dostupné: ${names.map((n) => n.slug).join(", ")}`)], rule: "zoznam, ktorého názov obsahuje „spotrebn“ alebo „SPD“" };
-      if (process.env.BROWSER_DISABLED !== "1") {
-        const { browserFlow } = await import("./public");
-        const r = await browserFlow("fs-excise", ctx.ico);
-        const webLog = { dataset: "Finančná správa – web, Zoznam daňových subjektov registrovaných pre spotrebné dane (filter IČO)", queries: [sq("IČO", ctx.ico, r.searched?.returned ?? null, r.searched?.matched ?? 0, FS_LIST_URL.excise, `prehliadač na serveri${r.searched?.note ? `: ${r.searched.note}` : ""}${r.error ? `; chyba: ${r.error.slice(0, 120)}` : ""}`)], rule: "riadok zoznamu s IČO subjektu; „nie je registrovaný“ len pri hlásení o prázdnom výsledku" };
-        if (r.verdict === "found")
-          return { status: "info", summary: `Registrovaný pre spotrebné dane (${r.rows.length}×): ${r.rows.slice(0, 3).join("; ")}. Informácia – bez vplyvu na hodnotenie.`, findings: [{ severity: "info", text: `Registrácia pre spotrebné dane: ${r.rows[0]}`, penalty: 0 }], verifyUrl: FS_LIST_URL.excise, data: { registered: true, rows: r.rows, via: "browser", definitive: true }, search: [apiLog, webLog] };
-        if (r.verdict === "clean") return { status: "info", summary: "Subjekt nie je registrovaný pre spotrebné dane (zoznam FS podľa § 52 ods. 5 daňového poriadku, overené na webe FS).", findings: [], verifyUrl: FS_LIST_URL.excise, data: { registered: false, via: "browser", definitive: true }, search: [apiLog, webLog] };
-        return { ...notPublished("Registrácia pre spotrebné dane"), summary: `Registrácia pre spotrebné dane: OpenData API zoznam neponúka a stránku FS sa nepodarilo prečítať (${r.error || r.searched?.note || "výsledok sa nedal vyhodnotiť"}). Overte v zozname na stránke Finančnej správy (odkaz).`, verifyUrl: FS_LIST_URL.excise, search: [apiLog, webLog] };
-      }
-      return { ...notPublished("Registrácia pre spotrebné dane"), verifyUrl: FS_LIST_URL.excise, search: [apiLog] };
-    }
-    const rows = await search(slug, ctx);
-    if (!rows.length)
-      return { status: "info", summary: "Subjekt nie je registrovaný pre spotrebné dane (zoznam FS podľa § 52 ods. 5 daňového poriadku).", findings: [], verifyUrl: FS_LIST_URL.excise, data: { slug, registered: false, definitive: true }, search: rows.log ? [rows.log] : undefined };
-    const kinds = rows.map((r) => {
-      const kind = pick(r, /^druh_?dane$|^druh dane$|^dan$/) ?? pick(r, /druh_?dan/);
-      const type = pick(r, /druh_?danov\w*_?subj|typ_?subj|druh_?subj|^typ$/);
-      const since = pick(r, /^datum/);
-      return [kind, type, since ? `od ${since}` : ""].filter(Boolean).join(" – ");
-    });
-    return {
-      status: "info",
-      summary: `Registrovaný pre spotrebné dane (${rows.length}×): ${[...new Set(kinds)].slice(0, 5).join("; ")}. Informácia – bez vplyvu na hodnotenie.`,
-      findings: [{ severity: "info", text: `Registrácia pre spotrebné dane: ${[...new Set(kinds)].slice(0, 3).join("; ")}`, penalty: 0 }],
-      verifyUrl: FS_LIST_URL.excise,
-      data: { slug, registered: true, rows: rows.slice(0, 5), definitive: true },
-      search: rows.log ? [rows.log] : undefined,
-    };
-  });
-}
-
 import { normalizeIban, type BankAccountResult } from "../deal";
-import { exciseByIco, vatHistory } from "./fsexports";
+import { vatHistory } from "./fsexports";
 
 /**
  * Overí, či je účet partnera v zozname bankových účtov platiteľov DPH oznámených Finančnej správe.

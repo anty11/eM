@@ -642,6 +642,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.32** – Zdroj **Registrácia pre spotrebné dane** (`fs-excise`) odstránený z preverenia na pokyn používateľa (len informačný
+  údaj, bez vplyvu na hodnotenie; bral čas a prehliadač). Odstránený aj index `fsx:excise` z nočnej úlohy exportov FS (sťahuje sa už
+  len zoznam platiteľov DPH), skript prehliadača `fsListFlow`, položky v diagnostike a záznamoch. Preverenie má 18 zdrojov.
 - **v2.11.31** – Nový zdroj **Prepojenia osôb – ďalšie firmy štatutárov a spoločníkov** (`persons`, kategória Obchodný register):
   API RPO sa prehľadá podľa mena a priezviska každého aktuálneho štatutára, spoločníka (FO) a bývalého štatutára do 3 rokov
   (parametre `statutoryBody…` / `stakeholderPerson…`), pri každej nájdenej firme sa načíta výpis a osoba sa uzná len pri zhode

@@ -6,34 +6,29 @@ import { kv } from "../auth/kv";
  * Exporty informačných zoznamov Finančnej správy (https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy/
  * exporty-z-online-informacnych, ZIP s XML, „pravidelne aktualizované“, len aktuálny stav – archív FS nemá):
  *  - ds_dphs.zip  Zoznam daňových subjektov registrovaných pre DPH (~13 MB)
- *  - cis_spds.zip Zoznam daňových subjektov registrovaných pre spotrebné dane (~220 KB) – OpenData API tento zoznam neponúka
  *
- * Nočná úloha (/api/cron/fs-exports) z nich postaví index v Redise:
+ * Nočná úloha (/api/cron/fs-exports) z neho postaví index v Redise:
  *  - `fsx:vat:cur`   hash IČO → „IČ DPH|dátum registrácie|druh“ (aktuálny zoznam platiteľov) + množina IČO ako gzip (`fsx:vat:set`)
  *  - `fsx:vat:gone`  hash IČO → „naposledy v zozname|prvýkrát chýba|IČ DPH|druh“ – HISTÓRIA ZRUŠENÍ: subjekt, ktorý včera v zozname bol
  *                    a dnes nie je, dostane okno zániku registrácie s presnosťou na deň (od spustenia úlohy; FS archív nevedie,
  *                    preto sa história buduje dopredu). Vymazaní z úradnej moci (§ 52 ods. 8) majú presný dátum v `ds_dphv` (OpenData).
- *  - `fsx:excise`    hash IČO → „druh dane – druh subjektu – od dátum; …“ (registrácie pre spotrebné dane)
- *  - `fsx:meta`      { at, vatCount, exciseCount, vatRowTag, vatFields, exciseFields, goneAdded } – diagnostika a stav dát v protokole
+ *  - `fsx:meta`      { at, vatCount, vatRowTag, vatFields, goneAdded } – diagnostika a stav dát v protokole
+ * (Registrácia pre spotrebné dane – cis_spds.zip – sa od v2.11.32 nespracúva: zdroj bol z preverenia odstránený.)
  */
 export const FS_EXPORT = {
   vat: "https://report.financnasprava.sk/ds_dphs.zip",
-  excise: "https://report.financnasprava.sk/cis_spds.zip",
 };
 const KEY_CUR = "fsx:vat:cur";
 const KEY_SET = "fsx:vat:set";
 const KEY_GONE = "fsx:vat:gone";
-const KEY_EXCISE = "fsx:excise";
 const KEY_META = "fsx:meta";
 
 export interface FsxMeta {
   at: string;
   date: string;
   vatCount: number;
-  exciseCount: number;
   vatRowTag?: string;
   vatFields?: string[];
-  exciseFields?: string[];
   goneAdded?: number;
   goneTotal?: number;
   firstSnapshot?: string;
@@ -125,11 +120,11 @@ async function hsetChunked(key: string, entries: [string, string][]) {
   for (let i = 0; i < entries.length; i += 4000) await kv().hset(key, Object.fromEntries(entries.slice(i, i + 4000)));
 }
 
-/** Nočná obnova: stiahne oba exporty, prepíše aktuálne indexy a doplní históriu zrušení DPH. */
+/** Nočná obnova: stiahne export platiteľov DPH, prepíše aktuálny index a doplní históriu zrušení. */
 export async function buildFsExports(): Promise<FsxMeta> {
   const today = new Date().toISOString().slice(0, 10);
   const prevMeta = await kv().get<FsxMeta>(KEY_META).catch(() => null);
-  const meta: FsxMeta = { at: new Date().toISOString(), date: today, vatCount: 0, exciseCount: 0, firstSnapshot: prevMeta?.firstSnapshot || today, goneTotal: prevMeta?.goneTotal || 0 };
+  const meta: FsxMeta = { at: new Date().toISOString(), date: today, vatCount: 0, firstSnapshot: prevMeta?.firstSnapshot || today, goneTotal: prevMeta?.goneTotal || 0 };
   if ((await kv().incr("fsx:lock", 900)) !== 1) throw new Error("obnova už beží");
   try {
     // 1) platitelia DPH
@@ -170,30 +165,6 @@ export async function buildFsExports(): Promise<FsxMeta> {
     await hsetChunked(tmp, [...cur.entries()]);
     await kv().rename(tmp, KEY_CUR);
     await saveSet(KEY_SET, [...cur.keys()]);
-    // 4) spotrebné dane
-    try {
-      const ex = await downloadExport(FS_EXPORT.excise);
-      const p2 = parseXmlRows(ex.text);
-      meta.exciseFields = p2.fields.slice(0, 20);
-      const byIco = new Map<string, string[]>();
-      for (const r of p2.rows) {
-        const ico = icoOf(r);
-        if (!ico) continue;
-        const kind = pick(r, /^druh_?dane$|druh dane|^dan$/) || pick(r, /druh_?dan/) || "";
-        const type = pick(r, /druh_?danov\w*_?subj|typ_?subj|druh_?subj|^typ$/) || "";
-        const since = isoDate(pick(r, /^datum/));
-        const line = [kind, type, since ? `od ${since.split("-").reverse().join(".")}` : ""].filter(Boolean).join(" – ");
-        byIco.set(ico, [...(byIco.get(ico) || []), line]);
-      }
-      const tmpE = `${KEY_EXCISE}:${Date.now()}`;
-      await hsetChunked(tmpE, [...byIco.entries()].map(([k, v]) => [k, [...new Set(v)].join("; ")]));
-      if (byIco.size) {
-        await kv().rename(tmpE, KEY_EXCISE);
-        meta.exciseCount = byIco.size;
-      }
-    } catch (e) {
-      meta.error = `spotrebné dane: ${(e as Error).message.slice(0, 200)}`;
-    }
     await kv().set(KEY_META, meta);
     return meta;
   } finally {
@@ -220,12 +191,4 @@ export async function vatHistory(ico: string): Promise<{ meta: FsxMeta | null; c
     out.gone = { lastSeen, firstMissing, icDph, kind };
   }
   return out;
-}
-
-/** Registrácie pre spotrebné dane podľa denného indexu; null = index ešte nie je. */
-export async function exciseByIco(ico: string): Promise<{ meta: FsxMeta; lines: string[] } | null> {
-  const meta = await fsExportsMeta();
-  if (!meta?.exciseCount) return null;
-  const v = await kv().hget(KEY_EXCISE, ico).catch(() => null);
-  return { meta, lines: v ? v.split("; ").filter(Boolean) : [] };
 }

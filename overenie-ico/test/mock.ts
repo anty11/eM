@@ -147,14 +147,13 @@ globalThis.fetch = (async (input: any, init?: any) => {
           L("ds_dphz", "Zoznam platiteľov DPH, u ktorých nastali dôvody na zrušenie registrácie", ["ic_dph"]),
           L("ds_ids", "Index daňovej spoľahlivosti", ["ico"]),
           L("ds_dppo", "Daňové subjekty PO s výškou dane z príjmov", ["ico"]),
-          L("ds_sd", "Zoznam daňových subjektov registrovaných pre spotrebné dane", ["ico", "nazov_subjektu"]),
         ]),
       );
     if (u.pathname === "/api/lists/ds_dsdd") return json({ name: "Zoznam daňových dlžníkov", slug: "ds_dsdd", searchable: ["nazov_subjektu", "obec"] });
     const slug = u.pathname.split("/")[3];
     const col = u.searchParams.get("column") || "";
     const term = u.searchParams.get("search") || "";
-    const searchable: Record<string, string[]> = { ds_dsdd: ["nazov_subjektu", "obec"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"], ds_sd: ["ico", "nazov_subjektu"] };
+    const searchable: Record<string, string[]> = { ds_dsdd: ["nazov_subjektu", "obec"], ds_dphs: ["ic_dph", "ico"], ds_dphz: ["ic_dph"], ds_ids: ["ico"], ds_dppo: ["ico"] };
     if (!searchable[slug]) return json({ error: "List not found" }, 404);
     if (!searchable[slug].includes(col)) return json({ error: "Column is not searchable" }, 400);
     const isBad = term === BAD || term === "SK2020000001";
@@ -164,7 +163,6 @@ globalThis.fetch = (async (input: any, init?: any) => {
     if (slug === "ds_dsdd" && /URBAN/.test(term)) rows = [{ nazov_subjektu: "URBAN STAVBY s.r.o.", obec: "Košice", suma: "999,00" }]; // iná firma s podobným menom
     if (slug === "ds_dphs") rows = [{ ico: isBad ? BAD : GOOD, ic_dph: isBad ? "SK2020000001" : "SK2023674466", druh_registracie: "platiteľ DPH", datum_registracie: "2015-03-01" }];
     if (slug === "ds_dphz" && isBad) rows = [{ ico: BAD, ic_dph: "SK2020000001" }];
-    if (slug === "ds_sd" && isBad) rows = [{ registracne_cislo: "SK52400000001", ico: BAD, nazov_subjektu: "C.C.C. s.r.o.", obec: "Bratislava", druh_dane: "Lieh", druh_danoveho_subjektu: "Schválený príjemca", datum_registracie: "12.03.2021" }];
     if (slug === "ds_dppo" && !isBad) rows = [{ ico: term, rok: "2024", dan: "5 100,00" }, { ico: term, rok: "2025", dan: "7 830,00" }];
     // presne štruktúra reálnej odpovede API (overené na produkcii)
     if (slug === "ds_ids") rows = [{ id: 1362137, dic: isBad ? "2020000001" : "2023674466", ico: term, ids: isBad ? "menej spoľahlivý" : "vysoko spoľahlivý", nazov_subjektu: isBad ? "C.C.C. s.r.o." : "URBAN & PARTNERS s.r.o., advokátska kancelária", obec: "Bratislava - mestská časť Staré Mesto", psc: "81103", ulica_cislo: "Červeňova 15", stat: "SK" }];

@@ -17,7 +17,6 @@ export function verifyTerm(c: CheckResult, ico: string, name?: string): { term: 
     case "fs-vat":
     case "fs-ids":
     case "fs-dppo":
-    case "fs-excise":
       return { term: ico, where: "Finančná správa – príslušný zoznam: pole „IČO“" };
     case "diskv": {
       const surnames = Array.from(new Set(byPrefix("priezvisk")));

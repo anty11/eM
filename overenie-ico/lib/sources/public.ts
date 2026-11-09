@@ -58,13 +58,13 @@ async function fetchViaEdge(url: string, timeoutMs: number): Promise<{ status: n
  * až 50 s (časový limit) – OV radšej skôr skončí ako manuálne s dôvodom, než aby držal celé preverenie.
  */
 /**
- * Limity na beh prehliadača (ms). Limit registrov bez API je 55 s; v jednom preverení bežia až 4 behy naraz (OV, Union, exekúcie,
- * spotrebné dane) a inštancia prehliadača pustí naraz BROWSER_MAX_PER_INSTANCE (4) – OV číta až 10 strán a má najvyššiu hodnotu,
+ * Limity na beh prehliadača (ms). Limit registrov bez API je 55 s; v jednom preverení bežia až 3 behy naraz (OV, Union, exekúcie)
+ * a inštancia prehliadača pustí naraz BROWSER_MAX_PER_INSTANCE (4) – OV číta až 10 strán a má najvyššiu hodnotu,
  * preto dostáva najviac času. Pri zlyhaní pred polovicou limitu sa beh raz zopakuje (studený štart Chromia, ETXTBSY, výpadok spojenia).
  */
-const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov" | "exek" | "fs-excise", number> = { union: 40000, ov: 48000, exek: 40000, "fs-excise": 35000 };
+const BROWSER_FLOW_TIMEOUT: Record<"union" | "ov" | "exek", number> = { union: 40000, ov: 48000, exek: 40000 };
 
-export async function browserFlow(source: "union" | "ov" | "exek" | "fs-excise", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult & { apiTemplate?: { url: string; method: string; post?: string } }> {
+export async function browserFlow(source: "union" | "ov" | "exek", ico: string, diag?: boolean): Promise<import("../browser/flows").FlowResult & { apiTemplate?: { url: string; method: string; post?: string } }> {
   const origin = selfOrigin();
   const t0 = Date.now();
   const limit = diag ? 50000 : BROWSER_FLOW_TIMEOUT[source];

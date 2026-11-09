@@ -96,8 +96,6 @@ async function main() {
   assert.match(by("fs-dppo").summary, /za rok 2025 – daň 7 830,00/);
   assert.match(r.keyFacts.find((f) => f.id === "vat")!.answer, /^Áno – registrovaný platiteľ DPH SK2023674466.*vysoko spoľahlivý/);
   assert.match(r.keyFacts.find((f) => f.id === "filed")!.answer, /Daňové priznanie za 2025 podané \(zoznam FS; daň 7 830,00 €\)/);
-  assert.equal(by("fs-excise").status, "info");
-  assert.match(by("fs-excise").summary, /nie je registrovaný pre spotrebné dane/);
   // exekúcie: poverenia (len prebiehajúce, od 1. 4. 2017) – bez záznamu vždy s výhradou
   assert.equal(by("exek").status, "ok", by("exek").summary);
   // Dôvera cez FirmAPI: bez záznamu, s poskytovateľom a stavom dát
@@ -125,14 +123,13 @@ async function main() {
   assert.match(by("fs-dppo").summary, /^Daň z príjmov za \d{4} podľa účtovnej závierky \(uložená .*\): 0,00 €\./);
   assert.equal((by("fs-dppo").data as any).via, "ruz");
   assert.ok(by("fs-dppo").search!.length >= 2, "záznam vyhľadávania FS aj RÚZ");
-  assert.match(by("fs-excise").summary, /Registrovaný pre spotrebné dane \(1×\): Lieh – Schválený príjemca – od 12\.03\.2021/);
   assert.equal(by("exek").status, "warning");
   assert.equal(by("dovera").status, "critical", by("dovera").summary);
   assert.match(by("dovera").findings[0].text, /Dlh voči zdravotnej poisťovni Dôvera – 3 820,14 € \(v zozname od 25\. 7\. 2026\)/);
   assert.ok(by("dovera").search![0].sample?.some((s) => /socpoist/.test(s)), "ostatné zdroje FirmAPI v ukážke");
   assert.match(by("exek").findings[0].text, /Prebiehajúca exekúcia – poverenie .*6Er\/123\/2025/);
   assert.equal(by("exek").findings[0].penalty, 25);
-  assert.equal(by("fs-excise").status, "info");
+  assert.ok(!r.checks.some((c) => c.id === "fs-excise"), "spotrebné dane sa od v2.11.32 nepreverujú");
   console.log("BAD:", r.verdict.level, r.verdict.score);
   console.log(r.checks.filter((c) => c.findings.length).map((c) => `  [${c.status}] ${c.name}: ${c.findings.map((f) => f.text).join(" | ")}`).join("\n"));
   assert.equal(r.verdict.level, "not_recommended");
