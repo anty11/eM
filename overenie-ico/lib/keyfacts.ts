@@ -140,8 +140,8 @@ export function keyFacts(p: CompanyProfile, checks: CheckResult[]): KeyFact[] {
     });
   }
 
-  // 6b. Ďalšie firmy osôb (prepojenia)
-  {
+  // 6b. Ďalšie firmy osôb (prepojenia) – len keď je zdroj v preverení (od v2.11.33 zaparkovaný)
+  if (c("persons")) {
     const pc = c("persons");
     const pd = (pc?.data || {}) as any;
     const links = (pd.persons || []) as { companies: { name: string; verified: boolean; risky: boolean; flags: string[]; terminated?: string }[] }[];

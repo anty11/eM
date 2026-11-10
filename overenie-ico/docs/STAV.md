@@ -642,6 +642,9 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.33** – Prepojenia osôb (`persons`) zaparkované na pokyn používateľa: zdroj sa do preverenia nezapája (`PERSONS_ENABLED = false`
+  v `lib/scan.ts`), nie je v META, diagnostike ani v kľúčových otázkach; kód (`lib/sources/persons.ts`, `PersonsTable`), mock a údaje
+  osôb v profile (`given`, `family`, `residence`) ostávajú pripravené na opätovné zapnutie. Preverenie má 17 zdrojov.
 - **v2.11.32** – Zdroj **Registrácia pre spotrebné dane** (`fs-excise`) odstránený z preverenia na pokyn používateľa (len informačný
   údaj, bez vplyvu na hodnotenie; bral čas a prehliadač). Odstránený aj index `fsx:excise` z nočnej úlohy exportov FS (sťahuje sa už
   len zoznam platiteľov DPH), skript prehliadača `fsListFlow`, položky v diagnostike a záznamoch. Preverenie má 18 zdrojov.

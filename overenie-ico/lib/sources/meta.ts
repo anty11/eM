@@ -3,7 +3,6 @@ import type { CategoryId, CheckResult } from "../types";
 /** Automatické zdroje v poradí zobrazenia (zdieľané so serverom aj prehliadačom). */
 export const META: Record<string, { name: string; category: CategoryId; source: string; sourceUrl: string }> = {
   rpo: { name: "Obchodný register / Register právnických osôb", category: "register", source: "Štatistický úrad SR – RPO", sourceUrl: "https://rpo.statistics.sk" },
-  persons: { name: "Prepojenia osôb – ďalšie firmy štatutárov a spoločníkov", category: "register", source: "Štatistický úrad SR – RPO (vyhľadávanie podľa osoby), indexy SP a FS", sourceUrl: "https://rpo.statistics.sk" },
   ruz: { name: "Register účtovných závierok", category: "financials", source: "Ministerstvo financií SR – registeruz.sk", sourceUrl: "https://www.registeruz.sk" },
   "fs-debtors": { name: "Zoznam daňových dlžníkov", category: "tax", source: "Finančná správa SR – OpenData", sourceUrl: "https://opendata.financnasprava.sk" },
   "fs-vat": { name: "Registrácia DPH a dôvody na zrušenie", category: "tax", source: "Finančná správa SR – OpenData", sourceUrl: "https://opendata.financnasprava.sk" },

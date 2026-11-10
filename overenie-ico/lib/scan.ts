@@ -21,12 +21,14 @@ import { checkSocpoist } from "./sources/socpoist";
 import type { CheckResult, CompanyProfile, Ctx, ScanReport, SearchLog } from "./types";
 import { META } from "./sources/meta";
 
-export const APP_VERSION = "2.11.32";
+export const APP_VERSION = "2.11.33";
 
 /** Celkový časový limit preverenia – čo nestihne, označí sa ako „zdroj neodpovedal“ (dá sa doplniť cez AI / znova). */
 const DEADLINE_MS = 25000;
-/** Prepojenia osôb čakajú na RPO (až 25 s) a potom robia desiatky dopytov do RPO – vlastný limit (v rámci limitu registrov bez API, 55 s). */
+/** Prepojenia osôb (zaparkované, PERSONS_ENABLED) čakajú na RPO a potom robia desiatky dopytov do RPO – vlastný limit (v rámci limitu registrov bez API, 55 s). */
 const DEADLINE_BY_ID: Record<string, number> = { persons: 45000 };
+/** Prepojenia osôb (`lib/sources/persons.ts`) sú od v2.11.33 zaparkované na pokyn používateľa – kód ostáva, do preverenia sa nezapája. */
+export const PERSONS_ENABLED = false;
 /** Len informačné zdroje: po limite „informácia – nepodarilo sa overiť“, nie chyba (neobjavia sa v zozname na manuálne overenie). */
 const INFO_ONLY_IDS: string[] = [];
 /** Registre bez API (vrátane dopytu cez prehliadač na serveri – spustenie Chromia a hľadanie trvá 5 – 15 s) majú vlastný, dlhší limit. */
@@ -170,7 +172,7 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
   const manualP = resolveManual({ ...ctx, rpoDone: nameReady } as Ctx, (c) => onProgress?.(c, ctx.profile), fresh, manualDone);
   const allP = Promise.all([
     cap("rpo", rpoCapped),
-    cap("persons", run("persons", checkPersons)),
+    ...(PERSONS_ENABLED ? [cap("persons", run("persons", checkPersons))] : []),
     cap("ruz", ruzP),
     cap("fs-debtors", after("fs-debtors", checkTaxDebtors)),
     cap("fs-vat", after("fs-vat", checkVat)),
@@ -205,7 +207,10 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
       notFound: true,
     };
   }
-  const [rpo, persons, ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = await allP;
+  const settled = await allP;
+  const [rpo, ...rest] = settled;
+  const persons = PERSONS_ENABLED ? rest.shift() : undefined;
+  const [ruz, debtors, vat, ids, incomeTax, socpoist, insolvency, rpvs, news] = rest;
   nameFallback();
 
   const manual = await Promise.race([
@@ -216,7 +221,7 @@ async function scanInner(ico: string, onProgress?: Progress, opts: { asOf?: stri
       ),
     ),
   ]);
-  const checks: CheckResult[] = [rpo, persons, debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manual];
+  const checks: CheckResult[] = [rpo, ...(persons ? [persons] : []), debtors, vat, ids, incomeTax, socpoist, ruz, insolvency, rpvs, news, ...manual];
   if (!icoChecksumValid(ico))
     rpo.findings.push({ severity: "info", text: "IČO nespĺňa kontrolný súčet (môže ísť o historické IČO) – overte správnosť", penalty: 0 });
 
