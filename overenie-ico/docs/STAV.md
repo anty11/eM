@@ -642,6 +642,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.34** – Tlačený protokol (PDF) už neobsahuje záznam vyhľadávania „Prehľadané: …“ pri jednotlivých kontrolách – na pokyn
+  používateľa (protokol bol zbytočne dlhý). Záznam ostáva na obrazovke (rozbaľovací riadok) a v uloženom JSON protokolu.
 - **v2.11.33** – Prepojenia osôb (`persons`) zaparkované na pokyn používateľa: zdroj sa do preverenia nezapája (`PERSONS_ENABLED = false`
   v `lib/scan.ts`), nie je v META, diagnostike ani v kľúčových otázkach; kód (`lib/sources/persons.ts`, `PersonsTable`), mock a údaje
   osôb v profile (`given`, `family`, `residence`) ostávajú pripravené na opätovné zapnutie. Preverenie má 17 zdrojov.

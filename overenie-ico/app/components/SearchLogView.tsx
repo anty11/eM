@@ -4,8 +4,8 @@ import { queryLine, searchLine } from "@/lib/searchlog";
 import type { SearchLog } from "@/lib/types";
 
 /**
- * Ako sa v zdroji hľadalo – riadok vždy viditeľný (aj v PDF), po rozbalení dopyty s odkazmi, počty a ukážka vrátených záznamov,
- * ktoré sa nezhodovali (na kontrolu, či hľadanie mieri správne).
+ * Ako sa v zdroji hľadalo – riadok na obrazovke, po rozbalení dopyty s odkazmi, počty a ukážka vrátených záznamov,
+ * ktoré sa nezhodovali (na kontrolu, či hľadanie mieri správne). V tlačenom protokole sa neuvádza (CSS `.search-log` pri tlači).
  */
 export default function SearchLogView({ search }: { search?: SearchLog[] }) {
   if (!search?.length) return null;

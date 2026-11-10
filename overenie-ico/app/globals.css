@@ -384,10 +384,9 @@ textarea { width: 100%; min-height: 80px; }
 .search-log summary { cursor: pointer; line-height: 1.45; }
 .search-log ol { margin: 4px 0 4px 18px; padding: 0; }
 .search-log li { margin: 2px 0; word-break: break-word; }
+/* V tlačenom protokole sa záznam vyhľadávania („Prehľadané: …“) neuvádza (od v2.11.34) – ostáva na obrazovke a v JSON protokolu. */
 @media print {
-  .search-log { font-size: 9pt; }
-  .search-log details > *:not(summary) { display: block; }
-  .search-log .mono { font-size: 7.5pt; word-break: break-all; }
+  .search-log { display: none !important; }
 }
 
 /* Prepojenia osôb – ďalšie firmy štatutárov a spoločníkov */

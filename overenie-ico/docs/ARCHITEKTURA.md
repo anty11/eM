@@ -4,7 +4,7 @@
 > (pravidlá na konci). `npm test` (súbor `test/docs.test.ts`) kontroluje, že tu je každý zdroj, každé zadanie AI a každá
 > premenná prostredia, ktorú kód používa. Diagramy sú v Mermaid – GitHub ich vykreslí priamo.
 >
-> Stav k verzii **2.11.33** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
+> Stav k verzii **2.11.34** (október 2026). Podrobnosti k jednotlivým registrom: [ZDROJE.md](ZDROJE.md), história zmien: [STAV.md](STAV.md),
 > nasadenie: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Obsah
@@ -287,7 +287,7 @@ classDiagram
 **Záznam vyhľadávania** (`CheckResult.search`, `lib/searchlog.ts`, zobrazenie `app/components/SearchLogView.tsx`) – každá kontrola
 uvádza, čo a kde hľadala, koľko záznamov zdroj vrátil, koľko sa zhodovalo a podľa akého pravidla; aj pri chybe (prečo výsledok nie je).
 „Bez záznamu“ bez počtu prehľadaných záznamov sa neakceptuje – zle nastavený zdroj (0 vrátených pri každom dopyte, starý stav registra)
-musí byť vidieť na prvý pohľad. Riadok „Prehľadané: …“ je na obrazovke aj v protokole; rozbalenie ukáže dopyty s odkazmi na zopakovanie. Tlačidlo „Overiť v zdroji“
+musí byť vidieť na prvý pohľad. Riadok „Prehľadané: …“ je na obrazovke (rozbalenie ukáže dopyty s odkazmi na zopakovanie) a v uloženom JSON protokolu; v tlačenom PDF sa od v2.11.34 neuvádza (`.search-log` skryté pri tlači). Tlačidlo „Overiť v zdroji“
 (`app/components/VerifyLink.tsx`) otvorí register a skopíruje do schránky výraz na vloženie (IČO / celé meno pri FS / priezvisko pri
 diskvalifikáciách) s pokynom, do ktorého poľa – stránky s formulárom POST sa z odkazu predvyplniť nedajú.
 
