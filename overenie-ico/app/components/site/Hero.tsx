@@ -7,9 +7,9 @@ export function Hero({ lead }: { lead?: string }) {
         <div className="s-wrap">
           <div>
             <span className="s-eyebrow">Overenie obchodného partnera</span>
-            <h1>Obchodujte obozretne. Partnera preveríte rýchlo, spoľahlivo a s protokolom.</h1>
+            <h1>Obchodujte obozretne.<span className="s-h1-sub">Partnera preveríte rýchlo, spoľahlivo a s protokolom.</span></h1>
             <p className="s-lead">
-              {lead ?? "Zadáte IČO a do pol minúty máte prehľad o dodávateľovi alebo odberateľovi: obchodný register, dane a DPH, poisťovne, konkurzy, účtovné závierky aj médiá. Výsledkom je protokol s časom preverenia – doklad náležitej starostlivosti, akú od podnikateľov očakáva judikatúra Súdneho dvora EÚ."}
+              {lead ?? "Zadáte IČO a do pol minúty viete, s kým obchodujete: obchodný register, dane a DPH, poisťovne, konkurzy, závierky aj médiá. Výsledkom je protokol s časom preverenia – doklad vašej náležitej starostlivosti."}
             </p>
             <div className="s-actions">
               <a className="s-btn gold" href="/objednavka">Objednať pre našu firmu</a>
@@ -21,26 +21,32 @@ export function Hero({ lead }: { lead?: string }) {
               <li><b>SHA-256</b><span>pečať a verejné overenie protokolu</span></li>
             </ul>
           </div>
-          <div className="s-proto" aria-hidden>
-            <div className="ph">
-              <span>Protokol o preverení</span>
-              <small>stav k dnešnému dňu</small>
-            </div>
-            <div className="verdict">
-              <div className="ring">96</div>
+          <div className="s-vp" aria-hidden>
+            <div className="s-vp-top">
               <div>
-                <div className="vl">ODPORÚČAME – bezpečný partner</div>
-                <small style={{ color: "var(--s-muted)" }}>Vzorová spoločnosť, s.r.o. · IČO 12 345 678</small>
+                <b>Vzorová spoločnosť, s.r.o.</b>
+                <small>IČO 12 345 678 · v registri od 2014</small>
+              </div>
+              <span className="s-vp-pill">✓ 17 / 17 zdrojov</span>
+            </div>
+            <div className="s-vp-body">
+              <div className="s-vp-score">
+                <span className="s-vp-eyebrow">Skóre dôveryhodnosti</span>
+                <div className="s-vp-num"><b>90</b><span>/100</span></div>
+                <div className="s-vp-scale"><i /><i /><i /><em style={{ width: "90%" }} /></div>
+                <div className="s-vp-ticks"><span>0</span><span>60</span><span>85</span></div>
+                <div className="s-vp-level"><span />Odporúčame</div>
+              </div>
+              <div className="s-vp-why">
+                <span className="s-vp-eyebrow">Čo znižuje skóre</span>
+                <div className="s-vp-row">
+                  <span className="s-vp-ic">!</span>
+                  <div><b>Zmena konateľa pred 40 dňami</b><small>overte dôvod a nové osoby · Obchodný register</small></div>
+                  <span className="s-vp-pen">−10</span>
+                </div>
+                <div className="s-vp-clean"><span>✓</span>Bez záznamu: daňové dlhy, DPH, Sociálna poisťovňa, konkurz a likvidácia, závierky, exekúcie</div>
               </div>
             </div>
-            <ul>
-              <li><span>Zoznam daňových dlžníkov</span><span className="pill ok">bez záznamu</span></li>
-              <li><span>Platiteľ DPH · dôvody na zrušenie</span><span className="pill ok">registrovaný</span></li>
-              <li><span>Dlžníci Sociálnej poisťovne</span><span className="pill ok">bez záznamu</span></li>
-              <li><span>Konkurz · likvidácia</span><span className="pill ok">bez konania</span></li>
-              <li><span>Účtovná závierka 2025</span><span className="pill ok">uložená</span></li>
-              <li><span>Zmena konateľa pred 40 dňami</span><span className="pill warn">upozornenie</span></li>
-            </ul>
           </div>
         </div>
         <div className="s-wrap s-sources" aria-label="Zdroje údajov">

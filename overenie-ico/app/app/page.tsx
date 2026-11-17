@@ -588,16 +588,45 @@ export default function Page() {
             </div>
 
             {pendingCount > 0 ? (
-              <section className="card verdict caution progress-card" style={{ ["--s" as any]: Math.round(((totalAuto - pendingCount) / totalAuto) * 100) }}>
-                <div className="score"><div><div><b>{totalAuto - pendingCount}</b><br /><span>z {totalAuto}</span></div></div></div>
-                <div>
-                  <p className="vcompany">{p.name || `IČO ${p.ico}`} <span>· IČO {p.ico}{p.address ? ` · ${p.address}` : ""}</span></p>
-                  <p className="vlabel" style={{ color: "var(--ink)" }}>Preverujem…</p>
-                  <div className="vmeta">
-                    {scanSince ? <b>{Math.round((Date.now() - scanSince) / 1000)} s · </b> : null}
-                    Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Čaká sa na: {checks.filter((c) => c.status === "pending").map((c) => c.name).join(", ")}.
-                    {alwaysManualCount ? ` Mimo kolieska: ${alwaysManualCount} ${alwaysManualCount === 1 ? "register" : "registre"} vždy na ručné overenie (${checks.filter((c) => ALWAYS_MANUAL.includes(c.id)).map((c) => c.name.replace(/^Dlžníci zdravotnej poisťovne /, "")).join(", ")}).` : ""}
-                    {scanSince && Date.now() - scanSince > 12000 ? " Niektoré registre dnes odpovedajú pomaly – po 25 s sa zdroj označí ako nedostupný a dá sa skúsiť znova." : ""}
+              <section className="card vpanel vprogress">
+                <header className="vp-top">
+                  <div className="vp-co">
+                    <h2 className="vp-name">{p.name || `IČO ${p.ico}`}</h2>
+                    <span className="vp-sub">{p.name ? <>IČO {p.ico}{p.address ? ` · ${p.address}` : ""}</> : "Hľadám subjekt v obchodnom registri…"}</span>
+                  </div>
+                  <div className="vp-pills">
+                    <span className="vp-pill"><span className="vp-spin" aria-hidden /> Preverujem</span>
+                    {scanSince ? <span className="vp-meta">{Math.round((Date.now() - scanSince) / 1000)} s</span> : null}
+                  </div>
+                </header>
+                <div className="vp-body">
+                  <div className="vp-score">
+                    <div className="vp-score-top">
+                      <span className="vp-eyebrow">Hotové zdroje</span>
+                      <div className="vp-num">
+                        <b>{totalAuto - pendingCount}</b>
+                        <span>/{totalAuto}</span>
+                      </div>
+                      <div className="vp-scale" role="progressbar" aria-valuemin={0} aria-valuemax={totalAuto} aria-valuenow={totalAuto - pendingCount} aria-label="Priebeh preverenia">
+                        <div className="vp-track"><i style={{ flex: 1 }} /></div>
+                        <div className="vp-fill vp-fill-brand" style={{ width: `${Math.round(((totalAuto - pendingCount) / totalAuto) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="vp-verdict">
+                      <div className="vp-level">Preverujem…</div>
+                      <p>Výsledky sa zobrazujú priebežne, ako jednotlivé registre odpovedajú. Preverenie trvá zvyčajne 10 – 30 sekúnd.</p>
+                    </div>
+                  </div>
+                  <div className="vp-why">
+                    <div className="vp-why-head">
+                      <span className="vp-eyebrow">Čaká sa na</span>
+                      <span className="vp-count">{pendingCount} {pendingCount === 1 ? "zdroj" : pendingCount < 5 ? "zdroje" : "zdrojov"}</span>
+                    </div>
+                    <ul className="vp-wait">
+                      {checks.filter((c) => c.status === "pending").map((c) => <li key={c.id}>{c.name}</li>)}
+                    </ul>
+                    {alwaysManualCount ? <div className="vp-capnote">Mimo počtu: {alwaysManualCount} {alwaysManualCount === 1 ? "register" : "registre"} vždy na ručné overenie ({checks.filter((c) => ALWAYS_MANUAL.includes(c.id)).map((c) => c.name.replace(/^Dlžníci zdravotnej poisťovne /, "")).join(", ")}).</div> : null}
+                    {scanSince && Date.now() - scanSince > 12000 ? <div className="vp-capnote">Niektoré registre dnes odpovedajú pomaly – po 25 s sa zdroj označí ako nedostupný a dá sa skúsiť znova.</div> : null}
                   </div>
                 </div>
               </section>
