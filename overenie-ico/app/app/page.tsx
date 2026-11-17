@@ -698,7 +698,7 @@ export default function Page() {
             {metrics.length > 0 && (
               <section className="card">
                 <h2>Hospodárenie (Register účtovných závierok)</h2>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
+                <table className="fin-table" style={{ width: "100%", borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
                   <thead>
                     <tr style={{ textAlign: "right", color: "var(--muted)", fontSize: 12 }}>
                       <th style={{ textAlign: "left" }}>Ukazovateľ</th>
@@ -727,7 +727,7 @@ export default function Page() {
 
             {grouped.map(([cat, items]) => (
               <section className="cat" key={cat}>
-                <h3>{CATEGORIES[cat]}</h3>
+                <h3>{CATEGORIES[cat]} <span className="cat-count">{items.length}</span></h3>
                 {items.map((c) => (
                   <article className={`check st-${c.status}`} key={c.id}>
                     <div className="head">
@@ -853,7 +853,7 @@ export default function Page() {
                   placeholder="Vypracoval (meno povereného zamestnanca)"
                   value={author}
                   onChange={(e) => { setAuthor(e.target.value); safeSet("author", e.target.value); }}
-                  className="no-print"
+                  className="no-print author-input"
                 />
                 <button className="btn no-print" disabled={sealing} onClick={() => sealAndPrint()}>{sealing ? "Pečatím protokol…" : "Uložiť PDF protokol"}</button>
                 {seal && (

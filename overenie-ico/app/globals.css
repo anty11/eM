@@ -496,3 +496,141 @@ textarea { width: 100%; min-height: 80px; }
   .vpanel .vp-clean svg { width: 9px; height: 9px; }
   .vpanel .vp-warnbox { font-size: 8px; padding: 1px 6px; background: none; border: 1px solid var(--manual); }
 }
+
+/* ===================================================================================================
+   Modernizácia klientskej sekcie (v2.11.36): bezpätkové nadpisy, jednotné karty, zarovnané kontroly,
+   plynulá šírka podľa rozlíšenia (telefón → tablet → notebook → široký monitor s dvoma stĺpcami kontrol)
+   =================================================================================================== */
+
+/* Rozloženie karty kontroly: hlavička (názov + stav) v jednom riadku, všetko ostatné na celú šírku –
+   predtým sa pri manuálnych kontrolách záznam vyhľadávania a poznámka skladali do dvoch úzkych stĺpcov */
+.check > * { grid-column: 1 / -1; min-width: 0; }
+.check > .head { grid-column: 1; grid-row: 1; }
+.check > .pill { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }
+
+@media screen {
+  :root { --radius: 14px; --shadow: 0 1px 2px rgba(29, 26, 43, 0.04), 0 2px 8px rgba(29, 26, 43, 0.04); }
+  html, body { font-size: 15px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  .wrap { max-width: 1120px; padding-left: clamp(16px, 3.2vw, 40px); padding-right: clamp(16px, 3.2vw, 40px); }
+
+  /* nadpisy bez pätiek – súčasnejší, pokojnejší vzhľad */
+  .hero h1, .company-name, .vlabel, .card h1 { font-family: var(--font); letter-spacing: -0.02em; }
+  .hero { padding: clamp(24px, 4vw, 44px) 0 8px; }
+  .hero h1 { font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; line-height: 1.15; margin-bottom: 8px; }
+  .hero > p { font-size: 15px; line-height: 1.6; max-width: 720px; margin-bottom: 22px; }
+
+  /* vyhľadávanie ako jeden panel */
+  .search { gap: 10px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); box-shadow: var(--shadow); }
+  .search input { border: 0; background: transparent; font-size: 20px; padding: 10px 12px; border-radius: 10px; }
+  .search input:focus { outline: 2px solid var(--brand); outline-offset: 0; }
+  .search .btn { padding: 12px 28px; border-radius: 10px; }
+  .coop { display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; margin-top: 14px; padding: 0 4px; }
+  .coop input[type="date"] { font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+  .coop .hint { flex: 1 1 100%; }
+  .recent { margin-top: 14px; padding: 0 4px; }
+  .chip { padding: 5px 12px; font-size: 12.5px; transition: border-color 0.15s, color 0.15s; }
+  .chip:hover { border-color: var(--brand); color: var(--brand); }
+  .err { border-radius: 10px; }
+
+  /* karty */
+  .card { border-radius: var(--radius); padding: clamp(18px, 2.2vw, 26px); margin-top: 20px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 11px; letter-spacing: 0.14em; margin-bottom: 16px; }
+  .btn { border-radius: 10px; }
+  .btn.ghost:hover:not(:disabled) { background: var(--bg); box-shadow: none; border-color: var(--brand); }
+
+  /* kľúčové otázky – otázka a odpoveď zarovnané v dvoch stĺpcoch, ikona v strede riadku */
+  .fact { grid-template-columns: 24px minmax(200px, 36%) 1fr; gap: 4px 16px; padding: 12px 0; align-items: start; }
+  .fact dt { line-height: 1.4; }
+  .fact dd { line-height: 1.5; }
+  .ficon { margin-top: 1px; }
+
+  /* identifikácia subjektu */
+  .company-name { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+  .profile { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 14px 28px; }
+  .kv dt { font-size: 11.5px; letter-spacing: 0.02em; margin-bottom: 2px; }
+  .kv dd { line-height: 1.4; }
+
+  /* hospodárenie */
+  .fin-table th, .fin-table td { padding: 9px 0 9px 12px !important; white-space: nowrap; }
+  .fin-table th:first-child, .fin-table td:first-child { padding-left: 0 !important; white-space: normal; }
+  .fin-table thead th { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; }
+
+  /* kategórie a kontroly */
+  .cat { margin-top: 32px; }
+  .cat > h3 { display: flex; align-items: center; gap: 10px; font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+  .cat > h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .cat-count { font-size: 11px; letter-spacing: 0; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); }
+  .check { border-radius: var(--radius); padding: 16px 20px; margin-bottom: 10px; gap: 8px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .check::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
+  .check.st-critical::before { background: var(--crit); }
+  .check.st-warning::before { background: var(--warn); }
+  .check.st-manual::before, .check.st-error::before { background: var(--manual); }
+  .check .name { font-size: 15px; line-height: 1.35; }
+  .check .src { font-size: 12px; line-height: 1.45; }
+  .check .sum { font-size: 14.5px; line-height: 1.55; }
+  .check ul { padding-left: 18px; line-height: 1.5; }
+  .check .actions { gap: 8px 10px; padding-top: 2px; }
+  .pill { padding: 4px 11px; font-size: 11.5px; letter-spacing: 0.01em; }
+  .mbtn { min-height: 34px; padding: 6px 14px; border-radius: 8px; transition: border-color 0.15s, background 0.15s; }
+  .mbtn:hover { border-color: var(--brand); }
+
+  /* záznam vyhľadávania: jeden riadok, po rozkliknutí celý */
+  .search-log { margin-top: 2px; font-size: 12px; display: grid; gap: 2px; }
+  .search-log details > summary { list-style: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 16px; position: relative; color: var(--muted); }
+  .search-log details > summary::-webkit-details-marker { display: none; }
+  .search-log details > summary::before { content: "›"; position: absolute; left: 2px; top: -1px; font-size: 14px; transition: transform 0.15s; }
+  .search-log details[open] > summary { white-space: normal; color: var(--ink); }
+  .search-log details[open] > summary::before { transform: rotate(90deg); }
+  .search-log details[open] { padding: 8px 10px; border-radius: 8px; background: var(--bg); }
+
+  /* formuláre kontaktu a obchodu – polia sa skladajú podľa šírky, popisy nad poľom */
+  /* najviac 4 stĺpce (formuláre majú 4 polia v riadku a pod nimi riadky na celú šírku), pod 200 px na pole menej */
+  .contact-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, max(200px, calc((100% - 48px) / 4))), 1fr)); gap: 0 16px; }
+  .card > .toolbar:first-child { margin-top: 0; }
+  .vpanel .vp-why-head { flex-wrap: wrap; gap: 4px 12px; }
+  .field input, .field select, .field textarea { border-radius: 10px; padding: 11px 12px; }
+  .field input::placeholder, .field textarea::placeholder { color: var(--muted); opacity: 0.75; }
+  .toolbar input, textarea { border-radius: 10px; }
+  .author-input { flex: 1 1 280px; min-width: 0; padding: 12px 14px !important; }
+  .indicators li { border-radius: 12px; padding: 12px 14px; }
+
+  .disclaimer { line-height: 1.55; max-width: 860px; }
+}
+
+/* široký monitor: kontroly v dvoch stĺpcoch, obsah využije šírku */
+@media screen and (min-width: 1360px) {
+  .wrap { max-width: 1320px; }
+  .cat { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .cat > h3 { grid-column: 1 / -1; margin-bottom: 0; }
+  .cat > .check { margin-bottom: 0; }
+  .cat > .check:last-child:nth-child(even) { grid-column: 1 / -1; }
+}
+
+/* tablet */
+@media screen and (max-width: 900px) {
+  .fact { grid-template-columns: 24px minmax(150px, 40%) 1fr; }
+}
+
+/* telefón */
+@media screen and (max-width: 600px) {
+  .search { flex-direction: column; padding: 8px; }
+  .search input { flex: 1 1 auto; font-size: 18px; }
+  .search .btn { width: 100%; }
+  .fact { grid-template-columns: 24px 1fr; padding: 10px 0; }
+  .fact dd { grid-column: 2; color: var(--ink); }
+  .profile { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+  .profile > div[style*="1 / -1"] { grid-column: 1 / -1; }
+  .check { padding: 14px 16px; }
+  .check > .head { grid-column: 1 / -1; }
+  .check > .pill { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+  .check .actions .mbtn { flex: 1 1 auto; }
+  .fin-table td, .fin-table th { font-size: 13.5px; }
+  .card h2 { margin-bottom: 12px; }
+}
+@media screen { .search-log, .search-log details, .search-log summary { min-width: 0; max-width: 100%; } }
+@media screen and (max-width: 600px) {
+  .vpanel .vp-row { grid-template-columns: 28px minmax(0, 1fr) 40px; gap: 10px; padding: 10px 12px; }
+  .vpanel .vp-ic { width: 28px; height: 28px; }
+  .vpanel .vp-btns { width: 100%; }
+  .vpanel .vp-btns .btn { flex: 1 1 auto; text-align: center; }
+}

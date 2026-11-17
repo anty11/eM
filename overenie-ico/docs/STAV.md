@@ -642,6 +642,14 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.36** – Modernizácia stránky preverenia v klientskej sekcii (CSS vrstva na konci `app/globals.css`, len obrazovka –
+  tlačený protokol sa nemení): nadpisy bez pätiek, vyhľadávanie ako jeden panel, jednotné karty s jemným tieňom a zaoblením,
+  kategórie kontrol ako štítky s počtom a deliacou čiarou, farebný prúžok pri kontrolách s nálezom / na manuálne overenie,
+  záznam vyhľadávania zbalený do jedného riadku (rozklik ukáže celý). Opravené rozloženie karty kontroly – pri manuálnych
+  kontrolách sa záznam vyhľadávania a poznámka skladali do dvoch úzkych stĺpcov. Šírka podľa rozlíšenia: telefón (vyhľadávanie
+  pod sebou, stav kontroly pod názvom, identifikácia v dvoch stĺpcoch), tablet, notebook (do 1120 px) a široký monitor od 1360 px
+  (obsah do 1320 px, kontroly v dvoch stĺpcoch). Formuláre kontaktu a obchodu najviac 4 polia v riadku na plnú šírku, čísla
+  v hospodárení sa nelámu.
 - **v2.11.35** – Nový panel výsledku preverenia (návrh D z plátna „Obozretne – návrhy panela výsledku“), spoločný komponent
   `app/components/VerdictPanel.tsx` pre aplikáciu, tlačený protokol aj archív zapečatených protokolov. Hore firma (IČO, sídlo, rok
   zápisu) a stav (overené zdroje X / Y, predbežné / konečné hodnotenie, čas a číslo preverenia); vľavo veľké skóre so stupnicou
