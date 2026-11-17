@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Header, { useMe } from "../../../components/Header";
 import KeyFacts from "../../../components/KeyFacts";
 import SearchLogView from "../../../components/SearchLogView";
+import VerdictPanel from "../../../components/VerdictPanel";
 import { withOrg } from "../../../components/org";
 import { DOMAIN } from "../../../components/site/SiteShell";
 import { shortHash } from "@/lib/seal-shared";
@@ -69,17 +70,9 @@ export default function SealedProtocol({ params }: { params: Promise<{ scanId: s
               </div>
             </div>
 
-            <section className={`card verdict ${v.level || ""}`} style={{ ["--s" as any]: v.score ?? 0 }}>
-              <div className="score"><div><div><b>{v.score ?? "–"}</b><br /><span>zo 100</span></div></div></div>
-              <div>
-                <p className="vlabel">{v.label}</p>
-                <div className="vmeta">
-                  Stav k {fmt(doc.scannedAt)} · č. {doc.scanId}
-                  {doc.asOf ? ` · spätné preverenie k ${fmt(doc.asOf, false)}` : ""}
-                </div>
-                <ul className="reasons">{(v.reasons || []).slice(0, 8).map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>
-              </div>
-            </section>
+            {v.level ? (
+              <VerdictPanel verdict={v} checks={checks} profile={{ ...p, ico: p.ico || doc.ico }} scannedAt={doc.scannedAt} scanId={doc.scanId} asOf={doc.asOf} incomplete={doc.incomplete} />
+            ) : null}
 
             <KeyFacts facts={doc.keyFacts || []} />
 

@@ -642,6 +642,13 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.35** – Nový panel výsledku preverenia (návrh D z plátna „Obozretne – návrhy panela výsledku“), spoločný komponent
+  `app/components/VerdictPanel.tsx` pre aplikáciu, tlačený protokol aj archív zapečatených protokolov. Hore firma (IČO, sídlo, rok
+  zápisu) a stav (overené zdroje X / Y, predbežné / konečné hodnotenie, čas a číslo preverenia); vľavo veľké skóre so stupnicou
+  a hranicami verdiktu 60 a 85, verdikt a veta „čo s tým“ (koľko bodov chýba do Odporúčame, prípadne čo verdikt obmedzuje);
+  vpravo „Čo znižuje skóre“ – kritické nálezy a upozornenia s bodovou zrážkou a odkazom na zdroj (najviac 5, zvyšok pri
+  kontrolách), riadok „Bez záznamu: …“ so zdrojmi bez nálezu a tlačidlá Preveriť znova / Uložiť protokol PDF. Starý kruhový
+  panel so zoznamom dôvodov nahradený; tlačená verzia je zhustená a čitateľná aj čiernobielo.
 - **v2.11.34** – Tlačený protokol (PDF) už neobsahuje záznam vyhľadávania „Prehľadané: …“ pri jednotlivých kontrolách – na pokyn
   používateľa (protokol bol zbytočne dlhý). Záznam ostáva na obrazovke (rozbaľovací riadok) a v uloženom JSON protokolu.
 - **v2.11.33** – Prepojenia osôb (`persons`) zaparkované na pokyn používateľa: zdroj sa do preverenia nezapája (`PERSONS_ENABLED = false`

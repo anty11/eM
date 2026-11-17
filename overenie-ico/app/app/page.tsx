@@ -9,6 +9,7 @@ import ContactCard from "../components/ContactCard";
 import KeyFacts from "../components/KeyFacts";
 import SearchLogView from "../components/SearchLogView";
 import PersonsTable from "../components/PersonsTable";
+import VerdictPanel from "../components/VerdictPanel";
 import VerifyLink from "../components/VerifyLink";
 import DealCard, { EMPTY_DEAL } from "../components/DealCard";
 import IndicatorsCard from "../components/IndicatorsCard";
@@ -588,27 +589,20 @@ export default function Page() {
                 </div>
               </section>
             ) : (
-            <section className={`card verdict ${verdict.level}`} style={{ ["--s" as any]: verdict.score }}>
-                <div className="score"><div><div><b>{verdict.score}</b><br /><span>zo 100</span></div></div></div>
-                <div>
-                  <p className="vcompany">{p.name || "Neznámy subjekt"} <span>· IČO {p.ico}{p.address ? ` · ${p.address}` : ""}</span></p>
-                  <p className="vlabel">{verdict.label}</p>
-                  <div className="vmeta">
-                    Stav k {fmtDate(report.scannedAt)} · č. {report.scanId}
-                    {report.incomplete ? <div className="prelim">Preverenie sa nedokončilo – spojenie so serverom sa prerušilo. Nedokončené zdroje sú označené ako nedostupné; odporúčame „Preveriť znova“.</div> : null}
-                  </div>
-                  <ul className="reasons">{verdict.reasons.slice(0, 8).map((r, i) => <li key={i}>{r}</li>)}</ul>
-                  {verdict.preliminary && (
-                    <span className="prelim">
-                      Predbežné hodnotenie – {verdict.pendingManual}/{totalChecks} {verdict.pendingManual === 1 ? "kontrola čaká" : "kontrol čaká"} na manuálne overenie
-                      {lawyer && <> · <button className="linkbtn no-print" onClick={() => setShowManual(true)}>otvoriť zoznam</button></>}
-                    </span>
-                  )}
-                  {!lawyer && (
-                    <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div>
-                  )}
-                </div>
-              </section>
+            <VerdictPanel
+              verdict={verdict}
+              checks={checks}
+              profile={p}
+              scannedAt={report.scannedAt}
+              scanId={report.scanId}
+              asOf={report.asOf}
+              incomplete={report.incomplete}
+              ignore={lawyer ? [] : nonPublic}
+              onOpenManual={lawyer ? () => setShowManual(true) : undefined}
+              onRescan={() => run(report.ico, true)}
+              saveHref="#ulozit-protokol"
+              note={!lawyer ? <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div> : undefined}
+            />
             )}
 
             {Object.values(aiBusy).some(Boolean) && (
@@ -853,7 +847,7 @@ export default function Page() {
             {/* indikátory rizikovosti obchodu – úplne na záver, pred uložením protokolu */}
             <IndicatorsCard deal={deal} onChange={setDeal} />
 
-            <section className="card">
+            <section className="card" id="ulozit-protokol">
               <div className="toolbar">
                 <input
                   placeholder="Vypracoval (meno povereného zamestnanca)"
