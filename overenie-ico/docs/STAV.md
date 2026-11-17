@@ -642,6 +642,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.37** – Výsledok bez posúvania: po vyhodnotení sa hlavička stránky preverenia zhustí (menší nadpis, popis v dlhšom
+  riadku, voľba spolupráce a posledné preverenia v jednom riadku, vysvetlivka k spätnému prevereniu skrytá), panel výsledku ukáže
+  3 najväčšie zistenia a ďalšie po kliknutí „Zobraziť ďalšie zistenia“ (tlačený protokol vždy 5) a stránka sa po dokončení
+  preverenia sama posunie tak, aby bol panel výsledku celý v okne (len ak by bol pod okrajom a používateľ sa ešte neposunul).
+  Overené na 1900×960, 1536×864 a 1366×768.
 - **v2.11.36** – Modernizácia stránky preverenia v klientskej sekcii (CSS vrstva na konci `app/globals.css`, len obrazovka –
   tlačený protokol sa nemení): nadpisy bez pätiek, vyhľadávanie ako jeden panel, jednotné karty s jemným tieňom a zaoblením,
   kategórie kontrol ako štítky s počtom a deliacou čiarou, farebný prúžok pri kontrolách s nálezom / na manuálne overenie,

@@ -233,6 +233,17 @@ export default function Page() {
   }, [baseChecks, answers, notes, replies, dealCheck]);
   const facts = useMemo(() => (profile ? computeKeyFacts(profile, checks) : []), [profile, checks]);
   const pendingCount = checks.filter((c) => c.status === "pending").length;
+  // po dokončení preverenia posunie stránku tak, aby bol panel výsledku celý viditeľný (raz na preverenie, len ak by bol pod okrajom okna)
+  const resultRef = useRef<HTMLDivElement>(null);
+  const scrolledFor = useRef<string>("");
+  useEffect(() => {
+    if (!report || report.notFound || pendingCount > 0 || scrolledFor.current === report.scanId) return;
+    scrolledFor.current = report.scanId;
+    const el = resultRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.bottom > window.innerHeight && window.scrollY < el.offsetTop) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [report, pendingCount]);
   // koliesko priebehu: všetky zdroje, ktoré server skúša sám (aj registre bez API – VšZP, Union, ÚVO, diskvalifikácie, OV, exekúcie);
   // mimo sú len tie vždy ručné (CRE, Dôvera) a karta obchodu
   const totalAuto = checks.filter((c) => !ALWAYS_MANUAL.includes(c.id) && c.id !== "deal").length || 1;
@@ -491,7 +502,7 @@ export default function Page() {
       <Header me={me} active="check" />
 
       <main className="wrap">
-        <section className="hero no-print">
+        <section className={`hero no-print${report && !report.notFound ? " compact" : ""}`}>
           <h1>{lawyer ? "Preverenie obchodného partnera – rozšírené" : "Preverte si obchodného partnera"}</h1>
           <p>
             {lawyer
@@ -511,6 +522,7 @@ export default function Page() {
             <input inputMode="numeric" placeholder="IČO, napr. 47244895" value={ico} onChange={(e) => setIco(e.target.value)} aria-label="IČO" autoFocus />
             <button className="btn" disabled={loading}>{loading ? "Preverujem…" : "Preveriť"}</button>
           </form>
+          <div className="hero-row">
           {lawyer && (
             <div className="coop">
               <label className="check-row"><input type="radio" name="coop" checked={coop === "new"} onChange={() => setCoop("new")} /><span>Nová spolupráca</span></label>
@@ -519,7 +531,7 @@ export default function Page() {
                 <span>Existujúca spolupráca od</span>
               </label>
               <input type="date" value={coopDate} max={new Date().toISOString().slice(0, 10)} min="1993-01-01" onChange={(e) => { setCoopDate(e.target.value); if (e.target.value) setCoop("existing"); }} aria-label="Rozhodný dátum začiatku spolupráce" disabled={coop !== "existing"} />
-              <span className="hint" style={{ margin: 0 }}>Pri existujúcej spolupráci protokol doplní, čo bolo k rozhodnému dátumu zistiteľné z registrov (spätné preverenie).</span>
+              <span className="hint coop-hint" style={{ margin: 0 }}>Pri existujúcej spolupráci protokol doplní, čo bolo k rozhodnému dátumu zistiteľné z registrov (spätné preverenie).</span>
             </div>
           )}
           {recent.length > 0 && (
@@ -531,6 +543,7 @@ export default function Page() {
               ))}
             </div>
           )}
+          </div>
           {error && <div className="err">{error}</div>}
           {loading && !report && (
             <ul className="loading">
@@ -589,6 +602,7 @@ export default function Page() {
                 </div>
               </section>
             ) : (
+            <div ref={resultRef} className="result-anchor">
             <VerdictPanel
               verdict={verdict}
               checks={checks}
@@ -603,6 +617,7 @@ export default function Page() {
               saveHref="#ulozit-protokol"
               note={!lawyer ? <div className="hint">Hodnotenie vychádza z verejne dostupných registrov. Exekúcie a zdravotné poisťovne nie sú verejne prístupné – nájdete ich v časti Ďalšie odporúčané overenia.</div> : undefined}
             />
+            </div>
             )}
 
             {Object.values(aiBusy).some(Boolean) && (

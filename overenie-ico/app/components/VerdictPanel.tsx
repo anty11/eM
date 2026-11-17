@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { WARNING_CAP } from "@/lib/scoring";
 import type { CheckResult, CompanyProfile, Finding, Verdict } from "@/lib/types";
 
@@ -106,7 +106,10 @@ export default function VerdictPanel({
   const positives = checks.flatMap((c) => c.findings.filter((f) => f.severity === "positive"));
   const clean = counted.filter((c) => c.status === "ok").map(shortName);
   const capFinding = checks.flatMap((c) => c.findings).find((f) => f.cap === "caution");
+  /** na obrazovke najprv 3 zistenia (celý výsledok bez posúvania), rozbaliť do 5; v tlači vždy 5 */
   const SHOWN = 5;
+  const FIRST = 3;
+  const [expanded, setExpanded] = useState(false);
 
   const missing = Math.max(0, T_RECOMMENDED - verdict.score);
   const advice =
@@ -195,7 +198,7 @@ export default function VerdictPanel({
               {rows.slice(0, SHOWN).map(({ f, c }, i) => {
                 const { title, detail } = splitFinding(f.text);
                 return (
-                  <li key={i} className={`vp-row ${f.severity}`}>
+                  <li key={i} className={`vp-row ${f.severity}${i >= FIRST && !expanded ? " vp-extra" : ""}`}>
                     <span className="vp-ic"><Icon severity={f.severity} /></span>
                     <div className="vp-txt">
                       <b>{title}</b>
@@ -212,8 +215,15 @@ export default function VerdictPanel({
                   </li>
                 );
               })}
+              {rows.length > FIRST && (
+                <li className="vp-toggle no-print">
+                  <button type="button" className="linkbtn" onClick={() => setExpanded((x) => !x)} aria-expanded={expanded}>
+                    {expanded ? "Zobraziť menej" : `Zobraziť ďalšie zistenia (${Math.min(rows.length, SHOWN) - FIRST})`}
+                  </button>
+                </li>
+              )}
               {rows.length > SHOWN && (
-                <li className="vp-more">
+                <li className={`vp-more${expanded ? "" : " vp-extra"}`}>
                   + {rows.length - SHOWN} {plural(rows.length - SHOWN, "ďalšie zistenie", "ďalšie zistenia", "ďalších zistení")} pri jednotlivých kontrolách nižšie
                 </li>
               )}

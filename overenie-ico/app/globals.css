@@ -634,3 +634,40 @@ textarea { width: 100%; min-height: 80px; }
   .vpanel .vp-btns { width: 100%; }
   .vpanel .vp-btns .btn { flex: 1 1 auto; text-align: center; }
 }
+
+/* Výsledok bez posúvania (v2.11.37): po vyhodnotení sa hlavička stránky zhustí, panel ukáže 3 najväčšie zistenia
+   (ďalšie po rozkliknutí; v tlači vždy 5) a stránka sa po dokončení posunie k výsledku */
+@media screen {
+  .hero > p { max-width: none; }
+  .hero-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; margin-top: 14px; }
+  .hero-row .coop, .hero-row .recent { margin-top: 0; }
+  .hero-row .coop { flex: 1 1 auto; }
+  .hero-row .recent { justify-content: flex-end; }
+  .hero.compact { padding: 22px 0 0; }
+  .hero.compact h1 { font-size: clamp(20px, 1.9vw, 24px); margin-bottom: 4px; }
+  .hero.compact > p { font-size: 13.5px; line-height: 1.5; margin-bottom: 14px; }
+  .hero.compact .search { padding: 6px; }
+  .hero.compact .search input { font-size: 18px; padding: 8px 12px; }
+  .hero.compact .search .btn { padding: 10px 24px; }
+  .hero.compact .coop-hint { display: none; }
+  .hero.compact .coop { padding: 0 4px; gap: 6px 18px; }
+  .hero.compact .coop .check-row { font-size: 14px; }
+  .hero.compact .recent { padding: 0; }
+  .hero.compact + * , .result-anchor { scroll-margin-top: 12px; }
+  .result-anchor > .vpanel { margin-top: 16px; }
+  .card.vpanel { padding: 0; }
+  .modal h2 { font-family: var(--font); letter-spacing: -0.01em; }
+  .vpanel .vp-extra { display: none; }
+  .vpanel .vp-toggle { padding: 2px 4px; font-size: 13px; }
+  .vpanel .vp-top { padding: 16px 28px 14px; }
+  .vpanel .vp-body { padding: 20px 28px 22px; }
+  .vpanel .vp-num { margin: 6px 0 12px; }
+  .vpanel .vp-num b { font-size: 80px; }
+  .vpanel .vp-score { gap: 20px; }
+}
+@media print { .vpanel .vp-toggle { display: none; } .vpanel .vp-extra { display: grid; } .vpanel li.vp-more.vp-extra { display: block; } }
+@media screen and (max-width: 600px) {
+  .hero-row { flex-direction: column; align-items: flex-start; }
+  .hero-row .recent { justify-content: flex-start; }
+  .vpanel .vp-num b { font-size: 68px; }
+}
