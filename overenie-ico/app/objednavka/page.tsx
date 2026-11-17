@@ -49,6 +49,11 @@ export default function OrderPage() {
               Vyplňte údaje o spoločnosti a kontaktnej osobe. Do jedného pracovného dňa vám pošleme cenovú ponuku podľa počtu poverených zamestnancov,
               zmluvu a po jej potvrdení prístupy do klientskej sekcie. Objednávka je do podpisu zmluvy nezáväzná.
             </p>
+            <ol className="s-next">
+              <li><b>Odošlete objednávku</b><span>verzia, počet poverených zamestnancov, kontakt</span></li>
+              <li><b>Do jedného pracovného dňa</b><span>cenová ponuka a zmluva na e-mail</span></li>
+              <li><b>Po potvrdení zmluvy</b><span>prístupy do klientskej sekcie a úvodné školenie (Rozšírené)</span></li>
+            </ol>
           </div>
 
           {done ? (

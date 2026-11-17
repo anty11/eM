@@ -642,6 +642,11 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.38** – Modernizácia verejného webu (`app/site.css`, `Hero.tsx`, objednávka): nadpisy bez pätiek s vyváženým zalomením,
+  bodka pri nadpisoch častí, jednotné zaoblenia (16 px) a tlačidlá; v úvode ukazovatele (17 zdrojov · 10 – 30 s · pečať SHA-256)
+  a pás „Údaje priamo zo zdrojov“ s inštitúciami; tabuľka verzií na úvodnej strane na celú šírku obsahu (zarovnaná s nadpisom
+  a kartami); objednávka v dvoch stĺpcoch – vľavo nadpis a postup v troch krokoch, vpravo formulár. Text do bloku ostáva len
+  v dlhých odsekoch a od 700 px; v kartách, krokoch, zozname registrov a na telefóne zarovnanie vľavo (bez veľkých medzier).
 - **v2.11.37** – Výsledok bez posúvania: po vyhodnotení sa hlavička stránky preverenia zhustí (menší nadpis, popis v dlhšom
   riadku, voľba spolupráce a posledné preverenia v jednom riadku, vysvetlivka k spätnému prevereniu skrytá), panel výsledku ukáže
   3 najväčšie zistenia a ďalšie po kliknutí „Zobraziť ďalšie zistenia“ (tlačený protokol vždy 5) a stránka sa po dokončení

@@ -15,6 +15,11 @@ export function Hero({ lead }: { lead?: string }) {
               <a className="s-btn gold" href="/objednavka">Objednať pre našu firmu</a>
               <a className="s-btn light" href="/login">Klientska sekcia</a>
             </div>
+            <ul className="s-stats">
+              <li><b>17</b><span>registrov a zdrojov</span></li>
+              <li><b>10 – 30 s</b><span>trvá jedno preverenie</span></li>
+              <li><b>SHA-256</b><span>pečať a verejné overenie protokolu</span></li>
+            </ul>
           </div>
           <div className="s-proto" aria-hidden>
             <div className="ph">
@@ -38,9 +43,18 @@ export function Hero({ lead }: { lead?: string }) {
             </ul>
           </div>
         </div>
+        <div className="s-wrap s-sources" aria-label="Zdroje údajov">
+          <span>Údaje priamo zo zdrojov</span>
+          <ul>
+            {SOURCES.map((x) => <li key={x}>{x}</li>)}
+          </ul>
+        </div>
       </section>
   );
 }
+
+/** Inštitúcie, z ktorých registrov preverenie čerpá (pás pod úvodom). */
+const SOURCES = ["Štatistický úrad SR", "Finančná správa SR", "Sociálna poisťovňa", "Ministerstvo spravodlivosti SR", "Register účtovných závierok", "Obchodný vestník", "Úrad pre verejné obstarávanie", "zdravotné poisťovne"];
 
 /** Karty advokátskych kancelárií s odbornou záštitou – len popis a odkaz na web. */
 export function Firms() {
