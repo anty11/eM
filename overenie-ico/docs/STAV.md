@@ -642,6 +642,8 @@ Každý riadok je stav nasadený na Vercel, ku ktorému sa dá vrátiť. Návrat
   ukáže, „postaviť index teraz“ spustí obnovu ručne). Pri menej ako 100 000 platiteľoch sa index neprepíše (chybný súbor).
 - **v2.11.29** – Odkaz na FOAF v sekcii Médiá viedol na neexistujúcu adresu (`/firmy/<IČO>` – FOAF ju presmeruje na úvod);
   profil firmy je `https://www.foaf.sk/<IČO>` (overené 2. 11. 2026).
+- **v2.11.40** – Ukážka výsledku v úvode webu: namiesto zmeny konateľa chýbajúca účtovná závierka za predchádzajúci rok (−15),
+  skóre 84 a verdikt S výhradou s odporúčaním vyžiadať si závierku – zodpovedá skutočnému hodnoteniu v aplikácii.
 - **v2.11.39** – Úvod webu: krátky hlavný nadpis „Obchodujte obozretne.“ s menším podnadpisom, kratší úvodný text zarovnaný
   vľavo bez delenia slov, ukážka vpravo prerobená na podobu aktuálneho panela výsledku (skóre 90 so stupnicou, Odporúčame,
   „Čo znižuje skóre“, bez záznamu) a zarovnaná na stred stĺpca; všetky odkazy v hlavičke webu až od 1800 px, inak menu „Viac“ –

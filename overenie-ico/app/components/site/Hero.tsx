@@ -32,19 +32,20 @@ export function Hero({ lead }: { lead?: string }) {
             <div className="s-vp-body">
               <div className="s-vp-score">
                 <span className="s-vp-eyebrow">Skóre dôveryhodnosti</span>
-                <div className="s-vp-num"><b>90</b><span>/100</span></div>
-                <div className="s-vp-scale"><i /><i /><i /><em style={{ width: "90%" }} /></div>
+                <div className="s-vp-num"><b>84</b><span>/100</span></div>
+                <div className="s-vp-scale"><i /><i /><i /><em style={{ width: "84%" }} /></div>
                 <div className="s-vp-ticks"><span>0</span><span>60</span><span>85</span></div>
-                <div className="s-vp-level"><span />Odporúčame</div>
+                <div className="s-vp-level caution"><span />S výhradou</div>
+                <small className="s-vp-advice">Vyžiadajte si chýbajúcu závierku.</small>
               </div>
               <div className="s-vp-why">
                 <span className="s-vp-eyebrow">Čo znižuje skóre</span>
                 <div className="s-vp-row">
                   <span className="s-vp-ic">!</span>
-                  <div><b>Zmena konateľa pred 40 dňami</b><small>overte dôvod a nové osoby · Obchodný register</small></div>
-                  <span className="s-vp-pen">−10</span>
+                  <div><b>Chýba účtovná závierka za rok 2025</b><small>posledná uložená je za 2024 · Register účtovných závierok</small></div>
+                  <span className="s-vp-pen">−15</span>
                 </div>
-                <div className="s-vp-clean"><span>✓</span>Bez záznamu: daňové dlhy, DPH, Sociálna poisťovňa, konkurz a likvidácia, závierky, exekúcie</div>
+                <div className="s-vp-clean"><span>✓</span>Bez záznamu: daňové dlhy, DPH, Sociálna poisťovňa, konkurz a likvidácia, exekúcie, médiá</div>
               </div>
             </div>
           </div>
